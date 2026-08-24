@@ -1,5 +1,7 @@
 # Sistema de Gestão de Compras Públicas
 
+[![CI](https://github.com/enzo-barbosa/gestao-compras-publicas-api/actions/workflows/ci.yml/badge.svg)](https://github.com/enzo-barbosa/gestao-compras-publicas-api/actions/workflows/ci.yml)
+
 Plataforma full-stack para gestão de despesas públicas municipais com um diferencial de arquitetura: **empenho por rateio mensal** em vez do modelo tradicional de empenhar o valor total do contrato de uma só vez — prática que satura o saldo orçamentário antes do fim do exercício e distorce os relatórios de execução.
 
 ## O problema que este projeto resolve
@@ -35,7 +37,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Banco | PostgreSQL 15 (Docker), Flyway-free schema auto-gerenciado + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 63 testes (JUnit 5 + Mockito + integração), JaCoCo ~78% de cobertura |
+| Qualidade | 68 testes (JUnit 5 + Mockito + integração), JaCoCo 78% de cobertura |
 
 ## Como rodar
 
@@ -57,7 +59,7 @@ senha: admin
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 63 testes
+./mvnw test                          # 68 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
@@ -134,4 +136,5 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 - [x] Fases 0–9: backend completo (dotações → créditos → fornecedores → licitações → contratos → empenhos → JWT)
 - [x] Fase 10: frontend React completo
 - [x] Fase 11: cobertura de testes, diagramas, smoke script e README
-- [ ] Fase 12: CI/CD (GitHub Actions) e deploy AWS
+- [x] Fase 12a: CI com GitHub Actions (testes, cobertura, lint) e imagens Docker publicadas no GHCR
+- [ ] Fase 12b: deploy em nuvem gerenciada (candidatos avaliados: Oracle Always Free, DigitalOcean via GitHub Student Pack, Render + Neon)
