@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import api from '../services/api'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
 import { extrairMensagemErro } from '../utils/format'
@@ -26,17 +26,19 @@ export default function FornecedoresPage() {
   const [form, setForm] = useState(FORM_VAZIO)
   const [editandoId, setEditandoId] = useState<number | null>(null)
 
-  async function carregar() {
-    setCarregando(true)
-    try {
-      const resposta = await api.get('/fornecedores', { params: { size: 100 } })
-      setItens(resposta.data.content ?? [])
-      setErro(null)
-    } catch (e) {
-      setErro(extrairMensagemErro(e))
-    } finally {
-      setCarregando(false)
-    }
+  function carregar() {
+    return api
+      .get('/fornecedores', { params: { size: 100 } })
+      .then((resposta) => {
+        setItens(resposta.data.content ?? [])
+        setErro(null)
+      })
+      .catch((e) => {
+        setErro(extrairMensagemErro(e))
+      })
+      .finally(() => {
+        setCarregando(false)
+      })
   }
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export default function FornecedoresPage() {
         setSucesso('Fornecedor atualizado com sucesso.')
       }
       cancelar()
+      setCarregando(true)
       await carregar()
     } catch (e) {
       setErro(extrairMensagemErro(e))
@@ -92,6 +95,7 @@ export default function FornecedoresPage() {
     try {
       await api.delete(`/fornecedores/${id}`)
       setSucesso('Fornecedor removido.')
+      setCarregando(true)
       await carregar()
     } catch (e) {
       setErro(extrairMensagemErro(e))

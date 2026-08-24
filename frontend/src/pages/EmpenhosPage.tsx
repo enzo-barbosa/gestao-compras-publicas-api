@@ -30,19 +30,21 @@ export default function EmpenhosPage() {
   const [erro, setErro] = useState<string | null>(null)
   const [filtroStatus, setFiltroStatus] = useState('')
 
-  async function carregar() {
-    setCarregando(true)
-    try {
-      const resposta = await api.get('/empenhos', {
+  function carregar() {
+    return api
+      .get('/empenhos', {
         params: { size: 100, sort: 'dataEmissao,desc' },
       })
-      setItens(resposta.data.content ?? [])
-      setErro(null)
-    } catch (e) {
-      setErro(extrairMensagemErro(e))
-    } finally {
-      setCarregando(false)
-    }
+      .then((resposta) => {
+        setItens(resposta.data.content ?? [])
+        setErro(null)
+      })
+      .catch((e) => {
+        setErro(extrairMensagemErro(e))
+      })
+      .finally(() => {
+        setCarregando(false)
+      })
   }
 
   useEffect(() => {
@@ -54,6 +56,7 @@ export default function EmpenhosPage() {
     setErro(null)
     try {
       await api.delete(`/empenhos/${id}`)
+      setCarregando(true)
       await carregar()
     } catch (e) {
       setErro(extrairMensagemErro(e))

@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider } from './context/AuthProvider'
 import Navbar from './components/Navbar'
 import RotaProtegida from './components/RotaProtegida'
 import LoginPage from './pages/LoginPage'

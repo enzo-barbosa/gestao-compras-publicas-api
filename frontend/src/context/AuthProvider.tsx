@@ -1,23 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import api, { TOKEN_KEY, USUARIO_KEY } from '../services/api'
-
-export interface UsuarioLogado {
-  id: number
-  nome: string
-  email: string
-  perfil: string
-}
-
-interface AuthContexto {
-  usuario: UsuarioLogado | null
-  autenticado: boolean
-  ehAdmin: boolean
-  login: (email: string, senha: string) => Promise<void>
-  logout: () => void
-}
-
-const AuthContext = createContext<AuthContexto | null>(null)
+import { AuthContext } from './AuthContext'
+import type { UsuarioLogado } from './AuthContext'
 
 function carregarUsuario(): UsuarioLogado | null {
   try {
@@ -69,12 +54,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>
-}
-
-export function useAuth(): AuthContexto {
-  const contexto = useContext(AuthContext)
-  if (!contexto) {
-    throw new Error('useAuth deve ser usado dentro de AuthProvider')
-  }
-  return contexto
 }
