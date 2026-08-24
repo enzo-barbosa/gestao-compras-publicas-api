@@ -1,0 +1,231 @@
+package com.gestaocompras.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.gestaocompras.dto.EmpenhoRequestDTO;
+import com.gestaocompras.exception.OperacaoNaoPermitidaException;
+import com.gestaocompras.exception.RegistroDuplicadoException;
+import com.gestaocompras.exception.SaldoInsuficienteException;
+import com.gestaocompras.model.Contrato;
+import com.gestaocompras.model.DotacaoOrcamentaria;
+import com.gestaocompras.model.Empenho;
+import com.gestaocompras.model.Fornecedor;
+import com.gestaocompras.model.StatusContrato;
+import com.gestaocompras.model.StatusEmpenho;
+import com.gestaocompras.model.TipoMovimentacao;
+import com.gestaocompras.repository.ContratoRepository;
+import com.gestaocompras.repository.EmpenhoRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class EmpenhoServiceTest {
+
+    @Mock
+    private EmpenhoRepository empenhoRepository;
+
+    @Mock
+    private ContratoRepository contratoRepository;
+
+    @Mock
+    private DotacaoService dotacaoService;
+
+    @InjectMocks
+    private EmpenhoService empenhoService;
+
+    private DotacaoOrcamentaria dotacao;
+    private Contrato contratoVigente;
+
+    @BeforeEach
+    void setUp() {
+        dotacao = DotacaoOrcamentaria.builder()
+                .id(1L)
+                .codigo("3.3.90.30")
+                .descricao("Material de consumo")
+                .anoExercicio(2026)
+                .saldoInicial(new BigDecimal("25000.00"))
+                .saldoAtual(new BigDecimal("25000.00"))
+                .build();
+        contratoVigente = Contrato.builder()
+                .id(30L)
+                .numero("014/2026")
+                .objeto("Fornecimento de material de escritório")
+                .valorTotal(new BigDecimal("60000.00"))
+                .duracaoMeses(6)
+                .dataInicio(LocalDate.of(2026, 1, 1))
+                .status(StatusContrato.VIGENTE)
+                .saldoRestante(new BigDecimal("60000.00"))
+                .dotacao(dotacao)
+                .fornecedor(Fornecedor.builder().id(2L).nome("Papelaria Central LTDA")
+                        .cnpj("11444777000161").build())
+                .build();
+    }
+
+    private EmpenhoRequestDTO request(Integer mes, Integer ano) {
+        return new EmpenhoRequestDTO(30L, mes, ano);
+    }
+
+    private void contratoEncontrado() {
+        when(contratoRepository.findById(30L)).thenReturn(Optional.of(contratoVigente));
+    }
+
+    @Test
+    void gerarDeveCriarEmpenhoComValorMensalEDebitarOsDoisSaldos() {
+        contratoEncontrado();
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 1)).thenReturn(false);
+        when(empenhoRepository.save(any(Empenho.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        var resposta = empenhoService.gerar(request(1, 2026));
+
+        assertThat(resposta.valor()).isEqualByComparingTo("10000.00");
+        assertThat(resposta.status()).isEqualTo(StatusEmpenho.EMPENHADO.name());
+        verify(dotacaoService).debitar(eq(1L), eq(new BigDecimal("10000.00")),
+                contains("01/2026"));
+        assertThat(contratoVigente.getSaldoRestante()).isEqualByComparingTo("50000.00");
+    }
+
+    @Test
+    void gerarDeveUsarValorMensalArredondadoQuandoDivisaoNaoExata() {
+        contratoVigente.setValorTotal(new BigDecimal("10000.00"));
+        contratoVigente.setDuracaoMeses(3);
+        contratoVigente.setDataInicio(LocalDate.of(2026, 1, 1));
+        contratoEncontrado();
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 1)).thenReturn(false);
+        when(empenhoRepository.save(any(Empenho.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        var resposta = empenhoService.gerar(request(1, 2026));
+
+        assertThat(resposta.valor()).isEqualByComparingTo("3333.33");
+    }
+
+    @Test
+    void naoDeveGerarCompetenciaForaDaVigenciaDoContrato() {
+        contratoEncontrado();
+
+        assertThatThrownBy(() -> empenhoService.gerar(request(7, 2026)))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+
+        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+    }
+
+    @Test
+    void naoDeveGerarComMesInvalido() {
+        assertThatThrownBy(() -> empenhoService.gerar(request(13, 2026)))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(empenhoRepository, never()).save(any(Empenho.class));
+    }
+
+    @Test
+    void naoDeveGerarCompetenciaDuplicada() {
+        contratoEncontrado();
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 1)).thenReturn(true);
+
+        assertThatThrownBy(() -> empenhoService.gerar(request(1, 2026)))
+                .isInstanceOf(RegistroDuplicadoException.class);
+
+        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+    }
+
+    @Test
+    void naoDeveGerarComSaldoInsuficienteNaDotacao() {
+        contratoEncontrado();
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 2)).thenReturn(false);
+        dotacao.setSaldoAtual(new BigDecimal("5000.00"));
+
+        assertThatThrownBy(() -> empenhoService.gerar(request(2, 2026)))
+                .isInstanceOf(SaldoInsuficienteException.class)
+                .hasMessageContaining("dotação");
+
+        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+        verify(empenhoRepository, never()).save(any(Empenho.class));
+    }
+
+    @Test
+    void naoDeveGerarComSaldoRestanteInsuficienteNoContrato() {
+        contratoEncontrado();
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 5)).thenReturn(false);
+        contratoVigente.setSaldoRestante(new BigDecimal("9000.00"));
+
+        assertThatThrownBy(() -> empenhoService.gerar(request(5, 2026)))
+                .isInstanceOf(SaldoInsuficienteException.class)
+                .hasMessageContaining("contrato");
+
+        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+    }
+
+    @Test
+    void naoDeveGerarParaContratoNaoVigente() {
+        contratoVigente.setStatus(StatusContrato.RESCINDIDO);
+        contratoEncontrado();
+
+        assertThatThrownBy(() -> empenhoService.gerar(request(1, 2026)))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+
+        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+    }
+
+    @Test
+    void anularDeveEstornarOSaldoDaDotacaoEDoContrato() {
+        Empenho empenho = Empenho.builder()
+                .id(40L)
+                .contrato(contratoVigente)
+                .mesReferencia(1)
+                .anoReferencia(2026)
+                .valor(new BigDecimal("10000.00"))
+                .status(StatusEmpenho.EMPENHADO)
+                .dataEmissao(LocalDate.now())
+                .build();
+        contratoVigente.setSaldoRestante(new BigDecimal("50000.00"));
+        when(empenhoRepository.findById(40L)).thenReturn(Optional.of(empenho));
+
+        var resposta = empenhoService.anular(40L);
+
+        assertThat(resposta.status()).isEqualTo(StatusEmpenho.ANULADO.name());
+        verify(dotacaoService).creditar(eq(1L), eq(new BigDecimal("10000.00")),
+                contains("anulação"), eq(TipoMovimentacao.ESTORNO));
+        assertThat(contratoVigente.getSaldoRestante()).isEqualByComparingTo("60000.00");
+    }
+
+    @Test
+    void naoDeveAnularEmpenhoLiquidado() {
+        Empenho empenho = Empenho.builder()
+                .id(41L)
+                .contrato(contratoVigente)
+                .mesReferencia(1)
+                .anoReferencia(2026)
+                .valor(new BigDecimal("10000.00"))
+                .status(StatusEmpenho.LIQUIDADO)
+                .dataEmissao(LocalDate.now())
+                .build();
+        when(empenhoRepository.findById(41L)).thenReturn(Optional.of(empenho));
+
+        assertThatThrownBy(() -> empenhoService.anular(41L))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+
+        verify(dotacaoService, never()).creditar(anyLong(), any(), anyString());
+    }
+}
