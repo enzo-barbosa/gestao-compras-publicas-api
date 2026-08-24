@@ -103,9 +103,15 @@ public class DotacaoService {
 
     @Transactional
     public void creditar(Long dotacaoId, BigDecimal valor, String descricao) {
+        creditar(dotacaoId, valor, descricao, TipoMovimentacao.CREDITO_SUPLEMENTAR);
+    }
+
+    @Transactional
+    public void creditar(Long dotacaoId, BigDecimal valor, String descricao,
+            TipoMovimentacao tipo) {
         DotacaoOrcamentaria dotacao = buscarEntidade(dotacaoId);
         dotacao.creditar(valor);
-        registrarMovimentacao(dotacao, TipoMovimentacao.CREDITO_SUPLEMENTAR, valor, descricao);
+        registrarMovimentacao(dotacao, tipo, valor, descricao);
     }
 
     private void registrarMovimentacao(DotacaoOrcamentaria dotacao, TipoMovimentacao tipo,

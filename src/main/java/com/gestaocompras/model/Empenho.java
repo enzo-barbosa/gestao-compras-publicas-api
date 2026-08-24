@@ -8,13 +8,12 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,33 +21,41 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "movimentacoes_dotacao")
+@Table(name = "empenhos", uniqueConstraints = @UniqueConstraint(
+        name = "uk_empenho_contrato_competencia",
+        columnNames = {"contrato_id", "ano_referencia", "mes_referencia"}))
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class MovimentacaoDotacao {
+public class Empenho {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "dotacao_id", nullable = false)
-    private DotacaoOrcamentaria dotacao;
+    @JoinColumn(name = "contrato_id", nullable = false)
+    private Contrato contrato;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(nullable = false, length = 30)
-    private TipoMovimentacao tipo;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id")
+    private Usuario usuario;
+
+    @Column(name = "mes_referencia", nullable = false)
+    private Integer mesReferencia;
+
+    @Column(name = "ano_referencia", nullable = false)
+    private Integer anoReferencia;
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal valor;
 
-    @Column(length = 200)
-    private String descricao;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private StatusEmpenho status;
 
-    @Column(nullable = false)
-    private LocalDateTime dataHora;
+    @Column(name = "data_emissao", nullable = false)
+    private LocalDate dataEmissao;
 }
