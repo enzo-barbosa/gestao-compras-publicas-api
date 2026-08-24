@@ -73,6 +73,14 @@ public class GlobalExceptionHandler {
                 .body(ErroResposta.of(HttpStatus.BAD_REQUEST.value(), "Requisição inválida", ex.getMessage()));
     }
 
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    public ResponseEntity<ErroResposta> handleCredenciaisInvalidas(
+            org.springframework.security.authentication.BadCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ErroResposta.of(HttpStatus.UNAUTHORIZED.value(), "Não autenticado",
+                        ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErroResposta> handleGenerico(Exception ex) {
         log.error("Erro interno não tratado", ex);

@@ -11,9 +11,11 @@ import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.model.Empenho;
 import com.gestaocompras.model.StatusContrato;
 import com.gestaocompras.model.StatusEmpenho;
+import com.gestaocompras.model.Usuario;
 import com.gestaocompras.model.TipoMovimentacao;
 import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
+import com.gestaocompras.repository.UsuarioRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,6 +25,8 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,13 +36,16 @@ public class EmpenhoService {
     private final EmpenhoRepository empenhoRepository;
     private final ContratoRepository contratoRepository;
     private final DotacaoService dotacaoService;
+    private final UsuarioRepository usuarioRepository;
 
     public EmpenhoService(EmpenhoRepository empenhoRepository,
             ContratoRepository contratoRepository,
-            DotacaoService dotacaoService) {
+            DotacaoService dotacaoService,
+            UsuarioRepository usuarioRepository) {
         this.empenhoRepository = empenhoRepository;
         this.contratoRepository = contratoRepository;
         this.dotacaoService = dotacaoService;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @Transactional
@@ -80,7 +87,7 @@ public class EmpenhoService {
         }
         Empenho empenho = empenhoRepository.save(Empenho.builder()
                 .contrato(contrato)
-                .usuario(null)
+                .usuario(usuarioAutenticado())
                 .mesReferencia(mes)
                 .anoReferencia(ano)
                 .valor(valorMensal)
@@ -126,6 +133,14 @@ public class EmpenhoService {
     @Transactional(readOnly = true)
     public EmpenhoResponseDTO buscarPorId(Long id) {
         return EmpenhoResponseDTO.from(buscarEntidade(id));
+    }
+
+    private Usuario usuarioAutenticado() {
+        Authentication autenticacao = SecurityContextHolder.getContext().getAuthentication();
+        if (autenticacao == null || !autenticacao.isAuthenticated()) {
+            return null;
+        }
+        return usuarioRepository.findByEmail(autenticacao.getName()).orElse(null);
     }
 
     private void validarCompetenciaNaVigencia(Contrato contrato, Integer mes, Integer ano) {
