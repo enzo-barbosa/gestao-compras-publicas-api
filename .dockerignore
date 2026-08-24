@@ -1,0 +1,15 @@
+.git
+.idea
+.github
+.mvn
+target
+frontend
+docs
+scripts
+logs
+mvnw
+mvnw.cmd
+*.md
+*.log
+.env*
+docker-compose*
