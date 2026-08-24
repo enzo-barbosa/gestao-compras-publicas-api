@@ -319,3 +319,135 @@ textarea:focus {
   display: flex;
   gap: 8px;
 }
+
+/* ===== Formulários (onda B) ===== */
+
+.form-card {
+  margin-bottom: 24px;
+}
+
+.form-card h3 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  color: var(--azul-900);
+}
+
+.grade-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.grade-form > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 180px;
+  flex: 1;
+}
+
+.grade-form .campo-largo {
+  min-width: 320px;
+  flex: 2;
+}
+
+.grade-form label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #55677a;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.grade-form input,
+.grade-form select {
+  border: 1px solid var(--cinza-borda);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--azul-900);
+}
+
+.grade-form input:focus,
+.grade-form select:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.35);
+  border-color: var(--azul-600);
+}
+
+.grade-form input:disabled {
+  background: #eef2f6;
+  color: #7b8a97;
+  cursor: not-allowed;
+}
+
+.acoes-form {
+  flex-direction: row !important;
+  gap: 8px !important;
+}
+
+.form-card.destaque {
+  border-left: 4px solid var(--verde-600);
+}
+
+.linha-vencedor {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.linha-vencedor select {
+  flex: 1;
+  min-width: 240px;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.dica {
+  width: 100%;
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #7b8a97;
+}
+
+/* ===== Células e badges de status ===== */
+
+.mono {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 13px;
+}
+
+.objeto {
+  display: block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.texto-verde { color: var(--verde-600); }
+.texto-vermelho { color: var(--vermelho-600); }
+
+.badge.status-aberta,
+.badge.status-vigente {
+  background: var(--verde-100);
+  color: var(--verde-600);
+}
+
+.badge.status-homologada,
+.badge.status-encerrada {
+  background: var(--azul-100, #dbeafe);
+  color: var(--azul-600, #2563eb);
+}
+
+.badge.status-cancelada,
+.badge.status-rescindido {
+  background: var(--vermelho-100);
+  color: var(--vermelho-600);
+}

@@ -4,6 +4,10 @@ import Navbar from './components/Navbar'
 import RotaProtegida from './components/RotaProtegida'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
+import DotacoesPage from './pages/DotacoesPage'
+import FornecedoresPage from './pages/FornecedoresPage'
+import LicitacoesPage from './pages/LicitacoesPage'
+import ContratosPage from './pages/ContratosPage'
 
 export default function App() {
   return (
@@ -20,6 +24,10 @@ export default function App() {
                   <main className="conteudo">
                     <Routes>
                       <Route path="/" element={<DashboardPage />} />
+                      <Route path="dotacoes" element={<DotacoesPage />} />
+                      <Route path="fornecedores" element={<FornecedoresPage />} />
+                      <Route path="licitacoes" element={<LicitacoesPage />} />
+                      <Route path="contratos" element={<ContratosPage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </main>
