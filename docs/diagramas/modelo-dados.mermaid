@@ -1,0 +1,80 @@
+erDiagram
+    USUARIO {
+        bigint id PK
+        varchar nome
+        varchar email UK
+        varchar senha_hash
+        enum perfil "ADMIN ou USUARIO"
+    }
+
+    DOTACAO_ORCAMENTARIA {
+        bigint id PK
+        varchar codigo UK
+        varchar descricao
+        numeric saldo_inicial "imutavel apos criacao"
+        numeric saldo_atual "governado por movimentacoes"
+        int ano_exercicio
+    }
+
+    MOVIMENTACAO_DOTACAO {
+        bigint id PK
+        bigint dotacao_id FK
+        enum tipo "CREDITO, DEBITO, CREDITO_SUPLEMENTAR, ESTORNO"
+        numeric valor
+        varchar descricao
+        timestamp data_hora
+    }
+
+    FORNECEDOR {
+        bigint id PK
+        varchar nome
+        varchar cnpj UK "validado digito mod 11"
+        varchar email
+        varchar telefone
+        varchar endereco
+    }
+
+    LICITACAO {
+        bigint id PK
+        varchar numero_edital UK
+        enum modalidade "9 valores - Leis 8666 e 14133"
+        varchar objeto
+        date data_abertura
+        date data_encerramento
+        enum status "ABERTA, ENCERRADA, HOMOLOGADA, CANCELADA"
+        numeric valor_estimado
+        bigint vencedor_id FK "opcional - definido ao encerrar"
+    }
+
+    CONTRATO {
+        bigint id PK
+        varchar numero UK
+        varchar objeto
+        numeric valor_total "imutavel apos criacao"
+        int duracao_meses "imutavel apos criacao"
+        date data_inicio
+        enum status "VIGENTE, ENCERRADO, RESCINDIDO"
+        numeric saldo_restante "nasce igual ao valor_total"
+        bigint dotacao_id FK "obrigatorio"
+        bigint fornecedor_id FK "obrigatorio"
+        bigint licitacao_id FK "opcional"
+    }
+
+    EMPENHO {
+        bigint id PK
+        bigint contrato_id FK
+        bigint usuario_id FK "auditoria de quem gerou"
+        int mes_referencia
+        int ano_referencia
+        numeric valor "valor_mensal do contrato"
+        enum status "EMPENHADO, ANULADO, LIQUIDADO"
+        date data_emissao
+    }
+
+    DOTACAO_ORCAMENTARIA ||--o{ MOVIMENTACAO_DOTACAO : "registra"
+    DOTACAO_ORCAMENTARIA ||--o{ CONTRATO : "orcamenta"
+    FORNECEDOR ||--o{ LICITACAO : "vence"
+    FORNECEDOR ||--o{ CONTRATO : "executa"
+    LICITACAO |o--o| CONTRATO : "formaliza"
+    CONTRATO ||--o{ EMPENHO : "rateia por competencia"
+    USUARIO ||--o{ EMPENHO : "gera"

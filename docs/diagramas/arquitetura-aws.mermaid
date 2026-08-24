@@ -1,0 +1,33 @@
+flowchart LR
+    subgraph Usuarios["Usuários"]
+        U1["Gestores públicos<br/>(browser)"]
+    end
+
+    subgraph Edge["Edge / Entrega"]
+        R53["Route 53<br/>DNS"]
+        CF["CloudFront"]
+        S3["S3<br/>build estático React<br/>(frontend)"]
+    end
+
+    subgraph Aplicacao["Aplicação Spring Boot"]
+        ALB["Application<br/>Load Balancer<br/>(TLS)"]
+        ECS["ECS Fargate<br/>container Java 21<br/>2+ tarefas em AZs distintas"]
+        ECR["ECR<br/>imagem Docker"]
+    end
+
+    subgraph Dados["Dados e Segurança"]
+        RDS[("RDS PostgreSQL 15<br/>Multi-AZ")]
+        SM["Secrets Manager<br/>jwt.secret + senha do banco"]
+        CW["CloudWatch<br/>logs e métricas"]
+    end
+
+    U1 --> R53 --> CF
+    CF --> S3
+    CF -- "proxy /api" --> ALB --> ECS
+    ECR -.->|deploy| ECS
+    ECS --> RDS
+    ECS -.-> SM
+    ECS -.-> CW
+
+    style ECS fill:#dbeafe,stroke:#2563eb
+    style RDS fill:#dcfce7,stroke:#16a34a

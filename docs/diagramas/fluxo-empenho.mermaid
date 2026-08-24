@@ -1,0 +1,35 @@
+flowchart TD
+    A["POST /api/empenhos<br/>contratoId + mes + ano"] --> B{"mes entre 1 e 12?<br/>ano valido?"}
+    B -- "nao" --> B1["400 - erro de validacao"]
+    B -- "sim" --> C{"contrato existe?"}
+    C -- "nao" --> C1["404 - nao encontrado"]
+    C -- "sim" --> D{"status = VIGENTE?"}
+    D -- "nao" --> D1["409 - operacao nao permitida"]
+    D -- "sim" --> E{"competencia dentro da<br/>vigencia do contrato?"}
+    E -- "nao" --> E1["409 - fora da vigencia"]
+    E -- "sim" --> F{"ja existe empenho deste<br/>contrato nesta competencia?<br/>(mesmo anulado)"}
+    F -- "sim" --> F1["409 - registro duplicado"]
+    F -- "nao" --> G["valor = valorTotal / duracaoMeses<br/>(HALF_UP, escala 2)"]
+    G --> H{"saldo dotação >= valor?"}
+    H -- "nao" --> H1["400 - saldo insuficiente na dotação"]
+    H -- "sim" --> I{"saldoRestante contrato >= valor?"}
+    I -- "nao" --> I1["400 - saldo restante insuficiente"]
+    I -- "sim" --> J["TRANSAÇÃO ATÔMICA:<br/>1. salva empenho (EMPENHADO)<br/>2. debita saldoAtual da dotação<br/>3. subtrai saldoRestante do contrato"]
+    J --> K["201 Created<br/>auditoria: usuarioId via JWT"]
+
+    L["DELETE /api/empenhos/{id}"] --> M{"empenho existe?"}
+    M -- "nao" --> M1["404"]
+    M -- "sim" --> N{"status = EMPENHADO?"}
+    N -- "nao" --> N1["409 - ja anulado ou liquidado"]
+    N -- "sim" --> O["TRANSAÇÃO DE ESTORNO:<br/>1. credita saldoAtual da dotação (ESTORNO)<br/>2. devolve ao saldoRestante do contrato<br/>3. status = ANULADO"]
+    O --> P["200 OK"]
+
+    style J fill:#dcfce7,stroke:#16a34a
+    style O fill:#dcfce7,stroke:#16a34a
+    style B1 fill:#fee2e2,stroke:#dc2626
+    style C1 fill:#fee2e2,stroke:#dc2626
+    style D1 fill:#fee2e2,stroke:#dc2626
+    style E1 fill:#fee2e2,stroke:#dc2626
+    style F1 fill:#fee2e2,stroke:#dc2626
+    style H1 fill:#fee2e2,stroke:#dc2626
+    style I1 fill:#fee2e2,stroke:#dc2626
