@@ -72,32 +72,33 @@ public class EmpenhoService {
                     "Já existe empenho do contrato %s para a competência %02d/%d."
                             .formatted(contrato.getNumero(), mes, ano));
         }
-        BigDecimal valorMensal = contrato.calcularValorMensal();
+        BigDecimal valorCompetencia = contrato.calcularValorCompetencia(YearMonth.of(ano, mes));
         DotacaoOrcamentaria dotacao = contrato.getDotacao();
-        if (dotacao.getSaldoAtual().compareTo(valorMensal) < 0) {
+        if (dotacao.getSaldoAtual().compareTo(valorCompetencia) < 0) {
             throw new SaldoInsuficienteException(
                     "Saldo insuficiente na dotação %s: disponível R$ %s, necessário R$ %s."
-                            .formatted(dotacao.getCodigo(), dotacao.getSaldoAtual(), valorMensal));
+                            .formatted(dotacao.getCodigo(), dotacao.getSaldoAtual(),
+                                    valorCompetencia));
         }
-        if (contrato.getSaldoRestante().compareTo(valorMensal) < 0) {
+        if (contrato.getSaldoRestante().compareTo(valorCompetencia) < 0) {
             throw new SaldoInsuficienteException(
                     "Saldo restante insuficiente no contrato %s: disponível R$ %s, necessário R$ %s."
                             .formatted(contrato.getNumero(), contrato.getSaldoRestante(),
-                                    valorMensal));
+                                    valorCompetencia));
         }
         Empenho empenho = empenhoRepository.save(Empenho.builder()
                 .contrato(contrato)
                 .usuario(usuarioAutenticado())
                 .mesReferencia(mes)
                 .anoReferencia(ano)
-                .valor(valorMensal)
+                .valor(valorCompetencia)
                 .status(StatusEmpenho.EMPENHADO)
                 .dataEmissao(LocalDate.now())
                 .build());
-        dotacaoService.debitar(dotacao.getId(), valorMensal,
+        dotacaoService.debitar(dotacao.getId(), valorCompetencia,
                 "Empenho competência %02d/%04d – contrato %s".formatted(mes, ano,
                         contrato.getNumero()));
-        contrato.setSaldoRestante(contrato.getSaldoRestante().subtract(valorMensal));
+        contrato.setSaldoRestante(contrato.getSaldoRestante().subtract(valorCompetencia));
         return EmpenhoResponseDTO.from(empenho);
     }
 

@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -69,6 +70,19 @@ public class Contrato {
 
     public BigDecimal calcularValorMensal() {
         return valorTotal.divide(BigDecimal.valueOf(duracaoMeses), 2, RoundingMode.HALF_UP);
+    }
+
+    public BigDecimal calcularValorCompetencia(YearMonth competencia) {
+        YearMonth inicio = YearMonth.from(dataInicio);
+        YearMonth fim = inicio.plusMonths(duracaoMeses - 1L);
+        if (competencia.isBefore(inicio) || competencia.isAfter(fim)) {
+            throw new IllegalArgumentException("Competência fora da vigência do contrato.");
+        }
+        if (!competencia.equals(fim)) {
+            return calcularValorMensal();
+        }
+        return valorTotal.subtract(
+                calcularValorMensal().multiply(BigDecimal.valueOf(duracaoMeses - 1L)));
     }
 
     public LocalDate calcularDataFimPrevista() {

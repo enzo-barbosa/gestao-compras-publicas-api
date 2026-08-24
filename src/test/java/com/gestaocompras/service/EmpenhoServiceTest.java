@@ -133,6 +133,52 @@ class EmpenhoServiceTest {
     }
 
     @Test
+    void gerarDeveAbsorverResiduoNaUltimaCompetencia() {
+        contratoVigente.setValorTotal(new BigDecimal("10000.00"));
+        contratoVigente.setDuracaoMeses(3);
+        contratoVigente.setDataInicio(LocalDate.of(2026, 1, 1));
+        contratoVigente.setSaldoRestante(new BigDecimal("3333.34"));
+        contratoEncontrado();
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 3)).thenReturn(false);
+        when(empenhoRepository.save(any(Empenho.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        var resposta = empenhoService.gerar(request(3, 2026));
+
+        assertThat(resposta.valor()).isEqualByComparingTo("3333.34");
+        verify(dotacaoService).debitar(eq(1L), eq(new BigDecimal("3333.34")),
+                contains("03/2026"));
+        assertThat(contratoVigente.getSaldoRestante()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void somaDasParcelasDeveFecharOValorTotalIndependenteDaOrdemDeCriacao() {
+        contratoVigente.setValorTotal(new BigDecimal("10000.00"));
+        contratoVigente.setDuracaoMeses(3);
+        contratoVigente.setDataInicio(LocalDate.of(2026, 1, 1));
+        contratoVigente.setSaldoRestante(new BigDecimal("10000.00"));
+        contratoEncontrado();
+        when(empenhoRepository.save(any(Empenho.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 3)).thenReturn(false);
+        var marco = empenhoService.gerar(request(3, 2026));
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 1)).thenReturn(false);
+        var janeiro = empenhoService.gerar(request(1, 2026));
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 2)).thenReturn(false);
+        var fevereiro = empenhoService.gerar(request(2, 2026));
+
+        assertThat(marco.valor()).isEqualByComparingTo("3333.34");
+        assertThat(janeiro.valor()).isEqualByComparingTo("3333.33");
+        assertThat(fevereiro.valor()).isEqualByComparingTo("3333.33");
+        assertThat(contratoVigente.getSaldoRestante()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
     void naoDeveGerarCompetenciaForaDaVigenciaDoContrato() {
         contratoEncontrado();
 

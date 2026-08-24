@@ -22,6 +22,7 @@ import com.gestaocompras.repository.FornecedorRepository;
 import com.gestaocompras.repository.LicitacaoRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -115,6 +116,46 @@ class ContratoServiceTest {
                 .build();
 
         assertThat(contrato.calcularValorMensal()).isEqualByComparingTo("3333.33");
+    }
+
+    @Test
+    void calcularValorCompetenciaDeveAbsorverResiduoNaUltimaParcela() {
+        var contrato = Contrato.builder()
+                .valorTotal(new BigDecimal("10000.00"))
+                .duracaoMeses(3)
+                .dataInicio(LocalDate.of(2026, 1, 1))
+                .build();
+
+        assertThat(contrato.calcularValorCompetencia(YearMonth.of(2026, 1)))
+                .isEqualByComparingTo("3333.33");
+        assertThat(contrato.calcularValorCompetencia(YearMonth.of(2026, 2)))
+                .isEqualByComparingTo("3333.33");
+        assertThat(contrato.calcularValorCompetencia(YearMonth.of(2026, 3)))
+                .isEqualByComparingTo("3333.34");
+    }
+
+    @Test
+    void calcularValorCompetenciaDeveRetornarValorTotalQuandoDuracaoForUmMes() {
+        var contrato = Contrato.builder()
+                .valorTotal(new BigDecimal("7777.77"))
+                .duracaoMeses(1)
+                .dataInicio(LocalDate.of(2026, 5, 15))
+                .build();
+
+        assertThat(contrato.calcularValorCompetencia(YearMonth.of(2026, 5)))
+                .isEqualByComparingTo("7777.77");
+    }
+
+    @Test
+    void calcularValorCompetenciaDeveRejeitarCompetenciaForaDaVigencia() {
+        var contrato = Contrato.builder()
+                .valorTotal(new BigDecimal("10000.00"))
+                .duracaoMeses(3)
+                .dataInicio(LocalDate.of(2026, 1, 1))
+                .build();
+
+        assertThatThrownBy(() -> contrato.calcularValorCompetencia(YearMonth.of(2026, 4)))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
