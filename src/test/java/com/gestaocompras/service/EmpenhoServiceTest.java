@@ -6,12 +6,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.gestaocompras.dto.EmpenhoRequestDTO;
+import com.gestaocompras.exception.NotFoundException;
 import com.gestaocompras.exception.OperacaoNaoPermitidaException;
 import com.gestaocompras.exception.RegistroDuplicadoException;
 import com.gestaocompras.exception.SaldoInsuficienteException;
@@ -19,13 +21,17 @@ import com.gestaocompras.model.Contrato;
 import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.model.Empenho;
 import com.gestaocompras.model.Fornecedor;
+import com.gestaocompras.model.Perfil;
 import com.gestaocompras.model.StatusContrato;
 import com.gestaocompras.model.StatusEmpenho;
 import com.gestaocompras.model.TipoMovimentacao;
+import com.gestaocompras.model.Usuario;
 import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
+import com.gestaocompras.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +39,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @ExtendWith(MockitoExtension.class)
 class EmpenhoServiceTest {
@@ -45,6 +56,9 @@ class EmpenhoServiceTest {
 
     @Mock
     private DotacaoService dotacaoService;
+
+    @Mock
+    private UsuarioRepository usuarioRepository;
 
     @InjectMocks
     private EmpenhoService empenhoService;
@@ -227,5 +241,53 @@ class EmpenhoServiceTest {
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
 
         verify(dotacaoService, never()).creditar(anyLong(), any(), anyString());
+    }
+
+    @Test
+    void naoDeveAnularEmpenhoInexistente() {
+        when(empenhoRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> empenhoService.anular(999L))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(dotacaoService, never()).creditar(anyLong(), any(), anyString());
+    }
+
+    @Test
+    void gerarDevePreencherUsuarioAutenticadoNoEmpenho() {
+        contratoEncontrado();
+        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
+                30L, 2026, 3)).thenReturn(false);
+        Usuario usuario = Usuario.builder()
+                .id(5L)
+                .nome("João")
+                .email("joao@gestao.com")
+                .perfil(Perfil.USUARIO)
+                .build();
+        when(usuarioRepository.findByEmail("joao@gestao.com")).thenReturn(Optional.of(usuario));
+        when(empenhoRepository.save(any(Empenho.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("joao@gestao.com", null, List.of()));
+        try {
+            var resposta = empenhoService.gerar(request(3, 2026));
+
+            assertThat(resposta.usuarioId()).isEqualTo(5L);
+            verify(empenhoRepository).save(argThat((Empenho salvo) ->
+                    salvo.getUsuario() != null && salvo.getUsuario().getId().equals(5L)));
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void listarDeveEncaminharPaginacaoAoRepositorioComFiltros() {
+        when(empenhoRepository.findAll(any(Specification.class), eq(PageRequest.of(0, 10))))
+                .thenReturn(Page.empty());
+
+        empenhoService.listar(30L, null, 2, 2026, null, null, PageRequest.of(0, 10));
+
+        verify(empenhoRepository).findAll(any(Specification.class), eq(PageRequest.of(0, 10)));
     }
 }

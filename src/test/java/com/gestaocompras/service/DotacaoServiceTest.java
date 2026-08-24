@@ -3,6 +3,8 @@ package com.gestaocompras.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,6 +21,8 @@ import com.gestaocompras.model.TipoMovimentacao;
 import com.gestaocompras.repository.DotacaoRepository;
 import com.gestaocompras.repository.MovimentacaoDotacaoRepository;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +31,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
 class DotacaoServiceTest {
@@ -158,5 +165,90 @@ class DotacaoServiceTest {
 
         assertThatThrownBy(() -> dotacaoService.buscarPorId(99L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void removerDeveExcluirDotacaoComApenasMovimentacaoInicial() {
+        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
+        when(movimentacaoRepository.countByDotacaoId(1L)).thenReturn(1L);
+        when(movimentacaoRepository.findAllByDotacaoId(1L))
+                .thenReturn(List.of(new MovimentacaoDotacao()));
+
+        dotacaoService.remover(1L);
+
+        verify(movimentacaoRepository).deleteAll(anyList());
+        verify(dotacaoRepository).delete(dotacao);
+    }
+
+    @Test
+    void listarDeveFiltrarPorAnoExercicioQuandoInformado() {
+        when(dotacaoRepository.findByAnoExercicio(eq(2026), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(dotacao)));
+
+        var resultado = dotacaoService.listar(2026, PageRequest.of(0, 10));
+
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(dotacaoRepository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void listarDeveRetornarTodasQuandoAnoNaoInformado() {
+        when(dotacaoRepository.findAll(any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(dotacao)));
+
+        var resultado = dotacaoService.listar(null, PageRequest.of(0, 10));
+
+        assertThat(resultado.getContent()).hasSize(1);
+    }
+
+    @Test
+    void consultarSaldoDeveRetornarSaldoAtualDaDotacao() {
+        dotacao.setSaldoAtual(new BigDecimal("87500.00"));
+        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
+
+        assertThat(dotacaoService.consultarSaldo(1L)).isEqualByComparingTo("87500.00");
+    }
+
+    @Test
+    void consultarSaldoDeveLancarNotFoundQuandoDotacaoInexistente() {
+        when(dotacaoRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> dotacaoService.consultarSaldo(99L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void listarMovimentacoesDeveRetornarHistoricoDaDotacao() {
+        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
+        MovimentacaoDotacao movimentacao = MovimentacaoDotacao.builder()
+                .id(7L)
+                .dotacao(dotacao)
+                .tipo(TipoMovimentacao.DEBITO)
+                .valor(new BigDecimal("8000.00"))
+                .descricao("Empenho mensal")
+                .dataHora(LocalDateTime.now())
+                .build();
+        when(movimentacaoRepository.findByDotacaoId(eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(movimentacao)));
+
+        var resultado = dotacaoService.listarMovimentacoes(1L, PageRequest.of(0, 20));
+
+        assertThat(resultado.getContent()).hasSize(1);
+        assertThat(resultado.getContent().get(0).tipo()).isEqualTo(TipoMovimentacao.DEBITO.name());
+        assertThat(resultado.getContent().get(0).valor()).isEqualByComparingTo("8000.00");
+    }
+
+    @Test
+    void creditarComTipoEspecificoDeveRegistrarMovimentacaoDoTipoInformado() {
+        dotacao.setSaldoAtual(new BigDecimal("92000.00"));
+        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
+
+        dotacaoService.creditar(1L, new BigDecimal("8000.00"),
+                "Estorno de anulação – empenho competência 01/2026", TipoMovimentacao.ESTORNO);
+
+        assertThat(dotacao.getSaldoAtual()).isEqualByComparingTo("100000.00");
+        ArgumentCaptor<MovimentacaoDotacao> captor = ArgumentCaptor.forClass(MovimentacaoDotacao.class);
+        verify(movimentacaoRepository).save(captor.capture());
+        assertThat(captor.getValue().getTipo()).isEqualTo(TipoMovimentacao.ESTORNO);
     }
 }
