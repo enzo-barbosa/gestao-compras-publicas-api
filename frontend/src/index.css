@@ -451,3 +451,32 @@ textarea:focus {
   background: var(--vermelho-100);
   color: var(--vermelho-600);
 }
+
+/* ===== Empenhos (onda C) ===== */
+
+.feedback-saldos {
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+
+.barra-filtros {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.btn.fantasma.ativo {
+  background: var(--azul-100, #dbeafe);
+  color: var(--azul-600, #2563eb);
+  font-weight: 600;
+}
+
+.badge.status-empenhado {
+  background: var(--verde-100);
+  color: var(--verde-600);
+}
+
+.badge.status-anulado {
+  background: #f1f5f9;
+  color: #7b8a97;
+}

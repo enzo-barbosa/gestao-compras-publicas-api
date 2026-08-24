@@ -8,6 +8,7 @@ import DotacoesPage from './pages/DotacoesPage'
 import FornecedoresPage from './pages/FornecedoresPage'
 import LicitacoesPage from './pages/LicitacoesPage'
 import ContratosPage from './pages/ContratosPage'
+import EmpenhosPage from './pages/EmpenhosPage'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
                       <Route path="fornecedores" element={<FornecedoresPage />} />
                       <Route path="licitacoes" element={<LicitacoesPage />} />
                       <Route path="contratos" element={<ContratosPage />} />
+                      <Route path="empenhos" element={<EmpenhosPage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </main>
