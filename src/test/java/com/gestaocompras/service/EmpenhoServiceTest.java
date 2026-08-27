@@ -99,11 +99,28 @@ class EmpenhoServiceTest {
         when(contratoRepository.findById(30L)).thenReturn(Optional.of(contratoVigente));
     }
 
+    private void competenciaNaoDuplicada(Integer mes, Integer ano) {
+        when(empenhoRepository
+                .existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(
+                        30L, ano, mes,
+                        List.of(StatusEmpenho.EMPENHADO, StatusEmpenho.LIQUIDADO,
+                                StatusEmpenho.PAGO)))
+                .thenReturn(false);
+    }
+
+    private void competenciaAtivaAnterior(Integer mesAnterior, Integer ano) {
+        when(empenhoRepository
+                .existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(
+                        30L, ano, mesAnterior,
+                        List.of(StatusEmpenho.EMPENHADO, StatusEmpenho.LIQUIDADO,
+                                StatusEmpenho.PAGO)))
+                .thenReturn(true);
+    }
+
     @Test
     void gerarDeveCriarEmpenhoComValorMensalEDebitarOsDoisSaldos() {
         contratoEncontrado();
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 1)).thenReturn(false);
+        competenciaNaoDuplicada(1, 2026);
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
@@ -122,8 +139,7 @@ class EmpenhoServiceTest {
         contratoVigente.setDuracaoMeses(3);
         contratoVigente.setDataInicio(LocalDate.of(2026, 1, 1));
         contratoEncontrado();
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 1)).thenReturn(false);
+        competenciaNaoDuplicada(1, 2026);
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
@@ -139,8 +155,8 @@ class EmpenhoServiceTest {
         contratoVigente.setDataInicio(LocalDate.of(2026, 1, 1));
         contratoVigente.setSaldoRestante(new BigDecimal("3333.34"));
         contratoEncontrado();
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 3)).thenReturn(false);
+        competenciaNaoDuplicada(3, 2026);
+        competenciaAtivaAnterior(2, 2026);
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
@@ -153,7 +169,7 @@ class EmpenhoServiceTest {
     }
 
     @Test
-    void somaDasParcelasDeveFecharOValorTotalIndependenteDaOrdemDeCriacao() {
+    void somaDasParcelasDeveFecharOValorTotal() {
         contratoVigente.setValorTotal(new BigDecimal("10000.00"));
         contratoVigente.setDuracaoMeses(3);
         contratoVigente.setDataInicio(LocalDate.of(2026, 1, 1));
@@ -162,19 +178,18 @@ class EmpenhoServiceTest {
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 3)).thenReturn(false);
-        var marco = empenhoService.gerar(request(3, 2026));
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 1)).thenReturn(false);
+        competenciaNaoDuplicada(1, 2026);
         var janeiro = empenhoService.gerar(request(1, 2026));
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 2)).thenReturn(false);
+        competenciaNaoDuplicada(2, 2026);
+        competenciaAtivaAnterior(1, 2026);
         var fevereiro = empenhoService.gerar(request(2, 2026));
+        competenciaNaoDuplicada(3, 2026);
+        competenciaAtivaAnterior(2, 2026);
+        var marco = empenhoService.gerar(request(3, 2026));
 
-        assertThat(marco.valor()).isEqualByComparingTo("3333.34");
         assertThat(janeiro.valor()).isEqualByComparingTo("3333.33");
         assertThat(fevereiro.valor()).isEqualByComparingTo("3333.33");
+        assertThat(marco.valor()).isEqualByComparingTo("3333.34");
         assertThat(contratoVigente.getSaldoRestante()).isEqualByComparingTo("0.00");
     }
 
@@ -199,8 +214,12 @@ class EmpenhoServiceTest {
     @Test
     void naoDeveGerarCompetenciaDuplicada() {
         contratoEncontrado();
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 1)).thenReturn(true);
+        when(empenhoRepository
+                .existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(
+                        30L, 2026, 1,
+                        List.of(StatusEmpenho.EMPENHADO, StatusEmpenho.LIQUIDADO,
+                                StatusEmpenho.PAGO)))
+                .thenReturn(true);
 
         assertThatThrownBy(() -> empenhoService.gerar(request(1, 2026)))
                 .isInstanceOf(RegistroDuplicadoException.class);
@@ -211,8 +230,8 @@ class EmpenhoServiceTest {
     @Test
     void naoDeveGerarComSaldoInsuficienteNaDotacao() {
         contratoEncontrado();
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 2)).thenReturn(false);
+        competenciaNaoDuplicada(2, 2026);
+        competenciaAtivaAnterior(1, 2026);
         dotacao.setSaldoAtual(new BigDecimal("5000.00"));
 
         assertThatThrownBy(() -> empenhoService.gerar(request(2, 2026)))
@@ -226,8 +245,8 @@ class EmpenhoServiceTest {
     @Test
     void naoDeveGerarComSaldoRestanteInsuficienteNoContrato() {
         contratoEncontrado();
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 5)).thenReturn(false);
+        competenciaNaoDuplicada(5, 2026);
+        competenciaAtivaAnterior(4, 2026);
         contratoVigente.setSaldoRestante(new BigDecimal("9000.00"));
 
         assertThatThrownBy(() -> empenhoService.gerar(request(5, 2026)))
@@ -246,6 +265,53 @@ class EmpenhoServiceTest {
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
 
         verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+    }
+
+    @Test
+    void naoDevePularMes() {
+        contratoEncontrado();
+        when(empenhoRepository
+                .existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(
+                        30L, 2026, 2,
+                        List.of(StatusEmpenho.EMPENHADO, StatusEmpenho.LIQUIDADO,
+                                StatusEmpenho.PAGO)))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> empenhoService.gerar(request(3, 2026)))
+                .isInstanceOf(OperacaoNaoPermitidaException.class)
+                .hasMessageContaining("02/2026");
+
+        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+    }
+
+    @Test
+    void primeiroMesDaVigenciaNaoExigeCompetenciaAnterior() {
+        contratoEncontrado();
+        competenciaNaoDuplicada(1, 2026);
+        when(empenhoRepository.save(any(Empenho.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        var resposta = empenhoService.gerar(request(1, 2026));
+
+        assertThat(resposta.valor()).isEqualByComparingTo("10000.00");
+    }
+
+    @Test
+    void devePermitirRecriarEmpenhoAposAnulacao() {
+        contratoEncontrado();
+        when(empenhoRepository
+                .existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(
+                        30L, 2026, 1,
+                        List.of(StatusEmpenho.EMPENHADO, StatusEmpenho.LIQUIDADO,
+                                StatusEmpenho.PAGO)))
+                .thenReturn(false);
+        when(empenhoRepository.save(any(Empenho.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        var resposta = empenhoService.gerar(request(1, 2026));
+
+        assertThat(resposta.valor()).isEqualByComparingTo("10000.00");
+        assertThat(resposta.status()).isEqualTo(StatusEmpenho.EMPENHADO.name());
     }
 
     @Test
@@ -302,8 +368,8 @@ class EmpenhoServiceTest {
     @Test
     void gerarDevePreencherUsuarioAutenticadoNoEmpenho() {
         contratoEncontrado();
-        when(empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                30L, 2026, 3)).thenReturn(false);
+        competenciaNaoDuplicada(3, 2026);
+        competenciaAtivaAnterior(2, 2026);
         Usuario usuario = Usuario.builder()
                 .id(5L)
                 .nome("João")

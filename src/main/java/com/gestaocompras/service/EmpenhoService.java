@@ -66,8 +66,10 @@ public class EmpenhoService {
                             .formatted(contrato.getNumero(), contrato.getStatus()));
         }
         validarCompetenciaNaVigencia(contrato, mes, ano);
-        if (empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferencia(
-                contrato.getId(), ano, mes)) {
+        validarSequencialidade(contrato, mes, ano);
+        if (empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(
+                contrato.getId(), ano, mes,
+                List.of(StatusEmpenho.EMPENHADO, StatusEmpenho.LIQUIDADO, StatusEmpenho.PAGO))) {
             throw new RegistroDuplicadoException(
                     "Já existe empenho do contrato %s para a competência %02d/%d."
                             .formatted(contrato.getNumero(), mes, ano));
@@ -145,13 +147,33 @@ public class EmpenhoService {
     }
 
     private void validarCompetenciaNaVigencia(Contrato contrato, Integer mes, Integer ano) {
-        LocalDate primeiroDiaCompetencia = YearMonth.of(ano, mes).atDay(1);
-        if (primeiroDiaCompetencia.isBefore(contrato.getDataInicio())
-                || primeiroDiaCompetencia.isAfter(contrato.calcularDataFimPrevista())) {
+        YearMonth competencia = YearMonth.of(ano, mes);
+        YearMonth inicio = YearMonth.from(contrato.getDataInicio());
+        YearMonth fim = inicio.plusMonths(contrato.getDuracaoMeses() - 1L);
+        if (competencia.isBefore(inicio) || competencia.isAfter(fim)) {
             throw new OperacaoNaoPermitidaException(
                     "A competência %02d/%d está fora da vigência do contrato %s (%s a %s)."
                             .formatted(mes, ano, contrato.getNumero(),
-                                    contrato.getDataInicio(), contrato.calcularDataFimPrevista()));
+                                    inicio, fim));
+        }
+    }
+
+    private void validarSequencialidade(Contrato contrato, Integer mes, Integer ano) {
+        YearMonth competencia = YearMonth.of(ano, mes);
+        YearMonth inicio = YearMonth.from(contrato.getDataInicio());
+        if (competencia.equals(inicio)) {
+            return;
+        }
+        YearMonth anterior = competencia.minusMonths(1);
+        boolean anteriorExiste = empenhoRepository
+                .existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(
+                        contrato.getId(), anterior.getYear(), anterior.getMonthValue(),
+                        List.of(StatusEmpenho.EMPENHADO, StatusEmpenho.LIQUIDADO,
+                                StatusEmpenho.PAGO));
+        if (!anteriorExiste) {
+            throw new OperacaoNaoPermitidaException(
+                    "Não é possível empenhar a competência %02d/%d sem que a competência %02d/%d esteja empenhada."
+                            .formatted(mes, ano, anterior.getMonthValue(), anterior.getYear()));
         }
     }
 

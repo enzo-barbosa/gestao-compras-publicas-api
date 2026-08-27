@@ -71,29 +71,7 @@ build/
 .eslintcache
 .vite/
 
-# ============================================================
-# OCULTAÇÃO DE RASTROS DE IA
-# (qualquer .md fora do README fica fora do git; docs internos
-#  devem usar extensões alternativas: .mermaid, .feature, .txt)
-# ============================================================
+# ---------- MARKDOWN EXCETO README ----------
 **/*.md
 !README.md
 HELP.md
-.claude/
-.opencode/
-.opencode.json
-.opencode.jsonc
-.cursor/
-.cursorignore
-.cursorrules
-.aider*
-.windsurf/
-.continue/
-.codeium/
-.supermaven/
-.tabnine/
-AGENTS.md
-CLAUDE.md
-GEMINI.md
-COPILOT.md
-.github/copilot-instructions.md
