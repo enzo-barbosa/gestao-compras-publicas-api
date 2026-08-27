@@ -118,18 +118,18 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 
 ## Regras de negócio em destaque
 
-1. **Competência imutável**: existe no máximo um empenho por contrato/mês/ano (constraint única no banco). Anulado permanece como histórico.
+1. **Competência imutável**: existe no máximo um empenho por contrato/mês/ano (controle de unicidade na aplicação — status ANULADO não bloqueia recriação).
 2. **Débito duplo atômico**: gerar empenho debita dotação e contrato na mesma transação; qualquer falha reverte tudo.
 3. **Vigência respeitada**: só se empenha competência dentro do período do contrato, e apenas com contrato VIGENTE.
 4. **Imutabilidade contratual**: valor total, duração e vínculos não mudam após a criação — protege a integridade do rateio.
 5. **Rateio que fecha exato**: cada competência empenha o valor mensal (HALF_UP); a última competência da vigência absorve o resíduo de arredondamento — a soma das parcelas é sempre igual ao valor total, independente da ordem de criação dos empenhos.
 6. **Trilha de auditoria dupla**: toda variação de dotação gera `MovimentacaoDotacao` tipada; todo empenho registra o usuário autenticado.
 
-<!-- TODO(enzo): adicionar prints do dashboard e das telas de CRUD aqui:
-     1. rode docker compose up -d && ./mvnw spring-boot:run && cd frontend && npm run dev
-     2. capture: tela de login, dashboard com grade de saldos, lista de empenhos com badges
-     3. salve em docs/img/ e referencie com ![descrição](docs/img/arquivo.png)
--->
+## Prints do sistema
+
+![Tela de login](docs/img/login.jpeg)
+![Dashboard com saldos por dotação](docs/img/dashboard.jpeg)
+![Empenhos com badges de saldo](docs/img/empenhos.jpeg)
 
 ## Roadmap
 
