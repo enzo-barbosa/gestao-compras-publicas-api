@@ -2,6 +2,7 @@ package com.gestaocompras.config;
 
 import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -27,6 +28,9 @@ import java.util.Map;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Value("${cors.allowed-origins:http://localhost:5173}")
+    private String allowedOrigins;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -72,7 +76,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuracao = new CorsConfiguration();
-        configuracao.setAllowedOrigins(List.of("http://localhost:3000"));
+        configuracao.setAllowedOrigins(List.of(allowedOrigins.split(",")));
         configuracao.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
         configuracao.setAllowedHeaders(List.of("*"));
         UrlBasedCorsConfigurationSource origem = new UrlBasedCorsConfigurationSource();
