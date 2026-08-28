@@ -79,6 +79,10 @@ npm run dev                          # http://localhost:5173 (proxy /api -> :808
 
 Faça login com o administrador semeado. Usuários comuns podem ser registrados pelo endpoint `POST /api/auth/register` (exclusivo de ADMIN).
 
+## Desenvolvimento
+
+O [`docs/guia-de-desenvolvimento.md`](docs/guia-de-desenvolvimento.md) documenta o processo de construção do projeto: fases, decisões arquiteturais, plano de commits e histórico de sessões de desenvolvimento.
+
 ## Diagramas
 
 Os diagramas Mermaid estão em [`docs/diagramas/`](docs/diagramas/) e são renderizados nativamente pelo GitHub:

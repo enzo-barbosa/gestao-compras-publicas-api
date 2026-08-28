@@ -71,7 +71,5 @@ build/
 .eslintcache
 .vite/
 
-# ---------- MARKDOWN EXCETO README ----------
-**/*.md
-!README.md
+# ---------- MARKDOWN ----------
 HELP.md
