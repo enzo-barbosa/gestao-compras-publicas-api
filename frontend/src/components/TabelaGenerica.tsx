@@ -12,6 +12,7 @@ interface Props<T extends { id: number }> {
   carregando?: boolean
   mensagemVazio?: string
   acoes?: (item: T) => ReactNode
+  ariaLabel?: string
 }
 
 export default function TabelaGenerica<T extends { id: number }>({
@@ -20,6 +21,7 @@ export default function TabelaGenerica<T extends { id: number }>({
   carregando = false,
   mensagemVazio = 'Nenhum registro encontrado.',
   acoes,
+  ariaLabel = 'Tabela de registros',
 }: Props<T>) {
   if (carregando) {
     return <p className="vazio">Carregando…</p>
@@ -30,7 +32,7 @@ export default function TabelaGenerica<T extends { id: number }>({
   }
 
   return (
-    <table className="tabela">
+    <table className="tabela" aria-label={ariaLabel}>
       <thead>
         <tr>
           {colunas.map((c) => (

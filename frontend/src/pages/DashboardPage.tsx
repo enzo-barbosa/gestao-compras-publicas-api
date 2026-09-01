@@ -49,7 +49,7 @@ export default function DashboardPage() {
   return (
     <section>
       <h2>Dashboard</h2>
-      {erro && <div className="alerta erro">{erro}</div>}
+      {erro && <div className="alerta erro" role="alert">{erro}</div>}
 
       <h3>Saldos por dotação orçamentária</h3>
       {dotacoes.length === 0 ? (

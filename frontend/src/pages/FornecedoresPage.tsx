@@ -120,8 +120,8 @@ export default function FornecedoresPage() {
   return (
     <section>
       <h2>Fornecedores</h2>
-      {erro && <div className="alerta erro">{erro}</div>}
-      {sucesso && <div className="alerta sucesso">{sucesso}</div>}
+      {erro && <div className="alerta erro" role="alert">{erro}</div>}
+      {sucesso && <div className="alerta sucesso" role="status">{sucesso}</div>}
 
       {ehAdmin && (
         <div className="card form-card">
@@ -162,6 +162,7 @@ export default function FornecedoresPage() {
         itens={itens}
         carregando={carregando}
         mensagemVazio="Nenhum fornecedor cadastrado."
+        ariaLabel="Tabela de fornecedores"
         acoes={
           ehAdmin
             ? (f) => (

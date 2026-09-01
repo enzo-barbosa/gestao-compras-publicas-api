@@ -52,7 +52,7 @@ export default function LoginPage() {
           required
         />
 
-        {erro && <div className="alerta erro">{erro}</div>}
+        {erro && <div className="alerta erro" role="alert">{erro}</div>}
 
         <button className="btn primario" type="submit" disabled={aguardando}>
           {aguardando ? 'Entrando…' : 'Entrar'}

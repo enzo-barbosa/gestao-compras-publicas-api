@@ -15,7 +15,11 @@ interface Dotacao {
   anoExercicio: number
 }
 
-const FORM_VAZIO = { codigo: '', descricao: '', saldoInicial: '', anoExercicio: '2026' }
+const ANO_ATUAL = new Date().getFullYear()
+
+function formVazio() {
+  return { codigo: '', descricao: '', saldoInicial: '', anoExercicio: String(ANO_ATUAL) }
+}
 
 export default function DotacoesPage() {
   const { ehAdmin } = useAuth()
@@ -23,7 +27,7 @@ export default function DotacoesPage() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
-  const [form, setForm] = useState(FORM_VAZIO)
+  const [form, setForm] = useState(formVazio)
   const [editandoId, setEditandoId] = useState<number | null>(null)
 
   function carregar() {
@@ -57,7 +61,7 @@ export default function DotacoesPage() {
 
   function cancelar() {
     setEditandoId(null)
-    setForm(FORM_VAZIO)
+    setForm(formVazio())
   }
 
   async function salvar(evento: FormEvent) {
@@ -114,8 +118,8 @@ export default function DotacoesPage() {
   return (
     <section>
       <h2>Dotações orçamentárias</h2>
-      {erro && <div className="alerta erro">{erro}</div>}
-      {sucesso && <div className="alerta sucesso">{sucesso}</div>}
+      {erro && <div className="alerta erro" role="alert">{erro}</div>}
+      {sucesso && <div className="alerta sucesso" role="status">{sucesso}</div>}
 
       {ehAdmin && (
         <div className="card form-card">
@@ -152,6 +156,7 @@ export default function DotacoesPage() {
         itens={itens}
         carregando={carregando}
         mensagemVazio="Nenhuma dotação cadastrada."
+        ariaLabel="Tabela de dotações orçamentárias"
         acoes={
           ehAdmin
             ? (d) => (

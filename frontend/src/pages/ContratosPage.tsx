@@ -133,7 +133,11 @@ export default function ContratosPage() {
         await api.post('/contratos', corpo)
         setSucesso('Contrato criado — saldo restante inicializado com o valor total.')
       } else {
-        const existente = itens.find((c) => c.id === editandoId)!
+        const existente = itens.find((c) => c.id === editandoId)
+        if (!existente) {
+          setErro('Contrato não encontrado para edição. Recarregue a listagem e tente novamente.')
+          return
+        }
         await api.put(`/contratos/${editandoId}`, {
           numero: form.numero,
           objeto: form.objeto,
@@ -201,8 +205,8 @@ export default function ContratosPage() {
   return (
     <section>
       <h2>Contratos</h2>
-      {erro && <div className="alerta erro">{erro}</div>}
-      {sucesso && <div className="alerta sucesso">{sucesso}</div>}
+      {erro && <div className="alerta erro" role="alert">{erro}</div>}
+      {sucesso && <div className="alerta sucesso" role="status">{sucesso}</div>}
 
       {ehAdmin && (
         <div className="card form-card">
@@ -285,6 +289,7 @@ export default function ContratosPage() {
         itens={itens}
         carregando={carregando}
         mensagemVazio="Nenhum contrato cadastrado."
+        ariaLabel="Tabela de contratos"
         acoes={
           ehAdmin
             ? (c) => (

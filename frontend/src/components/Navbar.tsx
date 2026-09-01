@@ -17,7 +17,7 @@ export default function Navbar() {
         <span>Compras Públicas</span>
       </div>
 
-      <nav>
+      <nav aria-label="Navegação principal">
         <NavLink to="/" end>Dashboard</NavLink>
         {ehAdmin && (
           <>

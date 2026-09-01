@@ -80,7 +80,7 @@ export default function EmpenhoForm({ onGerado }: Props) {
     <div className="card form-card">
       <h3>Gerar empenho</h3>
       {feedback && (
-        <div className="alerta sucesso feedback-saldos">
+        <div className="alerta sucesso feedback-saldos" role="status">
           Empenho gerado para <strong>{feedback.competencia}</strong> — contrato{' '}
           <strong>{feedback.contratoNumero}</strong>, débito de{' '}
           <strong>{formatarMoeda(feedback.valorEmpenhado)}</strong>. Saldo restante do
@@ -88,7 +88,7 @@ export default function EmpenhoForm({ onGerado }: Props) {
           dotação: <strong>{formatarMoeda(feedback.saldoDotacao)}</strong>
         </div>
       )}
-      {erro && <div className="alerta erro">{erro}</div>}
+      {erro && <div className="alerta erro" role="alert">{erro}</div>}
       {contratos.length === 0 ? (
         <p className="dica">Nenhum contrato vigente — crie um contrato antes de gerar empenhos.</p>
       ) : (

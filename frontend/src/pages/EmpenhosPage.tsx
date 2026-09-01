@@ -91,7 +91,7 @@ export default function EmpenhosPage() {
   return (
     <section>
       <h2>Empenhos</h2>
-      {erro && <div className="alerta erro">{erro}</div>}
+      {erro && <div className="alerta erro" role="alert">{erro}</div>}
 
       <EmpenhoForm onGerado={carregar} />
 
@@ -112,6 +112,7 @@ export default function EmpenhosPage() {
         itens={filtrados}
         carregando={carregando}
         mensagemVazio="Nenhum empenho registrado."
+        ariaLabel="Tabela de empenhos"
         acoes={(e) =>
           e.status === 'EMPENHADO' ? (
             <button className="btn perigo" onClick={() => anular(e.id)}>Anular</button>

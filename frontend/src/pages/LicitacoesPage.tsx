@@ -192,8 +192,8 @@ export default function LicitacoesPage() {
   return (
     <section>
       <h2>Licitações</h2>
-      {erro && <div className="alerta erro">{erro}</div>}
-      {sucesso && <div className="alerta sucesso">{sucesso}</div>}
+      {erro && <div className="alerta erro" role="alert">{erro}</div>}
+      {sucesso && <div className="alerta sucesso" role="status">{sucesso}</div>}
 
       {ehAdmin && (
         <>
@@ -263,6 +263,7 @@ export default function LicitacoesPage() {
         itens={itens}
         carregando={carregando}
         mensagemVazio="Nenhuma licitação cadastrada."
+        ariaLabel="Tabela de licitações"
         acoes={
           ehAdmin
             ? (l) => (

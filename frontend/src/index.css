@@ -1,6 +1,7 @@
 :root {
   --azul-900: #0f2a43;
   --azul-700: #1d4e79;
+  --azul-600: #2563eb;
   --azul-500: #2569a8;
   --verde-600: #1c7c4c;
   --verde-100: #e3f4ea;
@@ -9,6 +10,7 @@
   --amarelo-100: #fdf3dc;
   --cinza-100: #f4f6f8;
   --cinza-300: #dde3ea;
+  --cinza-borda: #cbd5e1;
   --texto: #22303c;
   --raio: 10px;
 }
