@@ -9,9 +9,14 @@ import static org.mockito.Mockito.when;
 
 import com.gestaocompras.dto.FornecedorRequestDTO;
 import com.gestaocompras.exception.NotFoundException;
+import com.gestaocompras.exception.OperacaoNaoPermitidaException;
 import com.gestaocompras.exception.RegistroDuplicadoException;
 import com.gestaocompras.model.Fornecedor;
+import com.gestaocompras.model.StatusContrato;
+import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.FornecedorRepository;
+import com.gestaocompras.repository.LicitacaoRepository;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +32,12 @@ class FornecedorServiceTest {
 
     @Mock
     private FornecedorRepository fornecedorRepository;
+
+    @Mock
+    private ContratoRepository contratoRepository;
+
+    @Mock
+    private LicitacaoRepository licitacaoRepository;
 
     @InjectMocks
     private FornecedorService fornecedorService;
@@ -110,5 +121,42 @@ class FornecedorServiceTest {
 
         assertThatThrownBy(() -> fornecedorService.buscarPorId(99L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void removerDeveBloquearFornecedorComContratoVigente() {
+        when(fornecedorRepository.findById(1L)).thenReturn(Optional.of(fornecedor));
+        when(contratoRepository.existsByFornecedorIdAndStatusIn(1L,
+                List.of(StatusContrato.VIGENTE))).thenReturn(true);
+
+        assertThatThrownBy(() -> fornecedorService.remover(1L))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+
+        verify(fornecedorRepository, never()).delete(any(Fornecedor.class));
+    }
+
+    @Test
+    void removerDeveBloquearFornecedorQueVenceuLicitacao() {
+        when(fornecedorRepository.findById(1L)).thenReturn(Optional.of(fornecedor));
+        when(contratoRepository.existsByFornecedorIdAndStatusIn(1L,
+                List.of(StatusContrato.VIGENTE))).thenReturn(false);
+        when(licitacaoRepository.existsByVencedorId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> fornecedorService.remover(1L))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+
+        verify(fornecedorRepository, never()).delete(any(Fornecedor.class));
+    }
+
+    @Test
+    void removerDevePermitirFornecedorSemVinculos() {
+        when(fornecedorRepository.findById(1L)).thenReturn(Optional.of(fornecedor));
+        when(contratoRepository.existsByFornecedorIdAndStatusIn(1L,
+                List.of(StatusContrato.VIGENTE))).thenReturn(false);
+        when(licitacaoRepository.existsByVencedorId(1L)).thenReturn(false);
+
+        fornecedorService.remover(1L);
+
+        verify(fornecedorRepository).delete(fornecedor);
     }
 }

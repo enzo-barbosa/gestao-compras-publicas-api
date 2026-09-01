@@ -99,6 +99,11 @@ public class LicitacaoService {
                     "A licitação %s está %s e não permite definir vencedor."
                             .formatted(licitacao.getNumeroEdital(), licitacao.getStatus()));
         }
+        if (licitacao.getVencedor() != null && licitacao.getStatus() == StatusLicitacao.ENCERRADA) {
+            throw new OperacaoNaoPermitidaException(
+                    "A licitação %s já possui vencedor definido e não pode ser substituído."
+                            .formatted(licitacao.getNumeroEdital()));
+        }
         Fornecedor vencedor = fornecedorRepository.findById(fornecedorId)
                 .orElseThrow(() -> new NotFoundException("Fornecedor", fornecedorId));
         licitacao.setVencedor(vencedor);

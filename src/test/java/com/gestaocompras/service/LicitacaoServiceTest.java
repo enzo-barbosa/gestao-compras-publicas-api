@@ -130,6 +130,18 @@ class LicitacaoServiceTest {
     }
 
     @Test
+    void naoDevePermitirSubstituirVencedorJaDefinidoEmLicitaçãoEncerrada() {
+        licitacaoAberta.setStatus(StatusLicitacao.ENCERRADA);
+        licitacaoAberta.setVencedor(fornecedor);
+        when(licitacaoRepository.findById(1L)).thenReturn(Optional.of(licitacaoAberta));
+
+        assertThatThrownBy(() -> licitacaoService.definirVencedor(1L, 10L))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+
+        verify(fornecedorRepository, never()).findById(any());
+    }
+
+    @Test
     void atualizarDeveBloquearLicitaçãoEncerrada() {
         licitacaoAberta.setStatus(StatusLicitacao.ENCERRADA);
         when(licitacaoRepository.findById(1L)).thenReturn(Optional.of(licitacaoAberta));

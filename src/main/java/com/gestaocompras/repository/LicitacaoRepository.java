@@ -10,5 +10,7 @@ public interface LicitacaoRepository
 
     boolean existsByNumeroEdital(String numeroEdital);
 
+    boolean existsByVencedorId(Long fornecedorId);
+
     Optional<Licitacao> findByNumeroEdital(String numeroEdital);
 }

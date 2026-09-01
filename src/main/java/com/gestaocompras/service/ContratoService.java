@@ -10,9 +10,11 @@ import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.model.Fornecedor;
 import com.gestaocompras.model.Licitacao;
 import com.gestaocompras.model.StatusContrato;
+import com.gestaocompras.model.StatusEmpenho;
 import com.gestaocompras.model.StatusLicitacao;
 import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.DotacaoRepository;
+import com.gestaocompras.repository.EmpenhoRepository;
 import com.gestaocompras.repository.FornecedorRepository;
 import com.gestaocompras.repository.LicitacaoRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -31,15 +33,18 @@ public class ContratoService {
 
     private final ContratoRepository contratoRepository;
     private final DotacaoRepository dotacaoRepository;
+    private final EmpenhoRepository empenhoRepository;
     private final FornecedorRepository fornecedorRepository;
     private final LicitacaoRepository licitacaoRepository;
 
     public ContratoService(ContratoRepository contratoRepository,
             DotacaoRepository dotacaoRepository,
+            EmpenhoRepository empenhoRepository,
             FornecedorRepository fornecedorRepository,
             LicitacaoRepository licitacaoRepository) {
         this.contratoRepository = contratoRepository;
         this.dotacaoRepository = dotacaoRepository;
+        this.empenhoRepository = empenhoRepository;
         this.fornecedorRepository = fornecedorRepository;
         this.licitacaoRepository = licitacaoRepository;
     }
@@ -122,7 +127,14 @@ public class ContratoService {
 
     @Transactional
     public void remover(Long id) {
-        contratoRepository.delete(buscarEntidade(id));
+        Contrato contrato = buscarEntidade(id);
+        if (empenhoRepository.existsByContratoIdAndStatusIn(contrato.getId(),
+                List.of(StatusEmpenho.EMPENHADO, StatusEmpenho.LIQUIDADO, StatusEmpenho.PAGO))) {
+            throw new OperacaoNaoPermitidaException(
+                    "O contrato %s possui empenhos ativos e não pode ser removido."
+                            .formatted(contrato.getNumero()));
+        }
+        contratoRepository.delete(contrato);
     }
 
     private void validarCamposFinanceiros(BigDecimal valorTotal, Integer duracaoMeses) {

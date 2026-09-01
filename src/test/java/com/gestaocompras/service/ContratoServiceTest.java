@@ -3,6 +3,10 @@ package com.gestaocompras.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.gestaocompras.dto.ContratoRequestDTO;
@@ -18,11 +22,13 @@ import com.gestaocompras.model.StatusContrato;
 import com.gestaocompras.model.StatusLicitacao;
 import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.DotacaoRepository;
+import com.gestaocompras.repository.EmpenhoRepository;
 import com.gestaocompras.repository.FornecedorRepository;
 import com.gestaocompras.repository.LicitacaoRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +45,9 @@ class ContratoServiceTest {
 
     @Mock
     private DotacaoRepository dotacaoRepository;
+
+    @Mock
+    private EmpenhoRepository empenhoRepository;
 
     @Mock
     private FornecedorRepository fornecedorRepository;
@@ -242,5 +251,36 @@ class ContratoServiceTest {
 
         assertThat(resposta.objeto()).isEqualTo("Fornecimento de material de escritório");
         assertThat(resposta.saldoRestante()).isEqualByComparingTo("80000.00");
+    }
+
+    @Test
+    void removerDeveBloquearContratoComEmpenhosAtivos() {
+        Contrato contrato = Contrato.builder()
+                .id(30L)
+                .numero("012/2026")
+                .fornecedor(fornecedor)
+                .build();
+        when(contratoRepository.findById(30L)).thenReturn(Optional.of(contrato));
+        when(empenhoRepository.existsByContratoIdAndStatusIn(eq(30L), anyList())).thenReturn(true);
+
+        assertThatThrownBy(() -> contratoService.remover(30L))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+
+        verify(contratoRepository, never()).delete(any(Contrato.class));
+    }
+
+    @Test
+    void removerDevePermitirContratoSemEmpenhosAtivos() {
+        Contrato contrato = Contrato.builder()
+                .id(30L)
+                .numero("012/2026")
+                .fornecedor(fornecedor)
+                .build();
+        when(contratoRepository.findById(30L)).thenReturn(Optional.of(contrato));
+        when(empenhoRepository.existsByContratoIdAndStatusIn(eq(30L), anyList())).thenReturn(false);
+
+        contratoService.remover(30L);
+
+        verify(contratoRepository).delete(contrato);
     }
 }

@@ -3,10 +3,15 @@ package com.gestaocompras.service;
 import com.gestaocompras.dto.FornecedorRequestDTO;
 import com.gestaocompras.dto.FornecedorResponseDTO;
 import com.gestaocompras.exception.NotFoundException;
+import com.gestaocompras.exception.OperacaoNaoPermitidaException;
 import com.gestaocompras.exception.RegistroDuplicadoException;
 import com.gestaocompras.model.Fornecedor;
+import com.gestaocompras.model.StatusContrato;
+import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.FornecedorRepository;
+import com.gestaocompras.repository.LicitacaoRepository;
 import com.gestaocompras.util.CnpjUtil;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,9 +21,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class FornecedorService {
 
     private final FornecedorRepository fornecedorRepository;
+    private final ContratoRepository contratoRepository;
+    private final LicitacaoRepository licitacaoRepository;
 
-    public FornecedorService(FornecedorRepository fornecedorRepository) {
+    public FornecedorService(FornecedorRepository fornecedorRepository,
+            ContratoRepository contratoRepository,
+            LicitacaoRepository licitacaoRepository) {
         this.fornecedorRepository = fornecedorRepository;
+        this.contratoRepository = contratoRepository;
+        this.licitacaoRepository = licitacaoRepository;
     }
 
     @Transactional
@@ -69,7 +80,19 @@ public class FornecedorService {
 
     @Transactional
     public void remover(Long id) {
-        fornecedorRepository.delete(buscarEntidade(id));
+        Fornecedor fornecedor = buscarEntidade(id);
+        if (contratoRepository.existsByFornecedorIdAndStatusIn(fornecedor.getId(),
+                List.of(StatusContrato.VIGENTE))) {
+            throw new OperacaoNaoPermitidaException(
+                    "O fornecedor %s possui contratos vigentes e não pode ser removido."
+                            .formatted(fornecedor.getNome()));
+        }
+        if (licitacaoRepository.existsByVencedorId(fornecedor.getId())) {
+            throw new OperacaoNaoPermitidaException(
+                    "O fornecedor %s venceu licitações e não pode ser removido."
+                            .formatted(fornecedor.getNome()));
+        }
+        fornecedorRepository.delete(fornecedor);
     }
 
     private String validarENormalizarCnpj(String cnpj) {
