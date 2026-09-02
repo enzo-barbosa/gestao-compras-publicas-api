@@ -115,7 +115,7 @@ export default function EmpenhosPage() {
         ariaLabel="Tabela de empenhos"
         acoes={(e) =>
           e.status === 'EMPENHADO' ? (
-            <button className="btn perigo" onClick={() => anular(e.id)}>Anular</button>
+            <button className="btn perigo" onClick={() => anular(e.id)} aria-label={`Anular empenho ${e.contratoNumero}/${e.mesReferencia}/${e.anoReferencia}`}>Anular</button>
           ) : (
             <span className="dica">—</span>
           )

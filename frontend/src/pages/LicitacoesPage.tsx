@@ -269,18 +269,19 @@ export default function LicitacoesPage() {
             ? (l) => (
                 <>
                   {l.status === 'ABERTA' && (
-                    <button className="btn secundario" onClick={() => iniciarEdicao(l)}>Editar</button>
+                    <button className="btn secundario" onClick={() => iniciarEdicao(l)} aria-label={`Editar licitação ${l.numeroEdital}`}>Editar</button>
                   )}
                   {(l.status === 'ABERTA' || l.status === 'ENCERRADA') && (
                     <button
                       className="btn primario"
                       onClick={() => { setVencedorEm(l.id); setVencedorSelecionado(String(l.vencedor?.id ?? '')) }}
+                      aria-label={`Definir vencedor da licitação ${l.numeroEdital}`}
                     >
                       Vencedor
                     </button>
                   )}
                   {l.status === 'ABERTA' && !l.vencedor && (
-                    <button className="btn perigo" onClick={() => excluir(l.id)}>Excluir</button>
+                    <button className="btn perigo" onClick={() => excluir(l.id)} aria-label={`Excluir licitação ${l.numeroEdital}`}>Excluir</button>
                   )}
                 </>
               )

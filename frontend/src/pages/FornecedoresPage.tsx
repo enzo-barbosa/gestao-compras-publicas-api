@@ -167,8 +167,8 @@ export default function FornecedoresPage() {
           ehAdmin
             ? (f) => (
                 <>
-                  <button className="btn secundario" onClick={() => iniciarEdicao(f)}>Editar</button>
-                  <button className="btn perigo" onClick={() => excluir(f.id)}>Excluir</button>
+                  <button className="btn secundario" onClick={() => iniciarEdicao(f)} aria-label={`Editar fornecedor ${f.nome}`}>Editar</button>
+                  <button className="btn perigo" onClick={() => excluir(f.id)} aria-label={`Excluir fornecedor ${f.nome}`}>Excluir</button>
                 </>
               )
             : undefined

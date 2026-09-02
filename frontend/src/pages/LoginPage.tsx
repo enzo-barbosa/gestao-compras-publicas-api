@@ -39,6 +39,7 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="voce@prefeitura.gov.br"
+          autoComplete="email"
           required
         />
 
@@ -49,6 +50,7 @@ export default function LoginPage() {
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
           placeholder="••••••••"
+          autoComplete="current-password"
           required
         />
 

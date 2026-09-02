@@ -24,21 +24,30 @@ export default function TabelaGenerica<T extends { id: number }>({
   ariaLabel = 'Tabela de registros',
 }: Props<T>) {
   if (carregando) {
-    return <p className="vazio">Carregando…</p>
+    return (
+      <p className="vazio" role="status" aria-busy="true">
+        Carregando…
+      </p>
+    )
   }
 
   if (itens.length === 0) {
-    return <p className="vazio">{mensagemVazio}</p>
+    return (
+      <p className="vazio" role="status">
+        {mensagemVazio}
+      </p>
+    )
   }
 
   return (
     <table className="tabela" aria-label={ariaLabel}>
+      <caption className="sr-only">{ariaLabel}</caption>
       <thead>
         <tr>
           {colunas.map((c) => (
-            <th key={c.key}>{c.label}</th>
+            <th key={c.key} scope="col">{c.label}</th>
           ))}
-          {acoes && <th>Ações</th>}
+          {acoes && <th scope="col">Ações</th>}
         </tr>
       </thead>
       <tbody>

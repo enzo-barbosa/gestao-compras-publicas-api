@@ -294,8 +294,8 @@ export default function ContratosPage() {
           ehAdmin
             ? (c) => (
                 <>
-                  <button className="btn secundario" onClick={() => iniciarEdicao(c)}>Editar</button>
-                  <button className="btn perigo" onClick={() => excluir(c.id)}>Excluir</button>
+                  <button className="btn secundario" onClick={() => iniciarEdicao(c)} aria-label={`Editar contrato ${c.numero}`}>Editar</button>
+                  <button className="btn perigo" onClick={() => excluir(c.id)} aria-label={`Excluir contrato ${c.numero}`}>Excluir</button>
                 </>
               )
             : undefined

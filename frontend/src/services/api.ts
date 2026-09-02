@@ -2,6 +2,7 @@ import axios from 'axios'
 
 export const TOKEN_KEY = 'gc_token'
 export const USUARIO_KEY = 'gc_usuario'
+export const AUTH_EXPIRADO = 'auth:expirado'
 
 const api = axios.create({
   baseURL: '/api',
@@ -21,7 +22,7 @@ api.interceptors.response.use(
     if (erro.response?.status === 401 && window.location.pathname !== '/login') {
       localStorage.removeItem(TOKEN_KEY)
       localStorage.removeItem(USUARIO_KEY)
-      window.location.href = '/login'
+      window.dispatchEvent(new Event(AUTH_EXPIRADO))
     }
     return Promise.reject(erro)
   },

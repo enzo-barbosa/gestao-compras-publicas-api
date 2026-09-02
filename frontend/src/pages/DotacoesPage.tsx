@@ -161,8 +161,8 @@ export default function DotacoesPage() {
           ehAdmin
             ? (d) => (
                 <>
-                  <button className="btn secundario" onClick={() => iniciarEdicao(d)}>Editar</button>
-                  <button className="btn perigo" onClick={() => excluir(d.id)}>Excluir</button>
+                  <button className="btn secundario" onClick={() => iniciarEdicao(d)} aria-label={`Editar dotação ${d.codigo}`}>Editar</button>
+                  <button className="btn perigo" onClick={() => excluir(d.id)} aria-label={`Excluir dotação ${d.codigo}`}>Excluir</button>
                 </>
               )
             : undefined

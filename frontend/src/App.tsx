@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthProvider'
+import { SessaoExpiradaListener } from './context/SessaoExpirada'
 import Navbar from './components/Navbar'
 import RotaProtegida from './components/RotaProtegida'
 import LoginPage from './pages/LoginPage'
@@ -12,8 +13,9 @@ import EmpenhosPage from './pages/EmpenhosPage'
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
+        <SessaoExpiradaListener />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route
@@ -38,7 +40,7 @@ export default function App() {
             }
           />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
