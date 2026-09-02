@@ -150,8 +150,7 @@ class AuthIntegrationTest {
         String tokenAdmin = tokenDoAdmin();
 
         var registro = troca("/api/auth/register", HttpMethod.POST, comBearer(tokenAdmin),
-                new RegistroRequestDTO("Maria Operacional", EMAIL_USUARIO, "senhaSegura123",
-                        com.gestaocompras.model.Perfil.USUARIO));
+                new RegistroRequestDTO("Maria Operacional", EMAIL_USUARIO, "senhaSegura123"));
 
         assertThat(registro.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
@@ -172,8 +171,7 @@ class AuthIntegrationTest {
 
         var tentativaRegistro = troca("/api/auth/register", HttpMethod.POST, headers,
                 new RegistroRequestDTO("Outro", "outro" + System.nanoTime()
-                        + "@x.com", "senhaSegura123",
-                        com.gestaocompras.model.Perfil.USUARIO));
+                        + "@x.com", "senhaSegura123"));
         var tentativaEscrita = troca("/api/dotacoes", HttpMethod.POST, headers,
                 Map.of("codigo", "X", "descricao", "x", "saldoInicial", 1, "anoExercicio", 2026));
         var leituraAutenticada = troca("/api/dotacoes", HttpMethod.GET, headers, null);

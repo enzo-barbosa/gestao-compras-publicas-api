@@ -5,6 +5,7 @@ import com.gestaocompras.dto.RegistroRequestDTO;
 import com.gestaocompras.dto.TokenResponseDTO;
 import com.gestaocompras.dto.UsuarioResponseDTO;
 import com.gestaocompras.exception.RegistroDuplicadoException;
+import com.gestaocompras.model.Perfil;
 import com.gestaocompras.model.Usuario;
 import com.gestaocompras.repository.UsuarioRepository;
 import com.gestaocompras.security.JwtService;
@@ -49,7 +50,7 @@ public class AuthService {
                 .nome(request.nome())
                 .email(request.email())
                 .senha(passwordEncoder.encode(request.senha()))
-                .perfil(request.perfil())
+                .perfil(Perfil.USUARIO)
                 .build()));
     }
 }

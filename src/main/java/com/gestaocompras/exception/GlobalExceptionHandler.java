@@ -11,6 +11,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -25,6 +27,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ErroResposta.of(HttpStatus.BAD_REQUEST.value(), "Requisição inválida",
                         "Alguns campos não passaram na validação.", erros));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErroResposta> handleViolacaoConstraint(ConstraintViolationException ex) {
+        List<String> erros = ex.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .toList();
+        return ResponseEntity.badRequest()
+                .body(ErroResposta.of(HttpStatus.BAD_REQUEST.value(), "Requisição inválida",
+                        "Alguns parâmetros não passaram na validação.", erros));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
