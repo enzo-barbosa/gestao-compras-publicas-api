@@ -13,6 +13,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -46,12 +51,57 @@ public class GlobalExceptionHandler {
                         "Corpo da requisição malformado ou ausente."));
     }
 
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErroResposta> handleTipoArgumentoInvalido(MethodArgumentTypeMismatchException ex) {
+        String detalhe = "O parâmetro '" + ex.getName() + "' recebeu um valor inválido: " + ex.getValue();
+        return ResponseEntity.badRequest()
+                .body(ErroResposta.of(HttpStatus.BAD_REQUEST.value(), "Requisição inválida",
+                        "Parâmetro com tipo incorreto.", List.of(detalhe)));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErroResposta> handleParametroAusente(MissingServletRequestParameterException ex) {
+        String detalhe = "O parâmetro obrigatório '" + ex.getParameterName() + "' não foi informado.";
+        return ResponseEntity.badRequest()
+                .body(ErroResposta.of(HttpStatus.BAD_REQUEST.value(), "Requisição inválida",
+                        "Parâmetro ausente na requisição.", List.of(detalhe)));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErroResposta> handleMetodoNaoSuportado(HttpRequestMethodNotSupportedException ex) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ErroResposta.of(HttpStatus.METHOD_NOT_ALLOWED.value(), "Método não permitido",
+                        "O método HTTP utilizado não é suportado para este recurso."));
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErroResposta> handleMediaTypeNaoSuportada(HttpMediaTypeNotSupportedException ex) {
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(ErroResposta.of(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), "Tipo de mídia não suportado",
+                        "O Content-Type da requisição não é suportado."));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErroResposta> handleRecursoNaoEncontrado(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErroResposta.of(HttpStatus.NOT_FOUND.value(), "Não encontrado",
+                        "O recurso solicitado não existe."));
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErroResposta> handleIntegridade(DataIntegrityViolationException ex) {
         log.warn("Violação de integridade: {}", ex.getMostSpecificCause().getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ErroResposta.of(HttpStatus.CONFLICT.value(), "Conflito de dados",
                         "O registro viola uma restrição de integridade (duplicidade ou referência inválida)."));
+    }
+
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErroResposta> handleConflitoConcorrencia(
+            org.springframework.orm.ObjectOptimisticLockingFailureException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErroResposta.of(HttpStatus.CONFLICT.value(), "Conflito de concorrência",
+                        "Outra operação alterou este registro ao mesmo tempo. Recarregue os dados e tente novamente."));
     }
 
     @ExceptionHandler(NotFoundException.class)

@@ -1,6 +1,7 @@
 package com.gestaocompras.config;
 
 import tools.jackson.databind.ObjectMapper;
+import com.gestaocompras.dto.ErroResposta;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -19,21 +20,21 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ObjectMapper objectMapper;
 
     @Value("${cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, ObjectMapper objectMapper) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -66,11 +67,8 @@ public class SecurityConfig {
         resposta.setStatus(status.value());
         resposta.setContentType(MediaType.APPLICATION_JSON_VALUE);
         resposta.setCharacterEncoding("UTF-8");
-        new ObjectMapper().writeValue(resposta.getWriter(), Map.of(
-                "timestamp", Instant.now().toString(),
-                "status", status.value(),
-                "erro", status.getReasonPhrase(),
-                "mensagem", mensagem));
+        objectMapper.writeValue(resposta.getWriter(),
+                ErroResposta.of(status.value(), status.getReasonPhrase(), mensagem));
     }
 
     @Bean

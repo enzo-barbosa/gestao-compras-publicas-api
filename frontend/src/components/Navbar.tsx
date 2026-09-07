@@ -1,6 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 
+function linkClass({ isActive }: { isActive: boolean }) {
+  return isActive ? 'ativo' : ''
+}
+
 export default function Navbar() {
   const { usuario, ehAdmin, logout } = useAuth()
   const navegar = useNavigate()
@@ -18,16 +22,16 @@ export default function Navbar() {
       </div>
 
       <nav aria-label="Navegação principal">
-        <NavLink to="/" end>Dashboard</NavLink>
+        <NavLink to="/" end className={linkClass}>Dashboard</NavLink>
         {ehAdmin && (
           <>
-            <NavLink to="/dotacoes">Dotações</NavLink>
-            <NavLink to="/fornecedores">Fornecedores</NavLink>
-            <NavLink to="/licitacoes">Licitações</NavLink>
-            <NavLink to="/contratos">Contratos</NavLink>
+            <NavLink to="/dotacoes" className={linkClass}>Dotações</NavLink>
+            <NavLink to="/fornecedores" className={linkClass}>Fornecedores</NavLink>
+            <NavLink to="/licitacoes" className={linkClass}>Licitações</NavLink>
+            <NavLink to="/contratos" className={linkClass}>Contratos</NavLink>
           </>
         )}
-        <NavLink to="/empenhos">Empenhos</NavLink>
+        <NavLink to="/empenhos" className={linkClass}>Empenhos</NavLink>
       </nav>
 
       <div className="usuario-box">

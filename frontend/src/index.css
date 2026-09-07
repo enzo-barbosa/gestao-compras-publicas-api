@@ -3,6 +3,7 @@
   --azul-700: #1d4e79;
   --azul-600: #2563eb;
   --azul-500: #2569a8;
+  --azul-100: #dbeafe;
   --verde-600: #1c7c4c;
   --verde-100: #e3f4ea;
   --vermelho-600: #b3372f;
@@ -398,8 +399,8 @@ textarea:focus {
 }
 
 .acoes-form {
-  flex-direction: row !important;
-  gap: 8px !important;
+  flex-direction: row;
+  gap: 8px;
 }
 
 .form-card.destaque {

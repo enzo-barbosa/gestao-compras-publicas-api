@@ -37,7 +37,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Banco | PostgreSQL 15 (Docker), Flyway-free schema auto-gerenciado + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 68 testes (JUnit 5 + Mockito + integração), JaCoCo 78% de cobertura |
+| Qualidade | 78 testes (JUnit 5 + Mockito + integração), JaCoCo 78% de cobertura |
 
 ## Como rodar
 
@@ -59,7 +59,7 @@ senha: admin
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 68 testes
+./mvnw test                          # 78 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
