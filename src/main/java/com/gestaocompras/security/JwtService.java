@@ -18,6 +18,10 @@ public class JwtService {
 
     public JwtService(@Value("${jwt.secret}") String secretBase64,
             @Value("${jwt.expiration-ms}") long expiracaoMs) {
+        if (secretBase64 == null || secretBase64.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT_SECRET não está definido. Configure-o no ambiente de produção.");
+        }
         this.chave = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretBase64));
         this.expiracaoMs = expiracaoMs;
     }

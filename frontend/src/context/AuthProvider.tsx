@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import api, { TOKEN_KEY, USUARIO_KEY } from '../services/api'
 import { AuthContext } from './AuthContext'
@@ -15,6 +15,17 @@ function carregarUsuario(): UsuarioLogado | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioLogado | null>(carregarUsuario)
+
+  useEffect(() => {
+    if (!localStorage.getItem(TOKEN_KEY)) return
+    api.get<UsuarioLogado>('/auth/me')
+      .then((resposta) => {
+        const dados = resposta.data
+        localStorage.setItem(USUARIO_KEY, JSON.stringify(dados))
+        setUsuario(dados)
+      })
+      .catch(() => {})
+  }, [])
 
   const login = useCallback(async (email: string, senha: string) => {
     const resposta = await api.post('/auth/login', { email, senha })

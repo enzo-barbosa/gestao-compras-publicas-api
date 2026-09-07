@@ -221,4 +221,28 @@ class AuthIntegrationTest {
         assertThat(((Number) ((Map<?, ?>) empenho.getBody()).get("usuarioId")).longValue())
                 .isNotNull();
     }
+
+    @Test
+    @Order(8)
+    void meDeveRetornarOUsuarioAutenticadoParaAdminEUsuarioComum() {
+        HttpHeaders admin = comBearer(tokenDoAdmin());
+
+        var meAdmin = troca("/api/auth/me", HttpMethod.GET, admin, null);
+
+        assertThat(meAdmin.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((String) ((Map<?, ?>) meAdmin.getBody()).get("email"))
+                .isEqualTo("admin@admin.com");
+        assertThat((String) ((Map<?, ?>) meAdmin.getBody()).get("perfil")).isEqualTo("ADMIN");
+
+        HttpHeaders usuarioComum = comBearer(http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(EMAIL_USUARIO, "senhaSegura123"), TokenResponseDTO.class)
+                .getBody().token());
+
+        var meUsuario = troca("/api/auth/me", HttpMethod.GET, usuarioComum, null);
+
+        assertThat(meUsuario.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((String) ((Map<?, ?>) meUsuario.getBody()).get("email"))
+                .isEqualTo(EMAIL_USUARIO);
+        assertThat((String) ((Map<?, ?>) meUsuario.getBody()).get("perfil")).isEqualTo("USUARIO");
+    }
 }

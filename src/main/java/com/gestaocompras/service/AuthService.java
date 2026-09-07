@@ -40,6 +40,12 @@ public class AuthService {
                 jwtService.gerarToken(usuario.getEmail(), usuario.getPerfil().name()), usuario);
     }
 
+    @Transactional(readOnly = true)
+    public UsuarioResponseDTO buscarUsuarioAtual(String email) {
+        return UsuarioResponseDTO.from(usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Sessão inválida.")));
+    }
+
     @Transactional
     public UsuarioResponseDTO registrar(RegistroRequestDTO request) {
         if (usuarioRepository.existsByEmail(request.email())) {

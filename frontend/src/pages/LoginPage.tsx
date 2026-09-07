@@ -1,16 +1,27 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { extrairMensagemErro } from '../utils/format'
 
 export default function LoginPage() {
   const { login } = useAuth()
   const navegar = useNavigate()
+  const localizacao = useLocation()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [aguardando, setAguardando] = useState(false)
+  const [sessaoExpirada, setSessaoExpirada] = useState(() => {
+    const estado = localizacao.state as { sessaoExpirada?: boolean } | null
+    return Boolean(estado?.sessaoExpirada)
+  })
+
+  useEffect(() => {
+    if (sessaoExpirada) {
+      navegar('/login', { replace: true })
+    }
+  }, [sessaoExpirada, navegar])
 
   async function submeter(evento: FormEvent) {
     evento.preventDefault()
@@ -21,6 +32,7 @@ export default function LoginPage() {
       navegar('/')
     } catch (e) {
       setErro(extrairMensagemErro(e))
+      if (sessaoExpirada) setSessaoExpirada(false)
     } finally {
       setAguardando(false)
     }
@@ -53,6 +65,12 @@ export default function LoginPage() {
           autoComplete="current-password"
           required
         />
+
+        {sessaoExpirada && (
+          <div className="alerta aviso" role="alert">
+            Sua sessão expirou. Entre novamente para continuar.
+          </div>
+        )}
 
         {erro && <div className="alerta erro" role="alert">{erro}</div>}
 

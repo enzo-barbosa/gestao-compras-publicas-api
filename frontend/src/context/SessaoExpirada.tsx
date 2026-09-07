@@ -10,7 +10,7 @@ export function SessaoExpiradaListener() {
   useEffect(() => {
     const aoExpirar = () => {
       logout()
-      navigate('/login', { replace: true })
+      navigate('/login', { replace: true, state: { sessaoExpirada: true } })
     }
     window.addEventListener(AUTH_EXPIRADO, aoExpirar)
     return () => window.removeEventListener(AUTH_EXPIRADO, aoExpirar)
