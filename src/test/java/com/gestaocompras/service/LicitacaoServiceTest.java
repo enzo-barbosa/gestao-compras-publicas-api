@@ -99,7 +99,7 @@ class LicitacaoServiceTest {
 
     @Test
     void definirVencedorDeveRegistrarVencedorEEncerrarALicitacao() {
-        when(licitacaoRepository.findById(1L)).thenReturn(Optional.of(licitacaoAberta));
+        when(licitacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(licitacaoAberta));
         when(fornecedorRepository.findById(10L)).thenReturn(Optional.of(fornecedor));
 
         var resposta = licitacaoService.definirVencedor(1L, 10L);
@@ -111,7 +111,7 @@ class LicitacaoServiceTest {
 
     @Test
     void definirVencedorDeveLancarNotFoundParaFornecedorInexistente() {
-        when(licitacaoRepository.findById(1L)).thenReturn(Optional.of(licitacaoAberta));
+        when(licitacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(licitacaoAberta));
         when(fornecedorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> licitacaoService.definirVencedor(1L, 99L))
@@ -123,7 +123,7 @@ class LicitacaoServiceTest {
     @Test
     void naoDevePermitirDefinirVencedorEmLicitaçãoHomologada() {
         licitacaoAberta.setStatus(StatusLicitacao.HOMOLOGADA);
-        when(licitacaoRepository.findById(1L)).thenReturn(Optional.of(licitacaoAberta));
+        when(licitacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(licitacaoAberta));
 
         assertThatThrownBy(() -> licitacaoService.definirVencedor(1L, 10L))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
@@ -133,7 +133,7 @@ class LicitacaoServiceTest {
     void naoDevePermitirSubstituirVencedorJaDefinidoEmLicitaçãoEncerrada() {
         licitacaoAberta.setStatus(StatusLicitacao.ENCERRADA);
         licitacaoAberta.setVencedor(fornecedor);
-        when(licitacaoRepository.findById(1L)).thenReturn(Optional.of(licitacaoAberta));
+        when(licitacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(licitacaoAberta));
 
         assertThatThrownBy(() -> licitacaoService.definirVencedor(1L, 10L))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);

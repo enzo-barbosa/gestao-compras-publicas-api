@@ -93,7 +93,7 @@ class DotacaoServiceTest {
 
     @Test
     void debitarDeveReduzirSaldoERegistrarMovimentacaoQuandoHouverSaldoSuficiente() {
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
+        when(dotacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(dotacao));
 
         dotacaoService.debitar(1L, new BigDecimal("8000.00"), "Empenho mensal");
 
@@ -103,7 +103,7 @@ class DotacaoServiceTest {
 
     @Test
     void debitarNaoDeveAceitarValorAcimaDoSaldoDisponivel() {
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
+        when(dotacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(dotacao));
 
         assertThatThrownBy(() -> dotacaoService.debitar(1L, new BigDecimal("150000.00"), "Empenho"))
                 .isInstanceOf(SaldoInsuficienteException.class);
@@ -114,7 +114,7 @@ class DotacaoServiceTest {
 
     @Test
     void creditarDeveAumentarSaldoERegistrarMovimentacaoSuplementar() {
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
+        when(dotacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(dotacao));
 
         dotacaoService.creditar(1L, new BigDecimal("25000.00"), "Remanejamento");
 
@@ -241,7 +241,7 @@ class DotacaoServiceTest {
     @Test
     void creditarComTipoEspecificoDeveRegistrarMovimentacaoDoTipoInformado() {
         dotacao.setSaldoAtual(new BigDecimal("92000.00"));
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
+        when(dotacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(dotacao));
 
         dotacaoService.creditar(1L, new BigDecimal("8000.00"),
                 "Estorno de anulação – empenho competência 01/2026", TipoMovimentacao.ESTORNO);

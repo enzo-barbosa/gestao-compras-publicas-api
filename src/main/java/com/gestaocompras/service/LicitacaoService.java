@@ -92,7 +92,8 @@ public class LicitacaoService {
 
     @Transactional
     public LicitacaoResponseDTO definirVencedor(Long id, Long fornecedorId) {
-        Licitacao licitacao = buscarEntidade(id);
+        Licitacao licitacao = licitacaoRepository.findByIdComLock(id)
+                .orElseThrow(() -> new NotFoundException("Licitação", id));
         if (licitacao.getStatus() == StatusLicitacao.HOMOLOGADA
                 || licitacao.getStatus() == StatusLicitacao.CANCELADA) {
             throw new OperacaoNaoPermitidaException(

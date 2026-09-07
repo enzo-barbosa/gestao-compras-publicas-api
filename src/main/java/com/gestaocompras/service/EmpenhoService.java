@@ -14,6 +14,7 @@ import com.gestaocompras.model.StatusEmpenho;
 import com.gestaocompras.model.Usuario;
 import com.gestaocompras.model.TipoMovimentacao;
 import com.gestaocompras.repository.ContratoRepository;
+import com.gestaocompras.repository.DotacaoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -35,15 +36,18 @@ public class EmpenhoService {
 
     private final EmpenhoRepository empenhoRepository;
     private final ContratoRepository contratoRepository;
+    private final DotacaoRepository dotacaoRepository;
     private final DotacaoService dotacaoService;
     private final UsuarioRepository usuarioRepository;
 
     public EmpenhoService(EmpenhoRepository empenhoRepository,
             ContratoRepository contratoRepository,
+            DotacaoRepository dotacaoRepository,
             DotacaoService dotacaoService,
             UsuarioRepository usuarioRepository) {
         this.empenhoRepository = empenhoRepository;
         this.contratoRepository = contratoRepository;
+        this.dotacaoRepository = dotacaoRepository;
         this.dotacaoService = dotacaoService;
         this.usuarioRepository = usuarioRepository;
     }
@@ -58,7 +62,7 @@ public class EmpenhoService {
         if (ano == null || ano < 1970) {
             throw new IllegalArgumentException("O ano de referência é inválido.");
         }
-        Contrato contrato = contratoRepository.findById(request.contratoId())
+        Contrato contrato = contratoRepository.findByIdComLock(request.contratoId())
                 .orElseThrow(() -> new NotFoundException("Contrato", request.contratoId()));
         if (contrato.getStatus() != StatusContrato.VIGENTE) {
             throw new OperacaoNaoPermitidaException(
@@ -75,7 +79,9 @@ public class EmpenhoService {
                             .formatted(contrato.getNumero(), mes, ano));
         }
         BigDecimal valorCompetencia = contrato.calcularValorCompetencia(YearMonth.of(ano, mes));
-        DotacaoOrcamentaria dotacao = contrato.getDotacao();
+        DotacaoOrcamentaria dotacao = dotacaoRepository.findByIdComLock(contrato.getDotacao().getId())
+                .orElseThrow(() -> new NotFoundException("Dotação orçamentária",
+                        contrato.getDotacao().getId()));
         if (dotacao.getSaldoAtual().compareTo(valorCompetencia) < 0) {
             throw new SaldoInsuficienteException(
                     "Saldo insuficiente na dotação %s: disponível R$ %s, necessário R$ %s."
@@ -113,7 +119,8 @@ public class EmpenhoService {
                             .formatted(empenho.getMesReferencia(), empenho.getAnoReferencia(),
                                     empenho.getStatus()));
         }
-        Contrato contrato = empenho.getContrato();
+        Contrato contrato = contratoRepository.findByIdComLock(empenho.getContrato().getId())
+                .orElseThrow(() -> new NotFoundException("Contrato", empenho.getContrato().getId()));
         BigDecimal valor = empenho.getValor();
         dotacaoService.creditar(contrato.getDotacao().getId(), valor,
                 "Estorno de anulação – empenho competência %02d/%04d – contrato %s"

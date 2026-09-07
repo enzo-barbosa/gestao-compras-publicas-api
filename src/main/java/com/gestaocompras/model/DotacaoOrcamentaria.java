@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +45,9 @@ public class DotacaoOrcamentaria {
 
     @Column(name = "ano_exercicio", nullable = false)
     private Integer anoExercicio;
+
+    @Version
+    private Long version;
 
     @Builder.Default
     @OneToMany(mappedBy = "dotacao")

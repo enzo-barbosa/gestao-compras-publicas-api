@@ -96,7 +96,7 @@ public class DotacaoService {
 
     @Transactional
     public void debitar(Long dotacaoId, BigDecimal valor, String descricao) {
-        DotacaoOrcamentaria dotacao = buscarEntidade(dotacaoId);
+        DotacaoOrcamentaria dotacao = buscarEntidadeComLock(dotacaoId);
         dotacao.debitar(valor);
         registrarMovimentacao(dotacao, TipoMovimentacao.DEBITO, valor, descricao);
     }
@@ -109,7 +109,7 @@ public class DotacaoService {
     @Transactional
     public void creditar(Long dotacaoId, BigDecimal valor, String descricao,
             TipoMovimentacao tipo) {
-        DotacaoOrcamentaria dotacao = buscarEntidade(dotacaoId);
+        DotacaoOrcamentaria dotacao = buscarEntidadeComLock(dotacaoId);
         dotacao.creditar(valor);
         registrarMovimentacao(dotacao, tipo, valor, descricao);
     }
@@ -127,6 +127,11 @@ public class DotacaoService {
 
     private DotacaoOrcamentaria buscarEntidade(Long id) {
         return dotacaoRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Dotação orçamentária", id));
+    }
+
+    private DotacaoOrcamentaria buscarEntidadeComLock(Long id) {
+        return dotacaoRepository.findByIdComLock(id)
                 .orElseThrow(() -> new NotFoundException("Dotação orçamentária", id));
     }
 

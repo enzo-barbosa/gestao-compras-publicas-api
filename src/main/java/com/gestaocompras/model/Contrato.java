@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -67,6 +68,9 @@ public class Contrato {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "fornecedor_id", nullable = false)
     private Fornecedor fornecedor;
+
+    @Version
+    private Long version;
 
     public BigDecimal calcularValorMensal() {
         return valorTotal.divide(BigDecimal.valueOf(duracaoMeses), 2, RoundingMode.HALF_UP);

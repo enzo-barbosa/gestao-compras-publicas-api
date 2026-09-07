@@ -27,6 +27,7 @@ import com.gestaocompras.model.StatusEmpenho;
 import com.gestaocompras.model.TipoMovimentacao;
 import com.gestaocompras.model.Usuario;
 import com.gestaocompras.repository.ContratoRepository;
+import com.gestaocompras.repository.DotacaoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import java.math.BigDecimal;
@@ -53,6 +54,9 @@ class EmpenhoServiceTest {
 
     @Mock
     private ContratoRepository contratoRepository;
+
+    @Mock
+    private DotacaoRepository dotacaoRepository;
 
     @Mock
     private DotacaoService dotacaoService;
@@ -96,7 +100,11 @@ class EmpenhoServiceTest {
     }
 
     private void contratoEncontrado() {
-        when(contratoRepository.findById(30L)).thenReturn(Optional.of(contratoVigente));
+        when(contratoRepository.findByIdComLock(30L)).thenReturn(Optional.of(contratoVigente));
+    }
+
+    private void dotacaoEncontrada() {
+        when(dotacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(dotacao));
     }
 
     private void competenciaNaoDuplicada(Integer mes, Integer ano) {
@@ -120,6 +128,7 @@ class EmpenhoServiceTest {
     @Test
     void gerarDeveCriarEmpenhoComValorMensalEDebitarOsDoisSaldos() {
         contratoEncontrado();
+        dotacaoEncontrada();
         competenciaNaoDuplicada(1, 2026);
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
@@ -139,6 +148,7 @@ class EmpenhoServiceTest {
         contratoVigente.setDuracaoMeses(3);
         contratoVigente.setDataInicio(LocalDate.of(2026, 1, 1));
         contratoEncontrado();
+        dotacaoEncontrada();
         competenciaNaoDuplicada(1, 2026);
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
@@ -155,6 +165,7 @@ class EmpenhoServiceTest {
         contratoVigente.setDataInicio(LocalDate.of(2026, 1, 1));
         contratoVigente.setSaldoRestante(new BigDecimal("3333.34"));
         contratoEncontrado();
+        dotacaoEncontrada();
         competenciaNaoDuplicada(3, 2026);
         competenciaAtivaAnterior(2, 2026);
         when(empenhoRepository.save(any(Empenho.class)))
@@ -175,6 +186,7 @@ class EmpenhoServiceTest {
         contratoVigente.setDataInicio(LocalDate.of(2026, 1, 1));
         contratoVigente.setSaldoRestante(new BigDecimal("10000.00"));
         contratoEncontrado();
+        dotacaoEncontrada();
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
@@ -230,6 +242,7 @@ class EmpenhoServiceTest {
     @Test
     void naoDeveGerarComSaldoInsuficienteNaDotacao() {
         contratoEncontrado();
+        dotacaoEncontrada();
         competenciaNaoDuplicada(2, 2026);
         competenciaAtivaAnterior(1, 2026);
         dotacao.setSaldoAtual(new BigDecimal("5000.00"));
@@ -245,6 +258,7 @@ class EmpenhoServiceTest {
     @Test
     void naoDeveGerarComSaldoRestanteInsuficienteNoContrato() {
         contratoEncontrado();
+        dotacaoEncontrada();
         competenciaNaoDuplicada(5, 2026);
         competenciaAtivaAnterior(4, 2026);
         contratoVigente.setSaldoRestante(new BigDecimal("9000.00"));
@@ -287,6 +301,7 @@ class EmpenhoServiceTest {
     @Test
     void primeiroMesDaVigenciaNaoExigeCompetenciaAnterior() {
         contratoEncontrado();
+        dotacaoEncontrada();
         competenciaNaoDuplicada(1, 2026);
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
@@ -299,6 +314,7 @@ class EmpenhoServiceTest {
     @Test
     void devePermitirRecriarEmpenhoAposAnulacao() {
         contratoEncontrado();
+        dotacaoEncontrada();
         when(empenhoRepository
                 .existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(
                         30L, 2026, 1,
@@ -327,6 +343,7 @@ class EmpenhoServiceTest {
                 .build();
         contratoVigente.setSaldoRestante(new BigDecimal("50000.00"));
         when(empenhoRepository.findById(40L)).thenReturn(Optional.of(empenho));
+        contratoEncontrado();
 
         var resposta = empenhoService.anular(40L);
 
@@ -368,6 +385,7 @@ class EmpenhoServiceTest {
     @Test
     void gerarDevePreencherUsuarioAutenticadoNoEmpenho() {
         contratoEncontrado();
+        dotacaoEncontrada();
         competenciaNaoDuplicada(3, 2026);
         competenciaAtivaAnterior(2, 2026);
         Usuario usuario = Usuario.builder()
