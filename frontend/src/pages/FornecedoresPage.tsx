@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
-import api from '../services/api'
 import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
-import { extrairMensagemErro } from '../utils/format'
+import { useCrudPage } from '../hooks/useCrudPage'
 
 interface Fornecedor {
   id: number
@@ -15,92 +12,49 @@ interface Fornecedor {
   endereco: string | null
 }
 
-const FORM_VAZIO = { nome: '', cnpj: '', email: '', telefone: '', endereco: '' }
+interface FornecedorForm {
+  nome: string
+  cnpj: string
+  email: string
+  telefone: string
+  endereco: string
+}
+
+const FORM_VAZIO: FornecedorForm = { nome: '', cnpj: '', email: '', telefone: '', endereco: '' }
+
+const PARAMS = { size: 100 }
 
 export default function FornecedoresPage() {
   const { ehAdmin } = useAuth()
-  const [itens, setItens] = useState<Fornecedor[]>([])
-  const [carregando, setCarregando] = useState(true)
-  const [erro, setErro] = useState<string | null>(null)
-  const [sucesso, setSucesso] = useState<string | null>(null)
-  const [form, setForm] = useState(FORM_VAZIO)
-  const [editandoId, setEditandoId] = useState<number | null>(null)
-
-  function carregar() {
-    return api
-      .get('/fornecedores', { params: { size: 100 } })
-      .then((resposta) => {
-        setItens(resposta.data.content ?? [])
-        setErro(null)
-      })
-      .catch((e) => {
-        setErro(extrairMensagemErro(e))
-      })
-      .finally(() => {
-        setCarregando(false)
-      })
-  }
-
-  useEffect(() => {
-    void carregar()
-  }, [])
-
-  function iniciarEdicao(f: Fornecedor) {
-    setEditandoId(f.id)
-    setForm({
+  const crud = useCrudPage<Fornecedor, FornecedorForm>({
+    rota: '/fornecedores',
+    params: PARAMS,
+    formVazio: FORM_VAZIO,
+    paraForm: (f) => ({
       nome: f.nome,
       cnpj: f.cnpj,
       email: f.email ?? '',
       telefone: f.telefone ?? '',
       endereco: f.endereco ?? '',
-    })
-  }
-
-  function cancelar() {
-    setEditandoId(null)
-    setForm(FORM_VAZIO)
-  }
-
-  async function salvar(evento: FormEvent) {
-    evento.preventDefault()
-    setErro(null)
-    setSucesso(null)
-    const corpo = {
-      nome: form.nome,
-      cnpj: form.cnpj,
-      email: form.email || null,
-      telefone: form.telefone || null,
-      endereco: form.endereco || null,
-    }
-    try {
-      if (editandoId === null) {
-        await api.post('/fornecedores', corpo)
-        setSucesso('Fornecedor criado com sucesso.')
-      } else {
-        await api.put(`/fornecedores/${editandoId}`, corpo)
-        setSucesso('Fornecedor atualizado com sucesso.')
+    }),
+    montarCorpo: (form) => {
+      const apenasDigitos = form.cnpj.replace(/\D/g, '')
+      if (apenasDigitos.length !== 14) {
+        throw new Error('CNPJ inválido: informe os 14 dígitos.')
       }
-      cancelar()
-      setCarregando(true)
-      await carregar()
-    } catch (e) {
-      setErro(extrairMensagemErro(e))
-    }
-  }
-
-  async function excluir(id: number) {
-    if (!window.confirm('Confirma a exclusão deste fornecedor?')) return
-    setErro(null)
-    setSucesso(null)
-    try {
-      await api.delete(`/fornecedores/${id}`)
-      setSucesso('Fornecedor removido.')
-      setCarregando(true)
-      await carregar()
-    } catch (e) {
-      setErro(extrairMensagemErro(e))
-    }
-  }
+      return {
+        nome: form.nome,
+        cnpj: apenasDigitos,
+        email: form.email || null,
+        telefone: form.telefone || null,
+        endereco: form.endereco || null,
+      }
+    },
+    confirmarExclusao: (f) => `Confirma a exclusão do fornecedor ${f.nome}?`,
+    mensagemCriacao: 'Fornecedor criado.',
+    mensagemEdicao: 'Fornecedor atualizado.',
+    mensagemExclusao: 'Fornecedor removido.',
+  })
 
   const colunas: Coluna<Fornecedor>[] = [
     { key: 'nome', label: 'Nome' },
@@ -120,37 +74,36 @@ export default function FornecedoresPage() {
   return (
     <section>
       <h2>Fornecedores</h2>
-      {erro && <div className="alerta erro" role="alert">{erro}</div>}
-      {sucesso && <div className="alerta sucesso" role="status">{sucesso}</div>}
+      {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
 
       {ehAdmin && (
         <div className="card form-card">
-          <h3>{editandoId === null ? 'Novo fornecedor' : `Editando fornecedor #${editandoId}`}</h3>
-          <form onSubmit={salvar} className="grade-form">
+          <h3>{crud.editandoId === null ? 'Novo fornecedor' : `Editando fornecedor #${crud.editandoId}`}</h3>
+          <form onSubmit={crud.salvar} className="grade-form" noValidate>
             <div>
               <label htmlFor="nome">Nome / Razão social</label>
-              <input id="nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required maxLength={150} />
+              <input id="nome" value={crud.form.nome} onChange={(e) => crud.setForm({ ...crud.form, nome: e.target.value })} required maxLength={150} />
             </div>
             <div>
               <label htmlFor="cnpj">CNPJ</label>
-              <input id="cnpj" value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} placeholder="00.000.000/0000-00" required />
+              <input id="cnpj" value={crud.form.cnpj} onChange={(e) => crud.setForm({ ...crud.form, cnpj: e.target.value })} placeholder="00.000.000/0000-00" required />
             </div>
             <div>
               <label htmlFor="email">E-mail</label>
-              <input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <input id="email" type="email" value={crud.form.email} onChange={(e) => crud.setForm({ ...crud.form, email: e.target.value })} />
             </div>
             <div>
               <label htmlFor="telefone">Telefone</label>
-              <input id="telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} maxLength={20} />
+              <input id="telefone" value={crud.form.telefone} onChange={(e) => crud.setForm({ ...crud.form, telefone: e.target.value })} maxLength={20} />
             </div>
             <div className="campo-largo">
               <label htmlFor="endereco">Endereço</label>
-              <input id="endereco" value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} maxLength={200} />
+              <input id="endereco" value={crud.form.endereco} onChange={(e) => crud.setForm({ ...crud.form, endereco: e.target.value })} maxLength={200} />
             </div>
             <div className="acoes-form">
-              <button className="btn primario" type="submit">{editandoId === null ? 'Criar' : 'Salvar'}</button>
-              {editandoId !== null && (
-                <button className="btn secundario" type="button" onClick={cancelar}>Cancelar</button>
+              <button className="btn primario" type="submit">{crud.editandoId === null ? 'Criar' : 'Salvar'}</button>
+              {crud.editandoId !== null && (
+                <button className="btn secundario" type="button" onClick={crud.cancelar}>Cancelar</button>
               )}
             </div>
           </form>
@@ -159,16 +112,16 @@ export default function FornecedoresPage() {
 
       <TabelaGenerica
         colunas={colunas}
-        itens={itens}
-        carregando={carregando}
+        itens={crud.itens}
+        carregando={crud.carregando}
         mensagemVazio="Nenhum fornecedor cadastrado."
         ariaLabel="Tabela de fornecedores"
         acoes={
           ehAdmin
             ? (f) => (
                 <>
-                  <button className="btn secundario" onClick={() => iniciarEdicao(f)} aria-label={`Editar fornecedor ${f.nome}`}>Editar</button>
-                  <button className="btn perigo" onClick={() => excluir(f.id)} aria-label={`Excluir fornecedor ${f.nome}`}>Excluir</button>
+                  <button className="btn secundario" onClick={() => crud.iniciarEdicao(f)} aria-label={`Editar fornecedor ${f.nome}`}>Editar</button>
+                  <button className="btn perigo" onClick={() => crud.excluir(f)} aria-label={`Excluir fornecedor ${f.nome}`}>Excluir</button>
                 </>
               )
             : undefined

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
 import api from '../services/api'
+import type { Pagina } from '../services/api'
 import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
-import { extrairMensagemErro, formatarData, formatarMoeda } from '../utils/format'
+import { useCrudPage } from '../hooks/useCrudPage'
+import { useToast } from '../context/useToast'
+import { formatarData, formatarMoeda } from '../utils/format'
 
 interface Contrato {
   id: number
@@ -25,6 +27,17 @@ interface Contrato {
   licitacaoNumeroEdital: string | null
 }
 
+interface ContratoForm {
+  numero: string
+  objeto: string
+  valorTotal: string
+  duracaoMeses: string
+  dataInicio: string
+  dotacaoId: string
+  licitacaoId: string
+  fornecedorId: string
+}
+
 interface DotacaoOpcao {
   id: number
   codigo: string
@@ -42,7 +55,7 @@ interface LicitacaoOpcao {
   status: string
 }
 
-const FORM_VAZIO = {
+const FORM_VAZIO: ContratoForm = {
   numero: '',
   objeto: '',
   valorTotal: '',
@@ -53,51 +66,20 @@ const FORM_VAZIO = {
   fornecedorId: '',
 }
 
+const PARAMS = { size: 100, sort: 'dataInicio,desc' } as const
+
 export default function ContratosPage() {
   const { ehAdmin } = useAuth()
-  const [itens, setItens] = useState<Contrato[]>([])
+  const { exibir } = useToast()
   const [dotacoes, setDotacoes] = useState<DotacaoOpcao[]>([])
   const [fornecedores, setFornecedores] = useState<FornecedorOpcao[]>([])
   const [licitacoes, setLicitacoes] = useState<LicitacaoOpcao[]>([])
-  const [carregando, setCarregando] = useState(true)
-  const [erro, setErro] = useState<string | null>(null)
-  const [sucesso, setSucesso] = useState<string | null>(null)
-  const [form, setForm] = useState(FORM_VAZIO)
-  const [editandoId, setEditandoId] = useState<number | null>(null)
 
-  function carregar() {
-    return api
-      .get('/contratos', { params: { size: 100, sort: 'dataInicio,desc' } })
-      .then((resposta) => {
-        setItens(resposta.data.content ?? [])
-        setErro(null)
-      })
-      .catch((e) => {
-        setErro(extrairMensagemErro(e))
-      })
-      .finally(() => {
-        setCarregando(false)
-      })
-  }
-
-  useEffect(() => {
-    void carregar()
-    if (ehAdmin) {
-      api.get('/dotacoes', { params: { size: 200 } })
-        .then((r) => setDotacoes(r.data.content ?? []))
-        .catch(() => undefined)
-      api.get('/fornecedores', { params: { size: 200 } })
-        .then((r) => setFornecedores(r.data.content ?? []))
-        .catch(() => undefined)
-      api.get('/licitacoes', { params: { size: 200 } })
-        .then((r) => setLicitacoes(r.data.content ?? []))
-        .catch(() => undefined)
-    }
-  }, [ehAdmin])
-
-  function iniciarEdicao(c: Contrato) {
-    setEditandoId(c.id)
-    setForm({
+  const crud = useCrudPage<Contrato, ContratoForm>({
+    rota: '/contratos',
+    params: PARAMS,
+    formVazio: FORM_VAZIO,
+    paraForm: (c) => ({
       numero: c.numero,
       objeto: c.objeto,
       valorTotal: String(c.valorTotal),
@@ -106,81 +88,69 @@ export default function ContratosPage() {
       dotacaoId: String(c.dotacaoId),
       licitacaoId: c.licitacaoId === null ? '' : String(c.licitacaoId),
       fornecedorId: String(c.fornecedorId),
-    })
-  }
-
-  function cancelar() {
-    setEditandoId(null)
-    setForm(FORM_VAZIO)
-  }
-
-  async function salvar(evento: FormEvent) {
-    evento.preventDefault()
-    setErro(null)
-    setSucesso(null)
-    try {
+    }),
+    montarCorpo: (form, editandoId) => {
+      if (!form.numero.trim()) throw new Error('Informe o número do contrato.')
+      if (!form.objeto.trim()) throw new Error('Informe o objeto do contrato.')
       if (editandoId === null) {
-        const corpo = {
-          numero: form.numero,
-          objeto: form.objeto,
-          valorTotal: Number(form.valorTotal),
-          duracaoMeses: Number(form.duracaoMeses),
-          dataInicio: form.dataInicio,
-          dotacaoId: Number(form.dotacaoId),
-          licitacaoId: form.licitacaoId ? Number(form.licitacaoId) : null,
-          fornecedorId: Number(form.fornecedorId),
-        }
-        await api.post('/contratos', corpo)
-        setSucesso('Contrato criado — saldo restante inicializado com o valor total.')
-      } else {
-        const existente = itens.find((c) => c.id === editandoId)
-        if (!existente) {
-          setErro('Contrato não encontrado para edição. Recarregue a listagem e tente novamente.')
-          return
-        }
-        await api.put(`/contratos/${editandoId}`, {
-          numero: form.numero,
-          objeto: form.objeto,
-          valorTotal: existente.valorTotal,
-          duracaoMeses: existente.duracaoMeses,
-          dataInicio: form.dataInicio,
-          dotacaoId: existente.dotacaoId,
-          licitacaoId: existente.licitacaoId,
-          fornecedorId: existente.fornecedorId,
-        })
-        setSucesso('Contrato atualizado (número, objeto e data de início são editáveis).')
+        if (Number(form.valorTotal) <= 0) throw new Error('Informe um valor total maior que zero.')
+        if (Number(form.duracaoMeses) < 1) throw new Error('A duração mínima é de 1 mês.')
+        if (!form.dotacaoId) throw new Error('Selecione a dotação orçamentária.')
+        if (!form.fornecedorId) throw new Error('Selecione o fornecedor.')
       }
-      cancelar()
-      setCarregando(true)
-      await carregar()
-    } catch (e) {
-      setErro(extrairMensagemErro(e))
-    }
-  }
+      return {
+        numero: form.numero,
+        objeto: form.objeto,
+        valorTotal: Number(form.valorTotal),
+        duracaoMeses: Number(form.duracaoMeses),
+        dataInicio: form.dataInicio,
+        dotacaoId: Number(form.dotacaoId),
+        licitacaoId: form.licitacaoId ? Number(form.licitacaoId) : null,
+        fornecedorId: Number(form.fornecedorId),
+      }
+    },
+    aoSalvar: async (form, editandoId, corpo) => {
+      if (editandoId === null) {
+        exibir('sucesso', 'Contrato criado — saldo restante igual ao valor total.')
+        return api.post('/contratos', corpo)
+      }
+      const existente = (await api.get<Contrato>(`/contratos/${editandoId}`)).data
+      exibir('sucesso', 'Contrato atualizado.')
+      return api.put(`/contratos/${editandoId}`, {
+        numero: form.numero,
+        objeto: form.objeto,
+        valorTotal: existente.valorTotal,
+        duracaoMeses: existente.duracaoMeses,
+        dataInicio: form.dataInicio,
+        dotacaoId: existente.dotacaoId,
+        licitacaoId: existente.licitacaoId,
+        fornecedorId: existente.fornecedorId,
+      })
+    },
+    confirmarExclusao: (c) => `Confirma a exclusão do contrato ${c.numero}?`,
+    mensagemCriacao: 'Contrato criado.',
+    mensagemEdicao: 'Contrato atualizado.',
+    mensagemExclusao: 'Contrato removido.',
+  })
 
-  async function excluir(id: number) {
-    if (!window.confirm('Confirma a exclusão deste contrato?')) return
-    setErro(null)
-    setSucesso(null)
-    try {
-      await api.delete(`/contratos/${id}`)
-      setSucesso('Contrato removido.')
-      setCarregando(true)
-      await carregar()
-    } catch (e) {
-      setErro(extrairMensagemErro(e))
-    }
-  }
+  useEffect(() => {
+    if (!ehAdmin) return
+    api.get<Pagina<DotacaoOpcao>>('/dotacoes', { params: { size: 200 } })
+      .then((r) => setDotacoes(r.data.content))
+      .catch(() => undefined)
+    api.get<Pagina<FornecedorOpcao>>('/fornecedores', { params: { size: 200 } })
+      .then((r) => setFornecedores(r.data.content))
+      .catch(() => undefined)
+    api.get<Pagina<LicitacaoOpcao>>('/licitacoes', { params: { size: 200 } })
+      .then((r) => setLicitacoes(r.data.content))
+      .catch(() => undefined)
+  }, [ehAdmin])
 
   const colunas: Coluna<Contrato>[] = [
     { key: 'numero', label: 'Número' },
     { key: 'fornecedorNome', label: 'Fornecedor' },
     { key: 'dotacaoCodigo', label: 'Dotação' },
-    {
-      key: 'licitacaoNumeroEdital',
-      label: 'Licitação',
-      render: (c) => c.licitacaoNumeroEdital ?? '—',
-    },
+    { key: 'licitacaoNumeroEdital', label: 'Licitação', render: (c) => c.licitacaoNumeroEdital ?? '—' },
     { key: 'valorTotal', label: 'Valor total', render: (c) => formatarMoeda(c.valorTotal) },
     { key: 'valorMensal', label: 'Valor mensal', render: (c) => formatarMoeda(c.valorMensal) },
     {
@@ -200,44 +170,43 @@ export default function ContratosPage() {
     },
   ]
 
-  const precisaVinculos = editandoId === null
+  const precisaVinculos = crud.editandoId === null
 
   return (
     <section>
       <h2>Contratos</h2>
-      {erro && <div className="alerta erro" role="alert">{erro}</div>}
-      {sucesso && <div className="alerta sucesso" role="status">{sucesso}</div>}
+      {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
 
       {ehAdmin && (
         <div className="card form-card">
-          <h3>{editandoId === null ? 'Novo contrato' : `Editando contrato #${editandoId}`}</h3>
-          <form onSubmit={salvar} className="grade-form">
+          <h3>{crud.editandoId === null ? 'Novo contrato' : `Editando contrato #${crud.editandoId}`}</h3>
+          <form onSubmit={crud.salvar} className="grade-form" noValidate>
             <div>
               <label htmlFor="numero">Número</label>
-              <input id="numero" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} placeholder="015/2026" required maxLength={30} />
+              <input id="numero" value={crud.form.numero} onChange={(e) => crud.setForm({ ...crud.form, numero: e.target.value })} placeholder="015/2026" required maxLength={30} />
             </div>
             <div className="campo-largo">
               <label htmlFor="objeto">Objeto</label>
-              <input id="objeto" value={form.objeto} onChange={(e) => setForm({ ...form, objeto: e.target.value })} required maxLength={300} />
+              <input id="objeto" value={crud.form.objeto} onChange={(e) => crud.setForm({ ...crud.form, objeto: e.target.value })} required maxLength={300} />
             </div>
             <div>
               <label htmlFor="valorTotal">Valor total (R$)</label>
-              <input id="valorTotal" type="number" min="0" step="0.01" value={form.valorTotal} onChange={(e) => setForm({ ...form, valorTotal: e.target.value })} required disabled={!precisaVinculos} />
+              <input id="valorTotal" type="number" min="0" step="0.01" value={crud.form.valorTotal} onChange={(e) => crud.setForm({ ...crud.form, valorTotal: e.target.value })} required disabled={!precisaVinculos} />
             </div>
             <div>
               <label htmlFor="duracaoMeses">Duração (meses)</label>
-              <input id="duracaoMeses" type="number" min="1" step="1" value={form.duracaoMeses} onChange={(e) => setForm({ ...form, duracaoMeses: e.target.value })} required disabled={!precisaVinculos} />
+              <input id="duracaoMeses" type="number" min="1" step="1" value={crud.form.duracaoMeses} onChange={(e) => crud.setForm({ ...crud.form, duracaoMeses: e.target.value })} required disabled={!precisaVinculos} />
             </div>
             <div>
               <label htmlFor="dataInicio">Início</label>
-              <input id="dataInicio" type="date" value={form.dataInicio} onChange={(e) => setForm({ ...form, dataInicio: e.target.value })} required />
+              <input id="dataInicio" type="date" value={crud.form.dataInicio} onChange={(e) => crud.setForm({ ...crud.form, dataInicio: e.target.value })} required />
             </div>
 
             {precisaVinculos && (
               <>
                 <div>
                   <label htmlFor="dotacaoId">Dotação orçamentária</label>
-                  <select id="dotacaoId" value={form.dotacaoId} onChange={(e) => setForm({ ...form, dotacaoId: e.target.value })} required>
+                  <select id="dotacaoId" value={crud.form.dotacaoId} onChange={(e) => crud.setForm({ ...crud.form, dotacaoId: e.target.value })} required>
                     <option value="">Selecione…</option>
                     {dotacoes.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -248,7 +217,7 @@ export default function ContratosPage() {
                 </div>
                 <div>
                   <label htmlFor="fornecedorId">Fornecedor</label>
-                  <select id="fornecedorId" value={form.fornecedorId} onChange={(e) => setForm({ ...form, fornecedorId: e.target.value })} required>
+                  <select id="fornecedorId" value={crud.form.fornecedorId} onChange={(e) => crud.setForm({ ...crud.form, fornecedorId: e.target.value })} required>
                     <option value="">Selecione…</option>
                     {fornecedores.map((f) => (
                       <option key={f.id} value={f.id}>{f.nome}</option>
@@ -257,7 +226,7 @@ export default function ContratosPage() {
                 </div>
                 <div>
                   <label htmlFor="licitacaoId">Licitação (opcional)</label>
-                  <select id="licitacaoId" value={form.licitacaoId} onChange={(e) => setForm({ ...form, licitacaoId: e.target.value })}>
+                  <select id="licitacaoId" value={crud.form.licitacaoId} onChange={(e) => crud.setForm({ ...crud.form, licitacaoId: e.target.value })}>
                     <option value="">Sem licitação (dispensa/inexigibilidade)</option>
                     {licitacoes.map((l) => (
                       <option key={l.id} value={l.id}>
@@ -270,9 +239,9 @@ export default function ContratosPage() {
             )}
 
             <div className="acoes-form">
-              <button className="btn primario" type="submit">{editandoId === null ? 'Criar' : 'Salvar'}</button>
-              {editandoId !== null && (
-                <button className="btn secundario" type="button" onClick={cancelar}>Cancelar</button>
+              <button className="btn primario" type="submit">{crud.editandoId === null ? 'Criar' : 'Salvar'}</button>
+              {crud.editandoId !== null && (
+                <button className="btn secundario" type="button" onClick={crud.cancelar}>Cancelar</button>
               )}
             </div>
             {!precisaVinculos && (
@@ -286,16 +255,16 @@ export default function ContratosPage() {
 
       <TabelaGenerica
         colunas={colunas}
-        itens={itens}
-        carregando={carregando}
+        itens={crud.itens}
+        carregando={crud.carregando}
         mensagemVazio="Nenhum contrato cadastrado."
         ariaLabel="Tabela de contratos"
         acoes={
           ehAdmin
             ? (c) => (
                 <>
-                  <button className="btn secundario" onClick={() => iniciarEdicao(c)} aria-label={`Editar contrato ${c.numero}`}>Editar</button>
-                  <button className="btn perigo" onClick={() => excluir(c.id)} aria-label={`Excluir contrato ${c.numero}`}>Excluir</button>
+                  <button className="btn secundario" onClick={() => crud.iniciarEdicao(c)} aria-label={`Editar contrato ${c.numero}`}>Editar</button>
+                  <button className="btn perigo" onClick={() => crud.excluir(c)} aria-label={`Excluir contrato ${c.numero}`}>Excluir</button>
                 </>
               )
             : undefined

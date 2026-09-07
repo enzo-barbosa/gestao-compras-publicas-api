@@ -4,6 +4,14 @@ export const TOKEN_KEY = 'gc_token'
 export const USUARIO_KEY = 'gc_usuario'
 export const AUTH_EXPIRADO = 'auth:expirado'
 
+export interface Pagina<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  size: number
+  number: number
+}
+
 const api = axios.create({
   baseURL: '/api',
 })

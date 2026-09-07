@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
-import api from '../services/api'
 import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
-import { extrairMensagemErro, formatarMoeda } from '../utils/format'
+import { useCrudPage } from '../hooks/useCrudPage'
+import { formatarMoeda } from '../utils/format'
 
 interface Dotacao {
   id: number
@@ -15,94 +13,52 @@ interface Dotacao {
   anoExercicio: number
 }
 
+interface DotacaoForm {
+  codigo: string
+  descricao: string
+  saldoInicial: string
+  anoExercicio: string
+}
+
 const ANO_ATUAL = new Date().getFullYear()
 
-function formVazio() {
+function formVazio(): DotacaoForm {
   return { codigo: '', descricao: '', saldoInicial: '', anoExercicio: String(ANO_ATUAL) }
 }
 
+const PARAMS = { size: 100 }
+
 export default function DotacoesPage() {
   const { ehAdmin } = useAuth()
-  const [itens, setItens] = useState<Dotacao[]>([])
-  const [carregando, setCarregando] = useState(true)
-  const [erro, setErro] = useState<string | null>(null)
-  const [sucesso, setSucesso] = useState<string | null>(null)
-  const [form, setForm] = useState(formVazio)
-  const [editandoId, setEditandoId] = useState<number | null>(null)
-
-  function carregar() {
-    return api
-      .get('/dotacoes', { params: { size: 100 } })
-      .then((resposta) => {
-        setItens(resposta.data.content ?? [])
-        setErro(null)
-      })
-      .catch((e) => {
-        setErro(extrairMensagemErro(e))
-      })
-      .finally(() => {
-        setCarregando(false)
-      })
-  }
-
-  useEffect(() => {
-    void carregar()
-  }, [])
-
-  function iniciarEdicao(d: Dotacao) {
-    setEditandoId(d.id)
-    setForm({
+  const crud = useCrudPage<Dotacao, DotacaoForm>({
+    rota: '/dotacoes',
+    params: PARAMS,
+    formVazio: formVazio(),
+    paraForm: (d) => ({
       codigo: d.codigo,
       descricao: d.descricao,
       saldoInicial: String(d.saldoInicial),
       anoExercicio: String(d.anoExercicio),
-    })
-  }
-
-  function cancelar() {
-    setEditandoId(null)
-    setForm(formVazio())
-  }
-
-  async function salvar(evento: FormEvent) {
-    evento.preventDefault()
-    setErro(null)
-    setSucesso(null)
-    const corpo = {
-      codigo: form.codigo,
-      descricao: form.descricao,
-      saldoInicial: Number(form.saldoInicial),
-      anoExercicio: Number(form.anoExercicio),
-    }
-    try {
-      if (editandoId === null) {
-        await api.post('/dotacoes', corpo)
-        setSucesso('Dotação criada com sucesso.')
-      } else {
-        await api.put(`/dotacoes/${editandoId}`, corpo)
-        setSucesso('Dotação atualizada com sucesso.')
+    }),
+    montarCorpo: (form, editandoId) => {
+      if (editandoId === null && Number(form.saldoInicial) <= 0) {
+        throw new Error('Informe um saldo inicial maior que zero.')
       }
-      cancelar()
-      setCarregando(true)
-      await carregar()
-    } catch (e) {
-      setErro(extrairMensagemErro(e))
-    }
-  }
-
-  async function excluir(id: number) {
-    if (!window.confirm('Confirma a exclusão desta dotação orçamentária?')) return
-    setErro(null)
-    setSucesso(null)
-    try {
-      await api.delete(`/dotacoes/${id}`)
-      setSucesso('Dotação removida.')
-      setCarregando(true)
-      await carregar()
-    } catch (e) {
-      setErro(extrairMensagemErro(e))
-    }
-  }
+      if (!form.anoExercicio || Number(form.anoExercicio) < 2000) {
+        throw new Error('Informe um ano de exercício válido.')
+      }
+      return {
+        codigo: form.codigo,
+        descricao: form.descricao,
+        saldoInicial: Number(form.saldoInicial),
+        anoExercicio: Number(form.anoExercicio),
+      }
+    },
+    confirmarExclusao: (d) => `Confirma a exclusão da dotação ${d.codigo}?`,
+    mensagemCriacao: 'Dotação criada.',
+    mensagemEdicao: 'Dotação atualizada.',
+    mensagemExclusao: 'Dotação removida.',
+  })
 
   const colunas: Coluna<Dotacao>[] = [
     { key: 'codigo', label: 'Código' },
@@ -118,33 +74,32 @@ export default function DotacoesPage() {
   return (
     <section>
       <h2>Dotações orçamentárias</h2>
-      {erro && <div className="alerta erro" role="alert">{erro}</div>}
-      {sucesso && <div className="alerta sucesso" role="status">{sucesso}</div>}
+      {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
 
       {ehAdmin && (
         <div className="card form-card">
-          <h3>{editandoId === null ? 'Nova dotação' : `Editando dotação #${editandoId}`}</h3>
-          <form onSubmit={salvar} className="grade-form">
+          <h3>{crud.editandoId === null ? 'Nova dotação' : `Editando dotação #${crud.editandoId}`}</h3>
+          <form onSubmit={crud.salvar} className="grade-form" noValidate>
             <div>
               <label htmlFor="codigo">Código</label>
-              <input id="codigo" value={form.codigo} onChange={(e) => setForm({ ...form, codigo: e.target.value })} required maxLength={30} />
+              <input id="codigo" value={crud.form.codigo} onChange={(e) => crud.setForm({ ...crud.form, codigo: e.target.value })} required maxLength={30} />
             </div>
             <div>
               <label htmlFor="descricao">Descrição</label>
-              <input id="descricao" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} required maxLength={200} />
+              <input id="descricao" value={crud.form.descricao} onChange={(e) => crud.setForm({ ...crud.form, descricao: e.target.value })} required maxLength={200} />
             </div>
             <div>
               <label htmlFor="saldoInicial">Saldo inicial (R$)</label>
-              <input id="saldoInicial" type="number" min="0" step="0.01" value={form.saldoInicial} onChange={(e) => setForm({ ...form, saldoInicial: e.target.value })} required />
+              <input id="saldoInicial" type="number" min="0" step="0.01" value={crud.form.saldoInicial} onChange={(e) => crud.setForm({ ...crud.form, saldoInicial: e.target.value })} required />
             </div>
             <div>
               <label htmlFor="anoExercicio">Ano exercício</label>
-              <input id="anoExercicio" type="number" min="2000" max="2100" value={form.anoExercicio} onChange={(e) => setForm({ ...form, anoExercicio: e.target.value })} required />
+              <input id="anoExercicio" type="number" min="2000" max="2100" value={crud.form.anoExercicio} onChange={(e) => crud.setForm({ ...crud.form, anoExercicio: e.target.value })} required />
             </div>
             <div className="acoes-form">
-              <button className="btn primario" type="submit">{editandoId === null ? 'Criar' : 'Salvar'}</button>
-              {editandoId !== null && (
-                <button className="btn secundario" type="button" onClick={cancelar}>Cancelar</button>
+              <button className="btn primario" type="submit">{crud.editandoId === null ? 'Criar' : 'Salvar'}</button>
+              {crud.editandoId !== null && (
+                <button className="btn secundario" type="button" onClick={crud.cancelar}>Cancelar</button>
               )}
             </div>
           </form>
@@ -153,16 +108,16 @@ export default function DotacoesPage() {
 
       <TabelaGenerica
         colunas={colunas}
-        itens={itens}
-        carregando={carregando}
+        itens={crud.itens}
+        carregando={crud.carregando}
         mensagemVazio="Nenhuma dotação cadastrada."
         ariaLabel="Tabela de dotações orçamentárias"
         acoes={
           ehAdmin
             ? (d) => (
                 <>
-                  <button className="btn secundario" onClick={() => iniciarEdicao(d)} aria-label={`Editar dotação ${d.codigo}`}>Editar</button>
-                  <button className="btn perigo" onClick={() => excluir(d.id)} aria-label={`Excluir dotação ${d.codigo}`}>Excluir</button>
+                  <button className="btn secundario" onClick={() => crud.iniciarEdicao(d)} aria-label={`Editar dotação ${d.codigo}`}>Editar</button>
+                  <button className="btn perigo" onClick={() => crud.excluir(d)} aria-label={`Excluir dotação ${d.codigo}`}>Excluir</button>
                 </>
               )
             : undefined

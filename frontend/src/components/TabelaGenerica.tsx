@@ -40,32 +40,34 @@ export default function TabelaGenerica<T extends { id: number }>({
   }
 
   return (
-    <table className="tabela" aria-label={ariaLabel}>
-      <caption className="sr-only">{ariaLabel}</caption>
-      <thead>
-        <tr>
-          {colunas.map((c) => (
-            <th key={c.key} scope="col">{c.label}</th>
-          ))}
-          {acoes && <th scope="col">Ações</th>}
-        </tr>
-      </thead>
-      <tbody>
-        {itens.map((item) => (
-          <tr key={item.id}>
+    <div className="tabela-wrapper">
+      <table className="tabela" aria-label={ariaLabel}>
+        <caption className="sr-only">{ariaLabel}</caption>
+        <thead>
+          <tr>
             {colunas.map((c) => (
-              <td key={c.key}>
-                {c.render ? c.render(item) : String((item as Record<string, unknown>)[c.key] ?? '—')}
-              </td>
+              <th key={c.key} scope="col">{c.label}</th>
             ))}
-            {acoes && (
-              <td>
-                <div className="acoes-linha">{acoes(item)}</div>
-              </td>
-            )}
+            {acoes && <th scope="col">Ações</th>}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {itens.map((item) => (
+            <tr key={item.id}>
+              {colunas.map((c) => (
+                <td key={c.key}>
+                  {c.render ? c.render(item) : String((item as Record<string, unknown>)[c.key] ?? '—')}
+                </td>
+              ))}
+              {acoes && (
+                <td>
+                  <div className="acoes-linha">{acoes(item)}</div>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

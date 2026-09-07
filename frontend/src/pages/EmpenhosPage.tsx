@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import api from '../services/api'
+import type { Pagina } from '../services/api'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
 import EmpenhoForm from '../components/EmpenhoForm'
+import { useToast } from '../context/useToast'
 import { extrairMensagemErro, formatarCompetencia, formatarData, formatarMoeda, formatarStatusEmpenho } from '../utils/format'
 
 interface Empenho {
@@ -24,39 +26,57 @@ const FILTROS = [
   ['ANULADO', 'Anulados'],
 ] as const
 
+const PARAMS = { size: 100, sort: 'dataEmissao,desc' } as const
+
 export default function EmpenhosPage() {
+  const { exibir } = useToast()
   const [itens, setItens] = useState<Empenho[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [filtroStatus, setFiltroStatus] = useState('')
 
-  function carregar() {
-    return api
-      .get('/empenhos', {
-        params: { size: 100, sort: 'dataEmissao,desc' },
-      })
-      .then((resposta) => {
-        setItens(resposta.data.content ?? [])
-        setErro(null)
-      })
-      .catch((e) => {
-        setErro(extrairMensagemErro(e))
-      })
-      .finally(() => {
-        setCarregando(false)
-      })
-  }
+  const buscar = useCallback(async (): Promise<Empenho[]> => {
+    const resposta = await api.get<Pagina<Empenho>>('/empenhos', { params: PARAMS })
+    return resposta.data.content ?? []
+  }, [])
+
+  const carregar = useCallback(async () => {
+    try {
+      setItens(await buscar())
+      setErro(null)
+    } catch (e) {
+      setErro(extrairMensagemErro(e))
+    } finally {
+      setCarregando(false)
+    }
+  }, [buscar])
 
   useEffect(() => {
-    void carregar()
-  }, [])
+    let ativo = true
+    buscar().then(
+      (dados) => {
+        if (ativo) {
+          setItens(dados)
+          setErro(null)
+        }
+      },
+      (e) => {
+        if (ativo) setErro(extrairMensagemErro(e))
+      },
+    ).finally(() => {
+      if (ativo) setCarregando(false)
+    })
+    return () => {
+      ativo = false
+    }
+  }, [buscar])
 
   async function anular(id: number) {
     if (!window.confirm('Confirma a anulação deste empenho? Os valores serão estornados ao contrato e à dotação.')) return
     setErro(null)
     try {
       await api.delete(`/empenhos/${id}`)
-      setCarregando(true)
+      exibir('sucesso', 'Empenho anulado e saldos estornados.')
       await carregar()
     } catch (e) {
       setErro(extrairMensagemErro(e))

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../services/api'
+import type { Pagina } from '../services/api'
 import { formatarCompetencia, formatarMoeda, formatarStatusEmpenho, extrairMensagemErro } from '../utils/format'
 
 interface DotacaoResumo {
@@ -28,8 +29,8 @@ export default function DashboardPage() {
     async function carregar() {
       try {
         const [respostaDotacoes, respostaEmpenhos] = await Promise.all([
-          api.get('/dotacoes', { params: { size: 50 } }),
-          api.get('/empenhos', { params: { size: 6, sort: 'dataEmissao,desc' } }),
+          api.get<Pagina<DotacaoResumo>>('/dotacoes', { params: { size: 50 } }),
+          api.get<Pagina<EmpenhoRecente>>('/empenhos', { params: { size: 6, sort: 'dataEmissao,desc' } }),
         ])
         setDotacoes(respostaDotacoes.data.content ?? [])
         setEmpenhos(respostaEmpenhos.data.content ?? [])
@@ -72,26 +73,28 @@ export default function DashboardPage() {
       {empenhos.length === 0 ? (
         <p className="vazio">Nenhum empenho gerado ainda.</p>
       ) : (
-        <table className="tabela">
-          <thead>
-            <tr>
-              <th>Contrato</th>
-              <th>Competência</th>
-              <th>Valor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {empenhos.map((e) => (
-              <tr key={e.id}>
-                <td>{e.contratoNumero}</td>
-                <td>{formatarCompetencia(e.mesReferencia, e.anoReferencia)}</td>
-                <td>{formatarMoeda(e.valor)}</td>
-                <td>{formatarStatusEmpenho(e.status)}</td>
+        <div className="tabela-wrapper">
+          <table className="tabela">
+            <thead>
+              <tr>
+                <th>Contrato</th>
+                <th>Competência</th>
+                <th>Valor</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {empenhos.map((e) => (
+                <tr key={e.id}>
+                  <td>{e.contratoNumero}</td>
+                  <td>{formatarCompetencia(e.mesReferencia, e.anoReferencia)}</td>
+                  <td>{formatarMoeda(e.valor)}</td>
+                  <td>{formatarStatusEmpenho(e.status)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   )

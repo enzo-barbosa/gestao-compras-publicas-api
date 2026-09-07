@@ -37,7 +37,8 @@ export default function EmpenhoForm({ onGerado }: Props) {
       .then((r) => {
         const lista: ContratoVigente[] = r.data.content ?? []
         setContratos(lista)
-        if (lista.length > 0) setContratoId(String(lista[0].id))
+        const primeiro = lista[0]
+        if (primeiro) setContratoId(String(primeiro.id))
       })
       .catch(() => undefined)
   }, [])
