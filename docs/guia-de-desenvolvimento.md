@@ -47,7 +47,7 @@ Sistema web full-stack que corrige uma falha real observada em prefeitura: contr
 | Maven | Via wrapper `./mvnw` (3.9.16) — NÃO há mvn global |
 | Banco | PostgreSQL 15 via Docker Compose |
 | JWT | Biblioteca jjwt (`io.jsonwebtoken:jjwt-api/impl/jackson` 0.12.x) |
-| Frontend | React 18 + TypeScript + Vite, Axios, monorepo na pasta `frontend/` |
+| Frontend | React 19 + TypeScript (strict) + Vite, Axios, monorepo na pasta `frontend/` |
 | Deploy | Docker + GitHub Actions + AWS (EC2 t2.micro, RDS, ECR, S3) |
 | Repositório | `git@github.com:enzo-barbosa/gestao-compras-publicas-api.git`, branch `main` |
 | Camadas backend | controller → service → repository → model / dto / config, pacote raiz `com.gestaocompras` |
@@ -73,6 +73,16 @@ Existe hoje:
 
 Ainda NÃO existe:
 - [ ] Deploy em nuvem (Fase 12b — destino a decidir; CI com publish no GHCR já pronto)
+
+### Melhorias concluídas (programa de 8 fases — sessão 2026-09-07)
+
+- [x] Schema gerenciado por **Flyway** (migrations `V1__init`, `V2__add_indexes_and_fix_empenho_unique`, `V3__add_version_columns`) com `baseline-on-migrate`; `ddl-auto=validate` em todos os profiles
+- [x] **Locking financeiro**: colunas `version` em `dotacoes`/`contratos` (otimista) + lock pessimista `PESSIMISTIC_WRITE` no budget; `ObjectOptimisticLockingFailureException` → 409 com mensagem amigável
+- [x] **Perf de listagens**: `@EntityGraph` nos 4 repositórios principais (paginação sem N+1); `DotacaoService.debitar/creditar` retornam a entidade (elimina re-busca redundante)
+- [x] **Auth aprimorada**: endpoint `GET /api/auth/me`; frontend valida a sessão no boot e redireciona com aviso de sessão expirada; `JwtService` com fail-fast em secret em branco; TTL do token 24h → 8h (`JWT_EXPIRATION_MS`)
+- [x] **Frontend refatorado**: TypeScript strict (`noUncheckedIndexedAccess`), hook `useCrudPage<T>`, sistema de toasts, paginação tipada `Pagina<T>`, `overflow-x` em tabelas, validação client (CNPJ 14 dígitos, encerramento ≥ abertura, valor/duração)
+- [x] **Testes**: backend **94/94** (novo `GlobalExceptionHandlerTest` com MockMvc standalone + `ActuatorSecurityTest`); frontend **23/23** com Vitest (`utils/format` + `utils/validacao`)
+- [x] **Operações**: Spring Boot Actuator (`/actuator/health` público, demais endpoints só ADMIN, sem detalhes em prod); `docs/backup.md` (backup/restore pg_dump, automação systemd, drill de restauração, Trivy)
 
 ⚠️ **Testes e app exigem o Postgres rodando** (`docker compose up -d`) — o contexto Spring conecta no banco para o `ddl-auto`.
 
@@ -235,6 +245,12 @@ docker compose down
 
 # Frontend (após Fase 10)
 cd frontend && npm install && npm run dev   # http://localhost:3000
+
+# Frontend — lint, testes e build
+cd frontend && npm run lint && npm test && npm run build
+
+# Monitoração (actuator)
+curl http://localhost:8080/actuator/health   # público
 ```
 
 ---
@@ -341,6 +357,46 @@ git push
 - Antes de cada push, conferir `git status` — nada de arquivos temporários, `.env`, logs.
 - Commits descrevem O QUE mudou no código; decisões técnicas e contexto de cada sessão ficam no Log de Sessões.
 
+### Programa de melhorias (8 fases) — 2026-09-07
+
+1 commit por fase, todos já executados pelo usuário **exceto a Fase 8** (persiste `M docs/guia-de-desenvolvimento.md` + os arquivos abaixo até o fechamento).
+
+```bash
+# Fase 1 — normalizar erros 4xx/navbar
+git add <...>
+git commit -m "fix: normalize 4xx errors, unify error shape and fix navbar active state"
+
+# Fase 2 — Flyway
+git commit -m "feat: add flyway-managed schema with baseline and indexes"
+
+# Fase 3 — locking financeiro
+git commit -m "fix: enforce financial integrity with optimistic and pessimistic locking"
+
+# Fase 4 — eager-fetch + retorno de entidade
+git commit -m "perf: eager-fetch paginated lists and drop redundant dotacao re-fetch"
+
+# Fase 5 — /auth/me + endurecimento prod
+git commit -m "feat: expose /auth/me, validate sessions on boot and harden production auth"
+
+# Fase 6 — frontend
+git commit -m "refactor(ui): crud hook, toasts, strict TS and client-side validation"
+
+# Fase 7 — testes
+git commit -m "test: cover global exception handler and shared validation"
+
+# Fase 8 (PENDENTE) — Actuator + docs de backup/Trivy
+git add pom.xml src/main/java/com/gestaocompras/config/SecurityConfig.java src/main/resources/application.properties src/main/resources/application-prod.properties src/test/java/com/gestaocompras/integration/ActuatorSecurityTest.java docs/backup.md
+git commit -m "ops: expose health via actuator, document backup/restore and add trivy guidelines"
+
+# Fechamento — log deste programa no guia
+git add docs/guia-de-desenvolvimento.md
+git commit -m "docs: record improvement program and phase commits in dev guide"
+
+git push
+```
+
+Histórico resultante (do mais antigo ao mais novo): `c157271` (F1), `42b9fc4` (F2), `d3fad77` (F3), `ee1d7b2` (F4), `9e680bb` (F5), `8188e8a` (F6), `d16f2c0` (F7), mais Fase 8 + fechamento.
+
 ---
 
 ## 8. LOG DE SESSÕES
@@ -367,3 +423,5 @@ git push
 | 2026-08-31 | opencode/big-pickle | **Sessão de aprimoramento pré-deploy — Fase B (acessibilidade + CSS + bugs frontend)**. (1) `index.html`: `lang="en"` → `lang="pt-BR"`. (2) ARIA: `Navbar.tsx` `<nav aria-label="Navegação principal">`; alerts dos 8 arquivos ganham `role="alert"` (erro) e `role="status"` (sucesso); `TabelaGenerica.tsx` ganha prop `ariaLabel` (default) aplicada nas 5 páginas. (3) `index.css`: definidas no `:root` as variáveis apontadas como indefinidas `--cinza-borda: #cbd5e1` e `--azul-600: #2563eb`. (4) `DotacoesPage.tsx`: ano do formulário agora dinâmico via `new Date().getFullYear()` (substitui "2026" hardcoded). (5) `ContratosPage.tsx`: removida non-null assertion `!` no `find` — agora checa null e aborta com mensagem de erro. Validação: `npm run lint` 0 warnings, `npm run build` OK (tsc + vite), backend intocado. Pendências: Fases C (profiles prod), D (nginx headers). |
 | 2026-08-31 | opencode/big-pickle | **Sessão de aprimoramento pré-deploy — Fase C (configuração por ambiente/prod)**. (1) Criado `src/main/resources/application-prod.properties` com `spring.jpa.hibernate.ddl-auto=validate` (ditoa decisão aprovada: default continua dev-friendly com `update` + logs SQL; o profile `prod` sobrescreve o `ddl-auto`). (2) `docker-compose.prod.yml`: serviço `api` ganhou `SPRING_PROFILES_ACTIVE=prod` + `SPRING_JPA_HIBERNATE_DDL_AUTO=validate` (dupla proteção: profile + env explícita). Não há `application-dev.properties` — default já é o dev. Validação: `docker compose -f docker-compose.prod.yml config` OK (env refletidas), `./mvnw test` **77/77 verdes** (novo properties não afeta o default). Item "estratégia de profiles" da Fase 1 marcado como concluído. Pendência: Fase D (nginx security headers). |
 | 2026-08-31 | opencode/big-pickle | **Sessão de aprimoramento pré-deploy — Fase D (nginx security headers) · FIM das 4 fases pré-deploy**. `frontend/nginx.conf`: adicionados `server_tokens off` e os headers `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff` e `Referrer-Policy: strict-origin-when-cross-origin` (todos com `always`). Sem CSP (evitar quebrar o React com inline styles) — decisão aprovada. Validação: `nginx -t` via container `nginx:alpine` (com `--add-host=api:127.0.0.1` para resolver o upstream do proxy) → **syntax is ok**. Projeto pronto para as 4 fases completarem; pendente: revisar itens adiados para o deploy real (JWT secret via env — já exigido no compose prod `JWT_SECRET:?`, senha admin fraca para dev, containers root). |
+| 2026-09-07 | opencode/big-pickle | **Programa de 8 fases de melhoria (F1–F8) concluído, com 1 commit por fase**. F1: `GlobalExceptionHandler` reescrito (shape unificado via `ErroResposta`, 405/415/`HttpMessageNotReadable`, ordem de handlers com genéricos no fim) + navbar ativa. F2: schema migrado do Hibernate auto-DDL para **Flyway** (`V1__init` gerado por schema-export, `V2` c/ índices e unique real do empenho, baseline-on-migrate=1; `ddl-auto=validate` em todos os profiles). F3: **lock otimista** (`version` em dotacoes/contratos) + **pessimista** (`PESSIMISTIC_WRITE`/`findByIdComLock` no budget) + handler de `ObjectOptimisticLockingFailureException`→409. F4: `@EntityGraph` em `findAll(Specification,Pageable)` dos 4 repos (sem N+1 nas listagens) + `debitar/creditar` retornando `DotacaoOrcamentaria`. F5: `GET /api/auth/me`, validação de sessão no boot do front + aviso "sessão expirada", `JwtService` fail-fast em secret vazio, TTL 8h, `application-prod` com SQL=INFO. F6: TS strict (`noUncheckedIndexedAccess`), `useCrudPage<T>`, toasts (`ToastProvider`), `Pagina<T>`, `overflow-x`, validação client compartilhada. F7: `GlobalExceptionHandlerTest` (13 casos, MockMvc standalone) + Vitest (23 casos em format/validacao). F8: Actuator (`health` público, demais ADMIN, prod sem detalhes) + `docs/backup.md` (pg_dump/restore, systemd, drill, Trivy). Contagem final: backend **94/94**, frontend **23/23**, lint 0 warnings. Pendência: usuário executar commit da Fase 8 + fechamento do guia. |
+| 2026-09-01 | opencode/big-pickle | **Sessão de revisão geral + 3 fases de aprimoramento pré-deploy (E, F, G)**. Fase E (segurança backend): (1) `application.properties` JWT secret agora é placeholder `${JWT_SECRET:default-dev}` — prod injeta via env `JWT_SECRET:?` do compose, eliminando segredo hardcoded no repo público; (2) `DataInitializer` seed do admin só roda quando o profile **NÃO** é `prod` (senha `admin` deixa de nascer em produção; criar admin manualmente lá); (3) `RegistroRequestDTO` perdeu o campo `perfil` — registro sempre cria `USUARIO` (impede auto-promoção a ADMIN via body; `AuthService.registrar` fixa `Perfil.USUARIO`); (4) `SecurityConfig` CORS `allowedHeaders` restrito de `*` para `Authorization, Content-Type`. Fase F (robustez backend): (1) `GlobalExceptionHandler` novo handler `ConstraintViolationException` (400 claro em vez de 500 para validação de params/query); (2) removido `hibernate.orm.jdbc.bind=TRACE` do default (logs não expõem mais valores de binds sensíveis). **Decisão no meio do caminho**: `@Size(min=8)` no login foi revertido — criaria inconsistência com o seed `admin`/`admin` (5 chars) que quebraria o login; o registro já exige min=8. Fase G (frontend): (1) 401 não faz mais hard reload (`window.location.href`); `api.ts` dispara evento `auth:expirado`, novo `SessaoExpiradaListener` (dentro do `BrowserRouter`/`AuthProvider`) chama `logout()` + `navigate('/login')` — logout consistente via React state, sem recarga de página; `App.tsx` reestruturado (`BrowserRouter` por fora do `AuthProvider`); (2) a11y `TabelaGenerica`: `<caption class="sr-only">`, `scope="col"` nos `<th>`, `role="status"` + `aria-busy` no carregando/vazio, classe `.sr-only` adicionada ao CSS; (3) `aria-label` contextual nos botões por linha (Editar/Excluir/Anular/Definir vencedor) nas 5 páginas; (4) `LoginPage` inputs com `autoComplete="email"`/`current-password`. **Descoberta técnica**: oxlint 1.79 **não suporta** `react-hooks/exhaustive-deps` (regra inexistente) — config não a inclui; padrão das páginas (`carregar()` promise-chain com setters estáveis) é correto sem stale-closure, então os `useEffect` não foram refatorados. **Validação final**: backend `./mvnw test` **77/77 verdes** (após E e F), frontend `npm run lint` 0 warnings + `npm run build` OK (Fase G). Pendência: Fase 12b (deploy em nuvem). |
