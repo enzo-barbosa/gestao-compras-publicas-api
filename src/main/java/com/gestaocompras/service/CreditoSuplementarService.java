@@ -2,12 +2,10 @@ package com.gestaocompras.service;
 
 import com.gestaocompras.dto.CreditoSuplementarRequestDTO;
 import com.gestaocompras.dto.CreditoSuplementarResponseDTO;
-import com.gestaocompras.exception.NotFoundException;
 import com.gestaocompras.exception.OperacaoNaoPermitidaException;
 import com.gestaocompras.model.CreditoSuplementar;
 import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.repository.CreditoSuplementarRepository;
-import com.gestaocompras.repository.DotacaoRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -22,14 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class CreditoSuplementarService {
 
     private final DotacaoService dotacaoService;
-    private final DotacaoRepository dotacaoRepository;
     private final CreditoSuplementarRepository creditoSuplementarRepository;
 
     public CreditoSuplementarService(DotacaoService dotacaoService,
-            DotacaoRepository dotacaoRepository,
             CreditoSuplementarRepository creditoSuplementarRepository) {
         this.dotacaoService = dotacaoService;
-        this.dotacaoRepository = dotacaoRepository;
         this.creditoSuplementarRepository = creditoSuplementarRepository;
     }
 
@@ -38,13 +33,13 @@ public class CreditoSuplementarService {
         if (request.dotacaoOrigemId().equals(request.dotacaoDestinoId())) {
             throw new OperacaoNaoPermitidaException("A dotação de origem e a de destino devem ser diferentes.");
         }
-        DotacaoOrcamentaria origem = buscarDotacao(request.dotacaoOrigemId());
-        DotacaoOrcamentaria destino = buscarDotacao(request.dotacaoDestinoId());
         String descricao = request.descricao() == null || request.descricao().isBlank()
                 ? "Crédito suplementar"
                 : request.descricao();
-        dotacaoService.debitar(origem.getId(), request.valor(), descricao);
-        dotacaoService.creditar(destino.getId(), request.valor(), descricao);
+        DotacaoOrcamentaria origem = dotacaoService.debitar(
+                request.dotacaoOrigemId(), request.valor(), descricao);
+        DotacaoOrcamentaria destino = dotacaoService.creditar(
+                request.dotacaoDestinoId(), request.valor(), descricao);
         CreditoSuplementar registro = creditoSuplementarRepository.save(CreditoSuplementar.builder()
                 .dotacaoOrigem(origem)
                 .dotacaoDestino(destino)
@@ -80,10 +75,5 @@ public class CreditoSuplementarService {
             }
             return cb.and(predicados.toArray(Predicate[]::new));
         };
-    }
-
-    private DotacaoOrcamentaria buscarDotacao(Long id) {
-        return dotacaoRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Dotação orçamentária", id));
     }
 }

@@ -95,23 +95,25 @@ public class DotacaoService {
     }
 
     @Transactional
-    public void debitar(Long dotacaoId, BigDecimal valor, String descricao) {
+    public DotacaoOrcamentaria debitar(Long dotacaoId, BigDecimal valor, String descricao) {
         DotacaoOrcamentaria dotacao = buscarEntidadeComLock(dotacaoId);
         dotacao.debitar(valor);
         registrarMovimentacao(dotacao, TipoMovimentacao.DEBITO, valor, descricao);
+        return dotacao;
     }
 
     @Transactional
-    public void creditar(Long dotacaoId, BigDecimal valor, String descricao) {
-        creditar(dotacaoId, valor, descricao, TipoMovimentacao.CREDITO_SUPLEMENTAR);
+    public DotacaoOrcamentaria creditar(Long dotacaoId, BigDecimal valor, String descricao) {
+        return creditar(dotacaoId, valor, descricao, TipoMovimentacao.CREDITO_SUPLEMENTAR);
     }
 
     @Transactional
-    public void creditar(Long dotacaoId, BigDecimal valor, String descricao,
+    public DotacaoOrcamentaria creditar(Long dotacaoId, BigDecimal valor, String descricao,
             TipoMovimentacao tipo) {
         DotacaoOrcamentaria dotacao = buscarEntidadeComLock(dotacaoId);
         dotacao.creditar(valor);
         registrarMovimentacao(dotacao, tipo, valor, descricao);
+        return dotacao;
     }
 
     private void registrarMovimentacao(DotacaoOrcamentaria dotacao, TipoMovimentacao tipo,

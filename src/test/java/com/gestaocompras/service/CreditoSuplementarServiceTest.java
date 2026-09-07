@@ -17,9 +17,7 @@ import com.gestaocompras.exception.SaldoInsuficienteException;
 import com.gestaocompras.model.CreditoSuplementar;
 import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.repository.CreditoSuplementarRepository;
-import com.gestaocompras.repository.DotacaoRepository;
 import java.math.BigDecimal;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,9 +30,6 @@ class CreditoSuplementarServiceTest {
 
     @Mock
     private DotacaoService dotacaoService;
-
-    @Mock
-    private DotacaoRepository dotacaoRepository;
 
     @Mock
     private CreditoSuplementarRepository creditoSuplementarRepository;
@@ -72,8 +67,10 @@ class CreditoSuplementarServiceTest {
 
     @Test
     void realizarDeveDebitarOrigemCreditarDestinoERegistrarORemaniejamento() {
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(origem));
-        when(dotacaoRepository.findById(2L)).thenReturn(Optional.of(destino));
+        when(dotacaoService.debitar(1L, new BigDecimal("10000.00"), "Reforco de dotação"))
+                .thenReturn(origem);
+        when(dotacaoService.creditar(2L, new BigDecimal("10000.00"), "Reforco de dotação"))
+                .thenReturn(destino);
         when(creditoSuplementarRepository.save(any(CreditoSuplementar.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
@@ -99,7 +96,8 @@ class CreditoSuplementarServiceTest {
 
     @Test
     void realizarDeveLancarNotFoundQuandoOrigemNaoExistir() {
-        when(dotacaoRepository.findById(99L)).thenReturn(Optional.empty());
+        when(dotacaoService.debitar(99L, new BigDecimal("1000.00"), "Crédito suplementar"))
+                .thenThrow(new NotFoundException("Dotação orçamentária", 99L));
         CreditoSuplementarRequestDTO invalida = new CreditoSuplementarRequestDTO(99L, 2L,
                 new BigDecimal("1000.00"), null, null);
 
@@ -109,8 +107,6 @@ class CreditoSuplementarServiceTest {
 
     @Test
     void realizarDevePropagarSaldoInsuficienteESemRegistrarRemanejamento() {
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(origem));
-        when(dotacaoRepository.findById(2L)).thenReturn(Optional.of(destino));
         doThrow(new SaldoInsuficienteException("Dotação orçamentária", origem.getSaldoAtual(),
                 new BigDecimal("999999.00")))
                 .when(dotacaoService).debitar(1L, new BigDecimal("999999.00"), "Crédito suplementar");
