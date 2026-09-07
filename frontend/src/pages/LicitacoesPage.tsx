@@ -6,6 +6,7 @@ import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { useToast } from '../context/useToast'
+import { dataEncerramentoValida } from '../utils/validacao'
 import { extrairMensagemErro, formatarData, formatarMoeda } from '../utils/format'
 
 interface Licitacao {
@@ -80,7 +81,7 @@ export default function LicitacoesPage() {
       if (Number(form.valorEstimado) <= 0) {
         throw new Error('Informe um valor estimado maior que zero.')
       }
-      if (form.dataEncerramento && form.dataEncerramento < form.dataAbertura) {
+      if (!dataEncerramentoValida(form.dataAbertura, form.dataEncerramento)) {
         throw new Error('O encerramento não pode ser anterior à abertura.')
       }
       return {

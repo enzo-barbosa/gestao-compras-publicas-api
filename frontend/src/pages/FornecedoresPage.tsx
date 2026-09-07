@@ -2,6 +2,7 @@ import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
 import { useCrudPage } from '../hooks/useCrudPage'
+import { cnpjValido } from '../utils/validacao'
 
 interface Fornecedor {
   id: number
@@ -39,7 +40,7 @@ export default function FornecedoresPage() {
     }),
     montarCorpo: (form) => {
       const apenasDigitos = form.cnpj.replace(/\D/g, '')
-      if (apenasDigitos.length !== 14) {
+      if (!cnpjValido(form.cnpj)) {
         throw new Error('CNPJ inválido: informe os 14 dígitos.')
       }
       return {
