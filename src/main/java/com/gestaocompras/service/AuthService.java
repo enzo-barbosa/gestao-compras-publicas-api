@@ -1,14 +1,18 @@
 package com.gestaocompras.service;
 
 import com.gestaocompras.dto.LoginRequestDTO;
+import com.gestaocompras.dto.OrganizacaoResponseDTO;
 import com.gestaocompras.dto.RegistroRequestDTO;
 import com.gestaocompras.dto.TokenResponseDTO;
 import com.gestaocompras.dto.UsuarioResponseDTO;
 import com.gestaocompras.exception.RegistroDuplicadoException;
 import com.gestaocompras.model.Perfil;
 import com.gestaocompras.model.Usuario;
+import com.gestaocompras.repository.MembroOrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import com.gestaocompras.security.JwtService;
+import java.util.Comparator;
+import java.util.List;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,13 +22,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
+    private final MembroOrganizacaoRepository membroRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     public AuthService(UsuarioRepository usuarioRepository,
+            MembroOrganizacaoRepository membroRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService) {
         this.usuarioRepository = usuarioRepository;
+        this.membroRepository = membroRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
@@ -42,8 +49,15 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public UsuarioResponseDTO buscarUsuarioAtual(String email) {
-        return UsuarioResponseDTO.from(usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new BadCredentialsException("Sessão inválida.")));
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Sessão inválida."));
+        List<OrganizacaoResponseDTO> organizacoes = membroRepository
+                .findByIdUsuarioId(usuario.getId()).stream()
+                .map(membro -> OrganizacaoResponseDTO.from(
+                        membro.getId().getOrganizacao(), membro.getPapel().name()))
+                .sorted(Comparator.comparing(OrganizacaoResponseDTO::nome))
+                .toList();
+        return UsuarioResponseDTO.from(usuario, organizacoes);
     }
 
     @Transactional
@@ -57,6 +71,6 @@ public class AuthService {
                 .email(request.email())
                 .senha(passwordEncoder.encode(request.senha()))
                 .perfil(Perfil.USUARIO)
-                .build()));
+                .build()), List.of());
     }
 }

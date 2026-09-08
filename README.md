@@ -38,7 +38,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V4) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 96 testes (JUnit 5 + Mockito + integração) |
+| Qualidade | 136 testes (JUnit 5 + Mockito + integração) |
 
 ## Como rodar
 
@@ -60,7 +60,7 @@ senha: admin
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 96 testes
+./mvnw test                          # 136 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
@@ -113,12 +113,19 @@ erDiagram
 
 ## Principais endpoints
 
-> Endpoints de negócio (`/api/dotacoes`, `/api/fornecedores`, `/api/licitacoes`, `/api/contratos`, `/api/empenhos`, `/api/creditos-suplementares`) operam **sempre na organização do header `X-Org-Id`**.
+> Endpoints de negócio (`/api/dotacoes`, `/api/fornecedores`, `/api/licitacoes`, `/api/contratos`, `/api/empenhos`, `/api/creditos-suplementares` e a **gestão de membros/convites**) operam **sempre na organização do header `X-Org-Id`** — o papel do usuário é resolvido dentro daquela organização.
 
 | Método | Rota | Descrição | Acesso |
 |---|---|---|---|
 | POST | `/api/auth/login` | Autenticação, retorna JWT | público |
-| POST | `/api/auth/register` | Registro de usuário (perfil `USUARIO`) | SUPER_ADMIN / ADMIN |
+| POST | `/api/auth/register` | Cadastro aberto (perfil `USUARIO`) | público |
+| GET | `/api/auth/me` | Usuário + lista de organizações com o papel em cada uma | autenticado |
+| POST/GET/PUT | `/api/organizacoes` | Criar grupo (quem cria vira ADMIN), listar os meus, renomear | criador: qualquer autenticado; renomear: ADMIN |
+| GET | `/api/organizacoes/{id}` | Detalhes do grupo | membro |
+| GET/POST/PUT/DELETE | `/api/organizacoes/{id}/membros` | Listar/adicionar/alterar papel/remover membros | leitura: membro; gestão: ADMIN |
+| POST/GET/DELETE | `/api/organizacoes/{id}/convites` | Criar convite (por e-mail **ou** código), listar pendentes, revogar | ADMIN |
+| POST | `/api/convites/aceitar` | Aceitar convite por código | autenticado |
+| POST | `/api/convites/aceitar-email` | Aceitar convites pendentes do meu e-mail | autenticado |
 | GET/POST/PUT/DELETE | `/api/dotacoes/**` | Dotações, saldo e movimentações | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
 | GET/POST/PUT/DELETE | `/api/fornecedores/**` | Fornecedores (busca por nome) | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
 | GET/POST/PUT/DELETE | `/api/licitacoes/**` | Licitações + filtro status/modalidade | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
@@ -127,7 +134,7 @@ erDiagram
 | POST | `/api/empenhos` | Gera empenho da competência | ADMIN/OPERADOR |
 | DELETE | `/api/empenhos/{id}` | Anula com estorno atômico | ADMIN/OPERADOR |
 
-Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` — as mensagens de negócio ("Saldo insuficiente na dotação…", "Já existe empenho do contrato… para a competência…") chegam prontas para exibição.
+Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` — as mensagens de negócio ("Saldo insuficiente na dotação…", "Já existe empenho do contrato… para a competência…") chegam prontas para exibição. Acesso indevido a um grupo retorna `403` "Você não é membro desta organização."; o criador do grupo não pode ser rebaixado nem removido.
 
 ## Regras de negócio em destaque
 
@@ -155,7 +162,7 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 ### Programa multitenancy por grupos (5 fases)
 
 - [x] Fase 1 (backend): modelo de dados (organizações/membros/convites), isolamento por `X-Org-Id`, papéis por grupo, `SUPER_ADMIN` global e migração dos dados existentes
-- [ ] Fase 2 (backend): API de grupos/membros/convites + cadastro público
+- [x] Fase 2 (backend): API de grupos/membros/convites + cadastro público
 - [ ] Fase 3 (frontend): landing, cadastro, onboarding e seletor de grupo + dashboard
 - [ ] Fase 4 (frontend): gestão de membros e painel oculto de super admin
 - [ ] Fase 5 (fechamento): revisão de docs, diagramas e `scripts/test-api.sh`

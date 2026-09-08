@@ -46,9 +46,18 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register")
+                        .requestMatchers(HttpMethod.POST, "/api/organizacoes").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/organizacoes").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/organizacoes/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/organizacoes/**")
                                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/organizacoes/**")
+                                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/organizacoes/**")
+                                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/convites/**").authenticated()
                         .requestMatchers("/actuator/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/**")
                                 .hasAnyRole("ADMIN", "OPERADOR", "VISITANTE", "SUPER_ADMIN")
@@ -85,7 +94,7 @@ public class SecurityConfig {
         CorsConfiguration configuracao = new CorsConfiguration();
         configuracao.setAllowedOrigins(List.of(allowedOrigins.split(",")));
         configuracao.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
-        configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Org-Id"));
         UrlBasedCorsConfigurationSource origem = new UrlBasedCorsConfigurationSource();
         origem.registerCorsConfiguration("/**", configuracao);
         return origem;

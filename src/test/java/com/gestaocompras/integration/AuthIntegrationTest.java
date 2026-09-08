@@ -174,14 +174,13 @@ class AuthIntegrationTest {
 
     @Test
     @Order(6)
-    void usuarioComumSemMembrosiaNaoPodeEscreverNemLerNaOrganizacao() {
+    void usuarioComumSemMembrosiaPodeRegistrarMasNaoEscreverNemLerNaOrganizacao() {
         String tokenUsuario = http.postForEntity(url("/api/auth/login"),
                 new LoginRequestDTO(EMAIL_USUARIO, "senhaSegura123"), TokenResponseDTO.class)
                 .getBody().token();
 
-        var tentativaRegistro = troca("/api/auth/register", HttpMethod.POST,
-                comBearer(tokenUsuario),
-                new RegistroRequestDTO("Outro", "outro" + System.nanoTime()
+        var registroPublico = troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
+                new RegistroRequestDTO("Novo", "novo" + System.nanoTime()
                         + "@x.com", "senhaSegura123"));
         var tentativaEscrita = troca("/api/dotacoes", HttpMethod.POST,
                 comBearerEOrganizacao(tokenUsuario),
@@ -189,7 +188,7 @@ class AuthIntegrationTest {
         var leituraSemMembrosia = troca("/api/dotacoes", HttpMethod.GET,
                 comBearerEOrganizacao(tokenUsuario), null);
 
-        assertThat(tentativaRegistro.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(registroPublico.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(tentativaEscrita.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(leituraSemMembrosia.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat((String) ((Map<?, ?>) leituraSemMembrosia.getBody()).get("mensagem"))

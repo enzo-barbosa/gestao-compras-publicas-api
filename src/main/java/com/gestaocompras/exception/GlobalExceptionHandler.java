@@ -110,6 +110,12 @@ public class GlobalExceptionHandler {
                 .body(ErroResposta.of(HttpStatus.NOT_FOUND.value(), "Não encontrado", ex.getMessage()));
     }
 
+    @ExceptionHandler(NaoMembroException.class)
+    public ResponseEntity<ErroResposta> handleNaoMembro(NaoMembroException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErroResposta.of(HttpStatus.FORBIDDEN.value(), "Acesso negado", ex.getMessage()));
+    }
+
     @ExceptionHandler(SaldoInsuficienteException.class)
     public ResponseEntity<ErroResposta> handleSaldoInsuficiente(SaldoInsuficienteException ex) {
         return ResponseEntity.badRequest()
