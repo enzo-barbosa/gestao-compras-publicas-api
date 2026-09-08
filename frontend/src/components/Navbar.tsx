@@ -49,6 +49,12 @@ export default function Navbar() {
         {podeEmitirEmpenho(usuario?.perfil ?? '', orgAtiva?.papel) && (
           <NavLink to="/app/empenhos" className={linkClass}>Empenhos</NavLink>
         )}
+        {podeGerir(usuario?.perfil ?? '', orgAtiva?.papel) && (
+          <NavLink to="/app/membros" className={linkClass}>Membros</NavLink>
+        )}
+        {usuario?.perfil === 'SUPER_ADMIN' && (
+          <NavLink to="/app/superpainel" className={linkClass}>Super admin</NavLink>
+        )}
       </nav>
 
       {organizacoes.length > 0 && (

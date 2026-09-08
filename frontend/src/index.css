@@ -491,6 +491,14 @@ textarea:focus {
   margin-bottom: 12px;
 }
 
+.abas {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--cinza-300);
+  padding-bottom: 10px;
+}
+
 .btn.fantasma.ativo {
   background: var(--azul-100, #dbeafe);
   color: var(--azul-600, #2563eb);

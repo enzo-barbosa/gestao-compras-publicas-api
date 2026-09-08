@@ -38,7 +38,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V4) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 136 testes (JUnit 5 + Mockito + integração) |
+| Qualidade | 143 testes backend (JUnit 5 + Mockito + integração) + 34 testes de frontend (Vitest) |
 
 ## Como rodar
 
@@ -60,7 +60,7 @@ senha: admin
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 136 testes
+./mvnw test                          # 143 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
@@ -126,6 +126,9 @@ erDiagram
 | POST/GET/DELETE | `/api/organizacoes/{id}/convites` | Criar convite (por e-mail **ou** código), listar pendentes, revogar | ADMIN |
 | POST | `/api/convites/aceitar` | Aceitar convite por código | autenticado |
 | POST | `/api/convites/aceitar-email` | Aceitar convites pendentes do meu e-mail | autenticado |
+| GET | `/api/admin/usuarios` | Listar usuários do sistema | SUPER_ADMIN |
+| PUT | `/api/admin/usuarios/{id}/perfil` | Promover/rebaixar perfil (proíbe rebaixar-se ou derrubar o último super admin) | SUPER_ADMIN |
+| GET | `/api/admin/organizacoes` | Listar organizações com total de membros | SUPER_ADMIN |
 | GET/POST/PUT/DELETE | `/api/dotacoes/**` | Dotações, saldo e movimentações | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
 | GET/POST/PUT/DELETE | `/api/fornecedores/**` | Fornecedores (busca por nome) | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
 | GET/POST/PUT/DELETE | `/api/licitacoes/**` | Licitações + filtro status/modalidade | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
@@ -164,5 +167,5 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 - [x] Fase 1 (backend): modelo de dados (organizações/membros/convites), isolamento por `X-Org-Id`, papéis por grupo, `SUPER_ADMIN` global e migração dos dados existentes
 - [x] Fase 2 (backend): API de grupos/membros/convites + cadastro público
 - [x] Fase 3 (frontend): landing, cadastro, onboarding e seletor de grupo + dashboard
-- [ ] Fase 4 (frontend): gestão de membros e painel oculto de super admin
+- [x] Fase 4 (frontend): gestão de membros e painel oculto de super admin
 - [ ] Fase 5 (fechamento): revisão de docs, diagramas e `scripts/test-api.sh`

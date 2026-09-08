@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/organizacoes/**")
                                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/convites/**").authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/actuator/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/**")
                                 .hasAnyRole("ADMIN", "OPERADOR", "VISITANTE", "SUPER_ADMIN")
