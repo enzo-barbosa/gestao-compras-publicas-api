@@ -2,6 +2,7 @@ import axios from 'axios'
 
 export const TOKEN_KEY = 'gc_token'
 export const USUARIO_KEY = 'gc_usuario'
+export const ORGAO_KEY = 'gc_org'
 export const AUTH_EXPIRADO = 'auth:expirado'
 
 export interface Pagina<T> {
@@ -20,6 +21,10 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  const orgaoId = localStorage.getItem(ORGAO_KEY)
+  if (orgaoId) {
+    config.headers['X-Org-Id'] = orgaoId
   }
   return config
 })

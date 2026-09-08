@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import api, { TOKEN_KEY, USUARIO_KEY } from '../services/api'
+import api, { TOKEN_KEY, USUARIO_KEY, ORGAO_KEY } from '../services/api'
 import { AuthContext } from './AuthContext'
 import type { UsuarioLogado } from './AuthContext'
 
 function carregarUsuario(): UsuarioLogado | null {
   try {
     const bruto = localStorage.getItem(USUARIO_KEY)
-    return bruto ? (JSON.parse(bruto) as UsuarioLogado) : null
+    if (!bruto) return null
+    const dados = JSON.parse(bruto) as Partial<UsuarioLogado>
+    if (!dados.id || !dados.nome) return null
+    return {
+      id: dados.id,
+      nome: dados.nome,
+      email: dados.email ?? '',
+      perfil: dados.perfil ?? 'USUARIO',
+      organizacoes: dados.organizacoes ?? [],
+    }
   } catch {
     return null
   }
@@ -16,40 +25,54 @@ function carregarUsuario(): UsuarioLogado | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioLogado | null>(carregarUsuario)
 
-  useEffect(() => {
-    if (!localStorage.getItem(TOKEN_KEY)) return
-    api.get<UsuarioLogado>('/auth/me')
-      .then((resposta) => {
-        const dados = resposta.data
-        localStorage.setItem(USUARIO_KEY, JSON.stringify(dados))
-        setUsuario(dados)
-      })
-      .catch(() => {})
-  }, [])
-
-  const login = useCallback(async (email: string, senha: string) => {
-    const resposta = await api.post('/auth/login', { email, senha })
-    const dados = resposta.data as {
-      token: string
-      usuarioId: number
-      nome: string
-      email: string
-      perfil: string
-    }
-    localStorage.setItem(TOKEN_KEY, dados.token)
-    const logado: UsuarioLogado = {
-      id: dados.usuarioId,
+  const buscarUsuario = useCallback(async (): Promise<UsuarioLogado> => {
+    const dados = await api.get<UsuarioLogado>('/auth/me').then((r) => r.data)
+    const normalizado: UsuarioLogado = {
+      id: dados.id,
       nome: dados.nome,
       email: dados.email,
       perfil: dados.perfil,
+      organizacoes: dados.organizacoes ?? [],
     }
-    localStorage.setItem(USUARIO_KEY, JSON.stringify(logado))
-    setUsuario(logado)
+    localStorage.setItem(USUARIO_KEY, JSON.stringify(normalizado))
+    return normalizado
   }, [])
+
+  useEffect(() => {
+    if (!localStorage.getItem(TOKEN_KEY)) return
+    buscarUsuario()
+      .then(setUsuario)
+      .catch(() => {})
+  }, [buscarUsuario])
+
+  const login = useCallback(
+    async (email: string, senha: string): Promise<UsuarioLogado> => {
+      const resposta = await api.post('/auth/login', { email, senha })
+      const dados = resposta.data as { token: string }
+      localStorage.setItem(TOKEN_KEY, dados.token)
+      try {
+        const logado = await buscarUsuario()
+        setUsuario(logado)
+        return logado
+      } catch (e) {
+        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(USUARIO_KEY)
+        throw e
+      }
+    },
+    [buscarUsuario],
+  )
+
+  const recarregarOrganizacoes = useCallback(async (): Promise<UsuarioLogado> => {
+    const atualizado = await buscarUsuario()
+    setUsuario(atualizado)
+    return atualizado
+  }, [buscarUsuario])
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USUARIO_KEY)
+    localStorage.removeItem(ORGAO_KEY)
     setUsuario(null)
   }, [])
 
@@ -60,8 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ehAdmin: usuario?.perfil === 'ADMIN',
       login,
       logout,
+      recarregarOrganizacoes,
     }),
-    [usuario, login, logout],
+    [usuario, login, logout, recarregarOrganizacoes],
   )
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>

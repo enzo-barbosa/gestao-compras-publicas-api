@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { extrairMensagemErro } from '../utils/format'
 
@@ -13,8 +13,12 @@ export default function LoginPage() {
   const [erro, setErro] = useState<string | null>(null)
   const [aguardando, setAguardando] = useState(false)
   const [sessaoExpirada, setSessaoExpirada] = useState(() => {
-    const estado = localizacao.state as { sessaoExpirada?: boolean } | null
+    const estado = localizacao.state as { sessaoExpirada?: boolean; cadastrado?: boolean } | null
     return Boolean(estado?.sessaoExpirada)
+  })
+  const [cadastrado, setCadastrado] = useState(() => {
+    const estado = localizacao.state as { cadastrado?: boolean } | null
+    return Boolean(estado?.cadastrado)
   })
 
   useEffect(() => {
@@ -29,9 +33,10 @@ export default function LoginPage() {
     setAguardando(true)
     try {
       await login(email, senha)
-      navegar('/')
+      navegar('/app')
     } catch (e) {
       setErro(extrairMensagemErro(e))
+      setCadastrado(false)
       if (sessaoExpirada) setSessaoExpirada(false)
     } finally {
       setAguardando(false)
@@ -72,11 +77,21 @@ export default function LoginPage() {
           </div>
         )}
 
+        {cadastrado && (
+          <div className="alerta sucesso" role="alert">
+            Conta criada com sucesso. Faça login para continuar.
+          </div>
+        )}
+
         {erro && <div className="alerta erro" role="alert">{erro}</div>}
 
         <button className="btn primario" type="submit" disabled={aguardando}>
           {aguardando ? 'Entrando…' : 'Entrar'}
         </button>
+
+        <p className="link-alternativo">
+          Ainda não tem conta? <Link to="/cadastro">Criar conta</Link>
+        </p>
       </form>
     </div>
   )

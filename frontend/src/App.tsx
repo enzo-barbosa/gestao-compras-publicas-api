@@ -1,16 +1,15 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthProvider'
 import { SessaoExpiradaListener } from './context/SessaoExpirada'
 import { ToastProvider } from './components/Toasts'
-import Navbar from './components/Navbar'
 import RotaProtegida from './components/RotaProtegida'
+import GuardiaOrganizacao from './components/GuardiaOrganizacao'
+import LayoutApp from './layouts/LayoutApp'
+import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import DotacoesPage from './pages/DotacoesPage'
-import FornecedoresPage from './pages/FornecedoresPage'
-import LicitacoesPage from './pages/LicitacoesPage'
-import ContratosPage from './pages/ContratosPage'
-import EmpenhosPage from './pages/EmpenhosPage'
+import CadastroPage from './pages/CadastroPage'
+import OnboardingPage from './pages/OnboardingPage'
+import SelecionarGrupoPage from './pages/SelecionarGrupoPage'
 
 export default function App() {
   return (
@@ -19,25 +18,21 @@ export default function App() {
         <AuthProvider>
           <SessaoExpiradaListener />
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/cadastro" element={<CadastroPage />} />
+            <Route path="/onboarding" element={<RotaProtegida><OnboardingPage /></RotaProtegida>} />
             <Route
-              path="/*"
+              path="/selecionar-grupo"
+              element={<RotaProtegida><SelecionarGrupoPage /></RotaProtegida>}
+            />
+            <Route
+              path="/app/*"
               element={
                 <RotaProtegida>
-                  <div className="layout">
-                    <Navbar />
-                    <main className="conteudo">
-                      <Routes>
-                        <Route path="/" element={<DashboardPage />} />
-                        <Route path="dotacoes" element={<DotacoesPage />} />
-                        <Route path="fornecedores" element={<FornecedoresPage />} />
-                        <Route path="licitacoes" element={<LicitacoesPage />} />
-                        <Route path="contratos" element={<ContratosPage />} />
-                        <Route path="empenhos" element={<EmpenhosPage />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                      </Routes>
-                    </main>
-                  </div>
+                  <GuardiaOrganizacao>
+                    <LayoutApp />
+                  </GuardiaOrganizacao>
                 </RotaProtegida>
               }
             />

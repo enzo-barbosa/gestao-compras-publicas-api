@@ -1,17 +1,32 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import {
+  definirOrgAtiva,
+  organizacaoAtiva,
+  orgIdAtiva,
+  podeEmitirEmpenho,
+  podeGerir,
+} from '../services/organizacoes'
 
 function linkClass({ isActive }: { isActive: boolean }) {
   return isActive ? 'ativo' : ''
 }
 
 export default function Navbar() {
-  const { usuario, ehAdmin, logout } = useAuth()
+  const { usuario, logout } = useAuth()
   const navegar = useNavigate()
+
+  const organizacoes = usuario?.organizacoes ?? []
+  const orgAtiva = organizacaoAtiva(organizacoes, orgIdAtiva())
 
   function sair() {
     logout()
     navegar('/login')
+  }
+
+  function trocarGrupo(id: number) {
+    definirOrgAtiva(id)
+    navegar('/app')
   }
 
   return (
@@ -22,21 +37,42 @@ export default function Navbar() {
       </div>
 
       <nav aria-label="Navegação principal">
-        <NavLink to="/" end className={linkClass}>Dashboard</NavLink>
-        {ehAdmin && (
+        <NavLink to="/app" end className={linkClass}>Dashboard</NavLink>
+        {podeGerir(usuario?.perfil ?? '', orgAtiva?.papel) && (
           <>
-            <NavLink to="/dotacoes" className={linkClass}>Dotações</NavLink>
-            <NavLink to="/fornecedores" className={linkClass}>Fornecedores</NavLink>
-            <NavLink to="/licitacoes" className={linkClass}>Licitações</NavLink>
-            <NavLink to="/contratos" className={linkClass}>Contratos</NavLink>
+            <NavLink to="/app/dotacoes" className={linkClass}>Dotações</NavLink>
+            <NavLink to="/app/fornecedores" className={linkClass}>Fornecedores</NavLink>
+            <NavLink to="/app/licitacoes" className={linkClass}>Licitações</NavLink>
+            <NavLink to="/app/contratos" className={linkClass}>Contratos</NavLink>
           </>
         )}
-        <NavLink to="/empenhos" className={linkClass}>Empenhos</NavLink>
+        {podeEmitirEmpenho(usuario?.perfil ?? '', orgAtiva?.papel) && (
+          <NavLink to="/app/empenhos" className={linkClass}>Empenhos</NavLink>
+        )}
       </nav>
+
+      {organizacoes.length > 0 && (
+        <label className="org-box">
+          <span className="org-rotulo">Grupo</span>
+          <select
+            value={orgAtiva?.id ?? ''}
+            onChange={(e) => trocarGrupo(Number(e.target.value))}
+            aria-label="Grupo ativo"
+          >
+            {organizacoes.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.nome} · {org.papel}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <div className="usuario-box">
         <span className="nome">{usuario?.nome}</span>
-        <span className={`badge ${ehAdmin ? 'admin' : 'comum'}`}>{usuario?.perfil}</span>
+        {orgAtiva && (
+          <span className={`badge papel-${orgAtiva.papel.toLowerCase()}`}>{orgAtiva.papel}</span>
+        )}
         <button className="btn fantasma" type="button" onClick={sair}>
           Sair
         </button>

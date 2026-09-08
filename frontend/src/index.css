@@ -557,3 +557,260 @@ textarea:focus {
     transform: translateY(0);
   }
 }
+
+/* ===== Landing e telas públicas ===== */
+
+.tela-landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, var(--azul-900), var(--azul-500));
+  color: #fff;
+}
+
+.topo-publico {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 32px;
+}
+
+.acoes-topo {
+  display: flex;
+  gap: 10px;
+}
+
+.hero {
+  flex: 1;
+  width: min(980px, 92%);
+  margin: 0 auto;
+  padding: 40px 0 48px;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: clamp(28px, 5vw, 44px);
+  margin: 0 0 14px;
+}
+
+.hero-sub {
+  max-width: 620px;
+  margin: 0 auto 30px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #d7e3f0;
+}
+
+.hero-acoes {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 44px;
+}
+
+.btn.grande {
+  padding: 13px 22px;
+  font-size: 15px;
+}
+
+.btn.secundario {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn.secundario:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.grade-recursos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.card.recurso {
+  background: #fff;
+  color: var(--texto);
+  text-align: left;
+}
+
+.recurso-icone {
+  font-size: 26px;
+}
+
+.recurso h3 {
+  margin: 10px 0 6px;
+  font-size: 16px;
+}
+
+.recurso p {
+  margin: 0;
+  font-size: 13px;
+  color: #55636f;
+  line-height: 1.5;
+}
+
+.rodape-publico {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #b9cede60;
+}
+
+/* ===== Telas auxiliares (cadastro, onboarding, seletor) ===== */
+
+.tela-auxiliar {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 0;
+  background: linear-gradient(135deg, var(--azul-900), var(--azul-500));
+}
+
+.link-alternativo {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: #55636f;
+}
+
+.link-alternativo a {
+  color: var(--azul-600);
+  font-weight: 600;
+}
+
+.card-onboarding,
+.card-seletor {
+  width: min(720px, 92vw);
+}
+
+.card-onboarding h1,
+.card-seletor h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: var(--azul-900);
+}
+
+.grade-onboarding {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.opcao-onboarding {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--cinza-300);
+  border-radius: var(--raio);
+  padding: 16px;
+  background: var(--cinza-100);
+}
+
+.opcao-onboarding h3 {
+  margin: 0;
+}
+
+.opcao-onboarding p {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #55636f;
+}
+
+.linha-aviso {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cinza-300);
+  font-size: 14px;
+  color: #55636f;
+}
+
+.lista-grupos {
+  list-style: none;
+  margin: 14px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-grupo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--cinza-300);
+  border-radius: var(--raio);
+  background: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--azul-900);
+  text-align: left;
+  font-family: inherit;
+}
+
+.item-grupo:hover {
+  border-color: var(--azul-500);
+  background: var(--azul-100);
+}
+
+.grupo-nome {
+  font-weight: 600;
+}
+
+/* ===== Badges de papel na organização ===== */
+
+.badge.papel-admin {
+  background: var(--verde-100);
+  color: var(--verde-600);
+}
+
+.badge.papel-operador {
+  background: var(--azul-100);
+  color: var(--azul-600);
+}
+
+.badge.papel-visitante {
+  background: #f1f5f9;
+  color: #7b8a97;
+}
+
+/* ===== Seletor de grupo na navbar ===== */
+
+.org-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #b9cede;
+}
+
+.org-box select {
+  background: var(--azul-700);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  max-width: 220px;
+}
+
+.org-rotulo {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.org-box select:focus {
+  outline: 2px solid var(--azul-500);
+}

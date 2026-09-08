@@ -163,6 +163,6 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 
 - [x] Fase 1 (backend): modelo de dados (organizações/membros/convites), isolamento por `X-Org-Id`, papéis por grupo, `SUPER_ADMIN` global e migração dos dados existentes
 - [x] Fase 2 (backend): API de grupos/membros/convites + cadastro público
-- [ ] Fase 3 (frontend): landing, cadastro, onboarding e seletor de grupo + dashboard
+- [x] Fase 3 (frontend): landing, cadastro, onboarding e seletor de grupo + dashboard
 - [ ] Fase 4 (frontend): gestão de membros e painel oculto de super admin
 - [ ] Fase 5 (fechamento): revisão de docs, diagramas e `scripts/test-api.sh`
