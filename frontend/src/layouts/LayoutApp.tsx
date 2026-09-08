@@ -15,14 +15,14 @@ export default function LayoutApp() {
       <Navbar />
       <main className="conteudo">
         <Routes>
-          <Route path="/app" element={<DashboardPage />} />
-          <Route path="/app/dotacoes" element={<DotacoesPage />} />
-          <Route path="/app/fornecedores" element={<FornecedoresPage />} />
-          <Route path="/app/licitacoes" element={<LicitacoesPage />} />
-          <Route path="/app/contratos" element={<ContratosPage />} />
-          <Route path="/app/empenhos" element={<EmpenhosPage />} />
-          <Route path="/app/membros" element={<MembrosPage />} />
-          <Route path="/app/superpainel" element={<SuperPainelPage />} />
+          <Route index element={<DashboardPage />} />
+          <Route path="dotacoes" element={<DotacoesPage />} />
+          <Route path="fornecedores" element={<FornecedoresPage />} />
+          <Route path="licitacoes" element={<LicitacoesPage />} />
+          <Route path="contratos" element={<ContratosPage />} />
+          <Route path="empenhos" element={<EmpenhosPage />} />
+          <Route path="membros" element={<MembrosPage />} />
+          <Route path="superpainel" element={<SuperPainelPage />} />
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>
       </main>
