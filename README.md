@@ -35,7 +35,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Camada | Tecnologias |
 |---|---|
 | Backend | Java 21, Spring Boot 4.1.1, Spring Security, JPA/Hibernate 6, Bean Validation |
-| Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V4) + seed controlado |
+| Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V5) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
 | Qualidade | 143 testes backend (JUnit 5 + Mockito + integração) + 34 testes de frontend (Vitest) |
@@ -66,10 +66,10 @@ senha: admin
 
 ### Smoke test da API
 ```bash
-./scripts/test-api.sh                # 22 verificações end-to-end via curl
+./scripts/test-api.sh                # 45 verificações end-to-end via curl
 ```
 
-O script cria registros próprios (sufixo único por execução), exercita o fluxo completo — incluindo caminhos negativos (401/400/409) e a matriz de papéis — e imprime o resumo.
+O script cria registros próprios (sufixo único por execução) e exercita, além do fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos → anulação → saldos), o ciclo multitenancy: cadastro público, criação de grupo com vínculo de ADMIN, membros por e-mail, convites por código/e-mail, papéis por grupo (`VISITANTE` lê mas não escreve, `OPERADOR` escreve), isolamento por `X-Org-Id` e painel do super admin. Inclui caminhos negativos (401/400/403/409) e imprime o resumo.
 
 ### Frontend
 ```bash
@@ -78,7 +78,7 @@ npm install
 npm run dev                          # http://localhost:5173 (proxy /api -> :8080)
 ```
 
-Faça login com o administrador semeado (perfil `SUPER_ADMIN`, já ADMIN da organização "Minha Organização"). Usuários comuns podem ser registrados pelo endpoint `POST /api/auth/register` (exclusivo de nível administrador).
+Faça login com o administrador semeado (perfil `SUPER_ADMIN`, já ADMIN da organização "Minha Organização"). Usuários comuns podem se cadastrar pela tela pública de cadastro (ou diretamente pelo `POST /api/auth/register`).
 
 **Endpoints de negócio exigem o header `X-Org-Id`** apontando a organização ativa do usuário (ex.: `X-Org-Id: 1`). Quem não é membro da organização recebe `403` "Você não é membro desta organização.".
 
@@ -168,4 +168,4 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 - [x] Fase 2 (backend): API de grupos/membros/convites + cadastro público
 - [x] Fase 3 (frontend): landing, cadastro, onboarding e seletor de grupo + dashboard
 - [x] Fase 4 (frontend): gestão de membros e painel oculto de super admin
-- [ ] Fase 5 (fechamento): revisão de docs, diagramas e `scripts/test-api.sh`
+- [x] Fase 5 (fechamento): revisão de docs, diagramas e `scripts/test-api.sh`

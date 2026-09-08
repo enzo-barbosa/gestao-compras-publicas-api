@@ -76,7 +76,7 @@ Ainda NÃO existe:
 
 ### Melhorias concluídas (programa de 8 fases — sessão 2026-09-07)
 
-- [x] Schema gerenciado por **Flyway** (migrations `V1__init`, `V2__add_indexes_and_fix_empenho_unique`, `V3__add_version_columns`, `V4__organizacoes_multitenancy`) com `baseline-on-migrate`; `ddl-auto=validate` em todos os profiles
+- [x] Schema gerenciado por **Flyway** (migrations `V1__init`, `V2__add_indexes_and_fix_empenho_unique`, `V3__add_version_columns`, `V4__organizacoes_multitenancy`, `V5__drop_legacy_global_uniques`) com `baseline-on-migrate`; `ddl-auto=validate` em todos os profiles
 - [x] **Locking financeiro**: colunas `version` em `dotacoes`/`contratos` (otimista) + lock pessimista `PESSIMISTIC_WRITE` no budget; `ObjectOptimisticLockingFailureException` → 409 com mensagem amigável
 - [x] **Perf de listagens**: `@EntityGraph` nos 4 repositórios principais (paginação sem N+1); `DotacaoService.debitar/creditar` retornam a entidade (elimina re-busca redundante)
 - [x] **Auth aprimorada**: endpoint `GET /api/auth/me`; frontend valida a sessão no boot e redireciona com aviso de sessão expirada; `JwtService` com fail-fast em secret em branco; TTL do token 24h → 8h (`JWT_EXPIRATION_MS`)
@@ -119,6 +119,15 @@ Ainda NÃO existe:
 - [x] **Navbar**: novos links "Membros" (quando `ADMIN` no grupo ou `SUPER_ADMIN`) e "Super admin" (somente `SUPER_ADMIN`); rotas registradas no `LayoutApp`.
 - [x] **Testes/qualidade**: `oxlint` limpo (padrão de loading alinhado ao `EmpenhosPage`), `tsc -b && vite build` OK, Vitest 34/34 mantidos.
 - Pendência da Fase 4: commit do usuário. Fase 5 (fechamento: revisão de docs, diagramas e `scripts/test-api.sh`) é a próxima e última.
+
+### Programa multitenancy por grupos (5 fases) — Fase 5 (Fechamento: docs, diagramas e smoke script) implementada
+
+- [x] **`scripts/test-api.sh` reescrito para o programa multitenancy** (45 verificações): agora **45 passos positivos/negativos** cobrindo o fluxo de negócio completo com o header `X-Org-Id` (dotação → fornecedor → licitação → vencedor → contrato → empenhos → anulação → saldos) e o ciclo multitenancy: cadastro público sem token, criação de grupo (criador vira ADMIN), membros por e-mail e papel, convites por código/e-mail com aceite, matriz de papéis por grupo (VISITANTE lê e não escreve; OPERADOR cria fornecedor), isolamento (não-membro com `X-Org-Id` de outro grupo → 403; membro sem header → 403) e painel do super admin (`/api/admin/**`). A organização do negócio é resolvida dinamicamente via `GET /api/auth/me` do seed (não mais chumbada em `1`). Registros/comparativos antigos fora do novo contrato foram removidos (ex.: matriz de papéis pré-multitenancy, register que exigia ADMIN). Mantidas: sufixos únicos por execução (re-rodável), `assert_status` em qualquer HTTP, CNPJ válido gerado em runtime, caminhos negativos 401/400/403/409 e exit code 1 na presença de falhas.
+- [x] **Bug real de multitenancy encontrado e corrigido pela F5**: em bancos criados antes do Flyway (baseline), as uniques globais de V1 foram criadas pelo Hibernate `ddl-auto` com **nomes gerados** (`uk4waq31...` em `dotacoes.codigo`, `uktflo0rfxy...` em `fornecedores.cnpj`, `ukm6kysis...` em `licitacoes.numero_edital`, `uk9d9mvis...` em `contratos.numero`) — e os `DROP CONSTRAINT IF EXISTS uk_*` com nomes hardcoded da V4 **não os encontraram**, deixando as uniques globais ativas e quebrando o multitenancy (CNPJ/código/edital/número únicos entre TODOS os grupos — reprodutível criando o mesmo CNPJ em dois grupos). **Fix: `V5__drop_legacy_global_uniques.sql`** derruba dinamicamente (DO block + `pg_constraint`, por coluna única e `conname NOT LIKE 'uk_%_org_%'`) qualquer única global remanescente nas 4 tabelas de negócio, preservando as compostas `uk_*_org_*` (no-op em bancos criados já via Flyway V1→V4).
+- [x] **Diagramas revisados**: `docs/diagramas/modelo-dados.mermaid` conferido contra o schema da V4/V5 + API — sem divergências; `arquitetura-aws.mermaid` e `fluxo-empenho.mermaid` permanecem válidos.
+- [x] **Docs atualizados**: README com a Fase 5 do roadmap marcada, descrição do smoke script (45 verificações e o que cobre), correção do texto do cadastro (register é **público**, não mais "exclusivo de administrador") e migrations `V1–V5`.
+- [x] **Validação final**: smoke script executado contra a API real **45/45**; migrations aplicadas via Flyway no boot (`Successfully applied v5`).
+- Programa multitenancy concluído. Programa completo: 1 commit por fase (F1–F5), todos com validação `./mvnw -o test` (143/143) + frontend (`oxlint`, Vitest 34/34, build) + smoke 45/45.
 
 ⚠️ **Testes e app exigem o Postgres rodando** (`docker compose up -d`) — o contexto Spring conecta no banco para o `ddl-auto`.
 
@@ -435,25 +444,35 @@ Histórico resultante (do mais antigo ao mais novo): `c157271` (F1), `42b9fc4` (
 
 ### Programa multitenancy (5 fases) — 2026-09-07
 
-1 commit por fase, executados pelo usuário. **Fase 1 implementada e validada; aguardando o usuário commitá-la.**
+1 commit por fase, executados pelo usuário. **Fases 1–4 commitadas e validadas** (`6644198`, `96d498a`, `f6d91e8`, `90a97e5`). Pendente: Fase 5.
 
 ```bash
-# Fase 1 — dados + segurança (multitenancy)
+# Fase 1 — dados + segurança (multitenancy)   [executada ✓ 6644198]
 git add src/main/resources/db/migration/V4__organizacoes_multitenancy.sql \
         src/main/java/com/gestaocompras \
         src/test/java/com/gestaocompras \
         README.md docs/guia-de-desenvolvimento.md docs/diagramas/modelo-dados.mermaid
 git commit -m "feat: add organization-level multitenancy (groups, members, X-Org-Id isolation)"
 
-# Fase 2 — API de grupos/membros/convites + register público
+# Fase 2 — API de grupos/membros/convites + register público   [executada ✓ 96d498a]
 git add src/main/java/com/gestaocompras src/test/java/com/gestaocompras \
         README.md docs/guia-de-desenvolvimento.md
 git commit -m "feat: expose orgs/members/invites API and public signup"
 
-# Fases 3–5 (PENDENTES — comandos serão publicados ao concluir cada fase):
-# F3  Frontend onboarding + seletor de grupo            ->  "feat(ui): landing, signup, onboarding and org switcher"
-# F4  Gestão de membros + painel SUPER_ADMIN           ->  "feat(ui): member management and super admin panel"
-# F5  Fechamento (docs, diagramas, smoke script)         ->  "docs: finalize multitenancy docs and scripts"
+# Fase 3 — landing, cadastro, onboarding e seletor de grupo   [executada ✓ f6d91e8]
+git add frontend/src frontend/package.json frontend/package-lock.json \
+        README.md docs/guia-de-desenvolvimento.md
+git commit -m "feat(ui): landing, signup, onboarding and org switcher"
+
+# Fase 4 — gestão de membros/convites + painel SUPER_ADMIN   [executada ✓ 90a97e5]
+git add src/main/java/com/gestaocompras src/test/java/com/gestaocompras \
+        frontend/src README.md docs/guia-de-desenvolvimento.md
+git commit -m "feat(ui): member management and super admin panel"
+
+# Fase 5 — Fechamento (docs, diagramas, smoke script)
+git add scripts/test-api.sh README.md docs/guia-de-desenvolvimento.md \
+        src/main/resources/db/migration/V5__drop_legacy_global_uniques.sql
+git commit -m "docs: finalize multitenancy docs and scripts"
 
 git push
 ```
@@ -489,3 +508,5 @@ git push
 | 2026-09-07 | opencode/big-pickle | **Programa multitenancy por grupos — Fase 1 (dados + segurança) implementada e validada, aguardando commit do usuário**. `V4__organizacoes_multitenancy.sql` (aplicado): tabelas `organizacoes`/`membros_organizacao` (papel por grupo ADMIN/OPERADOR/VISITANTE)/`convites_organizacao` (e-mail ou código); coluna `organizacao_id` nas 6 entidades de negócio + `creditos_suplementares` (nullable na migration, backfill em prod, `SET NOT NULL` runtime não-prod); uniques globais migradas para compostas por org (ordem importa: DROP CONSTRAINT IF EXISTS → recriação); perfil `SUPER_ADMIN|USUARIO`. Backend: 6 serviços org-escopados (`Long organizacaoId` 1º param), controllers repassam `organizacaoId()` do `@AuthenticationPrincipal UsuarioLogado`, repos org-escopados (`findByIdAndOrganizacaoId`, `existsByXAndOrganizacaoId`, specs), creates via `getReferenceById`. Segurança: `X-Org-Id` escolhe a organização ativa, `ROLE_<papel>` por membria (fora: 403 "Você não é membro desta organização."), `X-Org-Id` inválido 400, leitura ADMIN/OPERADOR/VISITANTE/SUPER_ADMIN, escrita ADMIN/OPERADOR/SUPER_ADMIN, `MovimentacaoDotacao` sem org, unique parcial de empenho mantida, `DataInitializer` com admin global SUPER_ADMIN + ADMIN da org "Minha Organização" (id 1). Testes: 6 serviços reescritos (69 unitários) + `AuthIntegrationTest` reescrito + novo `IsolamentoOrganizacaoIntegrationTest` → **96/96 verdes**, BUILD SUCCESS. Docs da F1 atualizadas (README, guia, `modelo-dados.mermaid`). Pendência do usuário: commit da Fase 1 (seção 7. Plano de Commits → Programa multitenancy). Próximo: Fase 2 (API de grupos/membros/convites + `register` público). |
 | 2026-09-07 | opencode/big-pickle | **Programa multitenancy — Fase 3 implementada e validada (aguardando commit)**: landing pública em `/`, app movido para `/app/*`; cadastro aberto (`/cadastro`), onboarding (`/onboarding`: criar grupo, aceitar código, verificar convites do e‑mail), seletor de grupo (`/selecionar-grupo` com auto-seleção de grupo único) e navbar com `<select>` de grupo ativo + badge de papel; interceptor axios envia `X-Org-Id` da chave `gc_org`; permissões de menu passam a considerar papel na organização (ADMIN/OPERADOR/VISITANTE) além do perfil global. Testes de front: `organizacoes.test.ts` novo → **34/34** Vitest, `oxlint` limpo, `tsc -b && vite build` OK. Pendência: commit da Fase 3. Próximo: Fase 4 (gestão de membros/convites no front + painel oculto de SUPER_ADMIN). |
 | 2026-09-07 | opencode/big-pickle | **Programa multitenancy — Fase 4 implementada e validada (aguardando commit)**: backend mínimo `/api/admin/**` (só `SUPER_ADMIN`): lista usuários, altera perfil (proíbe rebaixar-se e derrubar o último super admin) e lista organizações com nº de membros (`AdminService`/`AdminController` + `countByPerfil`) → **143/143** backend. Front: `/app/membros` com abas membros+convites (adicionar por e-mail, trocar papel, remover; convite por e-mail OU código, listar/revogar) e `/app/superpainel` oculto (link só para `SUPER_ADMIN`; rota redireciona os demais) com abas usuários (troca de perfil) e organizações; navbar ganhou "Membros" e "Super admin"; `oxlint` limpo, Vitest 34/34, `vite build` OK. Pendência: commit da Fase 4. Próximo: Fase 5 (fechamento). |
+| 2026-09-07 | opencode/big-pickle | **Programa multitenancy — Fase 2 (API de grupos/membros/convites + cadastro público) implementada e validada, aguardando commit** (`96d498a`, executado depois). `/api/organizacoes`: criar (autenticado, criador vira ADMIN), listar os meus com papel, buscar, renomear (ADMIN); `/membros`: listar (membro), adicionar por e-mail existente, alterar papel/remover (ADMIN) com proteções (criador não pode ser rebaixado/removido; ninguém altera a própria participação; sobra sempre um ADMIN); `/convites`: criar por e-mail **ou** código (XOR, 400), listar pendentes/revogar (ADMIN), `aceitar {codigo}` e `aceitar-email`; `POST /api/auth/register` voltou a ser **público**; `SecurityConfig` com regras específicas de orgs/convites e CORS liberando o header `X-Org-Id`. Testes: `OrganizacaoServiceTest` (15) + `ConviteServiceTest` (17) + `OrganizacoesIntegrationTest` (8 e2e) → **136/136** verdes. |
+| 2026-09-07 | opencode/big-pickle | **Programa multitenancy — Fase 5 (Fechamento) implementada e validada (aguardando commit)**: `scripts/test-api.sh` reescrito para o programa — 45 verificações end-to-end cobrindo o fluxo de negócio com `X-Org-Id` e o ciclo multitenancy (cadastro público, grupos, membros, convites por código/e-mail, papéis por grupo, isolamento, painel `/api/admin/**`); org do negócio resolvida dinamicamente via `/auth/me`; negativos 401/400/403/409. **Bug real encontrado pelo smoke e corrigido**: uniques globais legadas (nomes gerados pelo Hibernate `ddl-auto` pré-Flyway) não foram derrubadas pela V4 (que usava nomes hardcoded) — CNPJ/código/edital/número continuavam únicos entre todos os grupos; fix `V5__drop_legacy_global_uniques.sql` (DO block dinâmico por coluna única, preservando `uk_*_org_*`), aplicado no boot ("Successfully applied v5"). Smoke re-rodado → **45/45**; diagrama `modelo-dados.mermaid` conferido (OK); README/guia atualizados (roadmap F5 `[x]`, migrations V1–V5, plano de commits F1–F5). Programa multitenancy completo; pendência única: commit do usuário (seção 7). |
