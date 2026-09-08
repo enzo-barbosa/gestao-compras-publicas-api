@@ -10,6 +10,7 @@ import com.gestaocompras.model.StatusContrato;
 import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.FornecedorRepository;
 import com.gestaocompras.repository.LicitacaoRepository;
+import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.util.CnpjUtil;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -23,19 +24,22 @@ public class FornecedorService {
     private final FornecedorRepository fornecedorRepository;
     private final ContratoRepository contratoRepository;
     private final LicitacaoRepository licitacaoRepository;
+    private final OrganizacaoRepository organizacaoRepository;
 
     public FornecedorService(FornecedorRepository fornecedorRepository,
             ContratoRepository contratoRepository,
-            LicitacaoRepository licitacaoRepository) {
+            LicitacaoRepository licitacaoRepository,
+            OrganizacaoRepository organizacaoRepository) {
         this.fornecedorRepository = fornecedorRepository;
         this.contratoRepository = contratoRepository;
         this.licitacaoRepository = licitacaoRepository;
+        this.organizacaoRepository = organizacaoRepository;
     }
 
     @Transactional
-    public FornecedorResponseDTO criar(FornecedorRequestDTO request) {
+    public FornecedorResponseDTO criar(Long organizacaoId, FornecedorRequestDTO request) {
         String cnpj = validarENormalizarCnpj(request.cnpj());
-        if (fornecedorRepository.existsByCnpj(cnpj)) {
+        if (fornecedorRepository.existsByCnpjAndOrganizacaoId(cnpj, organizacaoId)) {
             throw new RegistroDuplicadoException("Já existe um fornecedor cadastrado com este CNPJ.");
         }
         return FornecedorResponseDTO.from(fornecedorRepository.save(Fornecedor.builder()
@@ -44,27 +48,30 @@ public class FornecedorService {
                 .email(request.email())
                 .telefone(request.telefone())
                 .endereco(request.endereco())
+                .organizacao(organizacaoRepository.getReferenceById(organizacaoId))
                 .build()));
     }
 
     @Transactional(readOnly = true)
-    public Page<FornecedorResponseDTO> listar(String nome, Pageable pageable) {
+    public Page<FornecedorResponseDTO> listar(Long organizacaoId, String nome, Pageable pageable) {
         Page<Fornecedor> pagina = nome == null || nome.isBlank()
-                ? fornecedorRepository.findAll(pageable)
-                : fornecedorRepository.findByNomeContainingIgnoreCase(nome, pageable);
+                ? fornecedorRepository.findByOrganizacaoId(organizacaoId, pageable)
+                : fornecedorRepository.findByNomeContainingIgnoreCaseAndOrganizacaoId(
+                        nome, organizacaoId, pageable);
         return pagina.map(FornecedorResponseDTO::from);
     }
 
     @Transactional(readOnly = true)
-    public FornecedorResponseDTO buscarPorId(Long id) {
-        return FornecedorResponseDTO.from(buscarEntidade(id));
+    public FornecedorResponseDTO buscarPorId(Long organizacaoId, Long id) {
+        return FornecedorResponseDTO.from(buscarEntidade(organizacaoId, id));
     }
 
     @Transactional
-    public FornecedorResponseDTO atualizar(Long id, FornecedorRequestDTO request) {
-        Fornecedor fornecedor = buscarEntidade(id);
+    public FornecedorResponseDTO atualizar(Long organizacaoId, Long id,
+            FornecedorRequestDTO request) {
+        Fornecedor fornecedor = buscarEntidade(organizacaoId, id);
         String cnpj = validarENormalizarCnpj(request.cnpj());
-        fornecedorRepository.findByCnpj(cnpj)
+        fornecedorRepository.findByCnpjAndOrganizacaoId(cnpj, organizacaoId)
                 .filter(outro -> !outro.getId().equals(id))
                 .ifPresent(outro -> {
                     throw new RegistroDuplicadoException(
@@ -79,15 +86,16 @@ public class FornecedorService {
     }
 
     @Transactional
-    public void remover(Long id) {
-        Fornecedor fornecedor = buscarEntidade(id);
-        if (contratoRepository.existsByFornecedorIdAndStatusIn(fornecedor.getId(),
-                List.of(StatusContrato.VIGENTE))) {
+    public void remover(Long organizacaoId, Long id) {
+        Fornecedor fornecedor = buscarEntidade(organizacaoId, id);
+        if (contratoRepository.existsByFornecedorIdAndOrganizacaoIdAndStatusIn(
+                fornecedor.getId(), organizacaoId, List.of(StatusContrato.VIGENTE))) {
             throw new OperacaoNaoPermitidaException(
                     "O fornecedor %s possui contratos vigentes e não pode ser removido."
                             .formatted(fornecedor.getNome()));
         }
-        if (licitacaoRepository.existsByVencedorId(fornecedor.getId())) {
+        if (licitacaoRepository.existsByVencedorIdAndOrganizacaoId(
+                fornecedor.getId(), organizacaoId)) {
             throw new OperacaoNaoPermitidaException(
                     "O fornecedor %s venceu licitações e não pode ser removido."
                             .formatted(fornecedor.getNome()));
@@ -103,8 +111,8 @@ public class FornecedorService {
         return digitos;
     }
 
-    private Fornecedor buscarEntidade(Long id) {
-        return fornecedorRepository.findById(id)
+    private Fornecedor buscarEntidade(Long organizacaoId, Long id) {
+        return fornecedorRepository.findByIdAndOrganizacaoId(id, organizacaoId)
                 .orElseThrow(() -> new NotFoundException("Fornecedor", id));
     }
 }

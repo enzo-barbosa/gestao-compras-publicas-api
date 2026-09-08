@@ -26,7 +26,8 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 - **Licitações** nas 9 modalidades das Leis 8.666/93 e 14.133/21, com fluxo de definição de vencedor
 - **Contratos** vinculados a dotação + fornecedor (+ licitação opcional), com valor mensal calculado (HALF_UP) e data de término prevista derivada
 - **Empenhos mensais** transacionais: competência única por contrato, débito duplo atômico (dotação + contrato), anulação com estorno completo
-- **Autenticação JWT** (HS384, 24h) com matriz de papéis: `ADMIN` administra cadastros; `USUARIO` gera e anula empenhos
+- **Autenticação JWT** (HS256, 8h) com papéis globais (`SUPER_ADMIN`) e papéis **por grupo/organização** (`ADMIN`/`OPERADOR`/`VISITANTE`) selecionada pelo header `X-Org-Id`
+- **Multitenancy por grupos**: cada organização tem seus próprios dotações/fornecedores/licitações/contratos/empenhos — isolamento total entre grupos, com convites por e-mail ou código
 - **Frontend React** (Vite + TypeScript) com dashboard de saldos, CRUDs e formulário de empenho com feedback visual
 
 ## Stack
@@ -34,10 +35,10 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Camada | Tecnologias |
 |---|---|
 | Backend | Java 21, Spring Boot 4.1.1, Spring Security, JPA/Hibernate 6, Bean Validation |
-| Banco | PostgreSQL 15 (Docker), Flyway-free schema auto-gerenciado + seed controlado |
-| Auth | JJWT 0.12.6, filtro de token, BCrypt |
+| Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V4) + seed controlado |
+| Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 78 testes (JUnit 5 + Mockito + integração), JaCoCo 78% de cobertura |
+| Qualidade | 96 testes (JUnit 5 + Mockito + integração) |
 
 ## Como rodar
 
@@ -59,7 +60,7 @@ senha: admin
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 78 testes
+./mvnw test                          # 96 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
@@ -77,7 +78,9 @@ npm install
 npm run dev                          # http://localhost:5173 (proxy /api -> :8080)
 ```
 
-Faça login com o administrador semeado. Usuários comuns podem ser registrados pelo endpoint `POST /api/auth/register` (exclusivo de ADMIN).
+Faça login com o administrador semeado (perfil `SUPER_ADMIN`, já ADMIN da organização "Minha Organização"). Usuários comuns podem ser registrados pelo endpoint `POST /api/auth/register` (exclusivo de nível administrador).
+
+**Endpoints de negócio exigem o header `X-Org-Id`** apontando a organização ativa do usuário (ex.: `X-Org-Id: 1`). Quem não é membro da organização recebe `403` "Você não é membro desta organização.".
 
 ## Desenvolvimento
 
@@ -95,7 +98,11 @@ Prévia do modelo de dados:
 
 ```mermaid
 erDiagram
+    ORGANIZACAO ||--o{ MEMBRO_ORGANIZACAO : "acolhe"
+    USUARIO ||--o{ MEMBRO_ORGANIZACAO : "participa de n grupos"
+    ORGANIZACAO ||--o{ CONVITE_ORGANIZACAO : "convida"
     DOTACAO_ORCAMENTARIA ||--o{ MOVIMENTACAO_DOTACAO : "registra"
+    ORGANIZACAO ||--o{ DOTACAO_ORCAMENTARIA : "possui"
     DOTACAO_ORCAMENTARIA ||--o{ CONTRATO : "orcamenta"
     FORNECEDOR ||--o{ LICITACAO : "vence"
     FORNECEDOR ||--o{ CONTRATO : "executa"
@@ -106,17 +113,19 @@ erDiagram
 
 ## Principais endpoints
 
+> Endpoints de negócio (`/api/dotacoes`, `/api/fornecedores`, `/api/licitacoes`, `/api/contratos`, `/api/empenhos`, `/api/creditos-suplementares`) operam **sempre na organização do header `X-Org-Id`**.
+
 | Método | Rota | Descrição | Acesso |
 |---|---|---|---|
 | POST | `/api/auth/login` | Autenticação, retorna JWT | público |
-| POST | `/api/auth/register` | Registro de usuário | ADMIN |
-| GET/POST/PUT/DELETE | `/api/dotacoes/**` | Dotações, saldo e movimentações | ADMIN (leitura autenticada) |
-| GET/POST/PUT/DELETE | `/api/fornecedores/**` | Fornecedores (busca por nome) | ADMIN (leitura autenticada) |
-| GET/POST/PUT/DELETE | `/api/licitacoes/**` | Licitações + filtro status/modalidade | ADMIN (leitura autenticada) |
-| PUT | `/api/licitacoes/{id}/vencedor` | Define vencedor e encerra | ADMIN |
-| GET/POST/PUT/DELETE | `/api/contratos/**` | Contratos + filtros | ADMIN (leitura autenticada) |
-| POST | `/api/empenhos` | Gera empenho da competência | ADMIN e USUARIO |
-| DELETE | `/api/empenhos/{id}` | Anula com estorno atômico | ADMIN e USUARIO |
+| POST | `/api/auth/register` | Registro de usuário (perfil `USUARIO`) | SUPER_ADMIN / ADMIN |
+| GET/POST/PUT/DELETE | `/api/dotacoes/**` | Dotações, saldo e movimentações | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
+| GET/POST/PUT/DELETE | `/api/fornecedores/**` | Fornecedores (busca por nome) | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
+| GET/POST/PUT/DELETE | `/api/licitacoes/**` | Licitações + filtro status/modalidade | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
+| PUT | `/api/licitacoes/{id}/vencedor` | Define vencedor e encerra | ADMIN/OPERADOR |
+| GET/POST/PUT/DELETE | `/api/contratos/**` | Contratos + filtros | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
+| POST | `/api/empenhos` | Gera empenho da competência | ADMIN/OPERADOR |
+| DELETE | `/api/empenhos/{id}` | Anula com estorno atômico | ADMIN/OPERADOR |
 
 Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` — as mensagens de negócio ("Saldo insuficiente na dotação…", "Já existe empenho do contrato… para a competência…") chegam prontas para exibição.
 
@@ -142,3 +151,11 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 - [x] Fase 11: cobertura de testes, diagramas, smoke script e README
 - [x] Fase 12a: CI com GitHub Actions (testes, cobertura, lint) e imagens Docker publicadas no GHCR
 - [ ] Fase 12b: deploy em nuvem gerenciada (candidatos avaliados: Oracle Always Free, DigitalOcean via GitHub Student Pack, Render + Neon)
+
+### Programa multitenancy por grupos (5 fases)
+
+- [x] Fase 1 (backend): modelo de dados (organizações/membros/convites), isolamento por `X-Org-Id`, papéis por grupo, `SUPER_ADMIN` global e migração dos dados existentes
+- [ ] Fase 2 (backend): API de grupos/membros/convites + cadastro público
+- [ ] Fase 3 (frontend): landing, cadastro, onboarding e seletor de grupo + dashboard
+- [ ] Fase 4 (frontend): gestão de membros e painel oculto de super admin
+- [ ] Fase 5 (fechamento): revisão de docs, diagramas e `scripts/test-api.sh`

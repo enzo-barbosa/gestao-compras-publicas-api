@@ -11,11 +11,12 @@ import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.model.Empenho;
 import com.gestaocompras.model.StatusContrato;
 import com.gestaocompras.model.StatusEmpenho;
-import com.gestaocompras.model.Usuario;
 import com.gestaocompras.model.TipoMovimentacao;
+import com.gestaocompras.model.Usuario;
 import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.DotacaoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
+import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
@@ -39,21 +40,24 @@ public class EmpenhoService {
     private final DotacaoRepository dotacaoRepository;
     private final DotacaoService dotacaoService;
     private final UsuarioRepository usuarioRepository;
+    private final OrganizacaoRepository organizacaoRepository;
 
     public EmpenhoService(EmpenhoRepository empenhoRepository,
             ContratoRepository contratoRepository,
             DotacaoRepository dotacaoRepository,
             DotacaoService dotacaoService,
-            UsuarioRepository usuarioRepository) {
+            UsuarioRepository usuarioRepository,
+            OrganizacaoRepository organizacaoRepository) {
         this.empenhoRepository = empenhoRepository;
         this.contratoRepository = contratoRepository;
         this.dotacaoRepository = dotacaoRepository;
         this.dotacaoService = dotacaoService;
         this.usuarioRepository = usuarioRepository;
+        this.organizacaoRepository = organizacaoRepository;
     }
 
     @Transactional
-    public EmpenhoResponseDTO gerar(EmpenhoRequestDTO request) {
+    public EmpenhoResponseDTO gerar(Long organizacaoId, EmpenhoRequestDTO request) {
         Integer mes = request.mesReferencia();
         Integer ano = request.anoReferencia();
         if (mes == null || mes < 1 || mes > 12) {
@@ -62,7 +66,7 @@ public class EmpenhoService {
         if (ano == null || ano < 1970) {
             throw new IllegalArgumentException("O ano de referência é inválido.");
         }
-        Contrato contrato = contratoRepository.findByIdComLock(request.contratoId())
+        Contrato contrato = contratoRepository.findByIdComLock(request.contratoId(), organizacaoId)
                 .orElseThrow(() -> new NotFoundException("Contrato", request.contratoId()));
         if (contrato.getStatus() != StatusContrato.VIGENTE) {
             throw new OperacaoNaoPermitidaException(
@@ -79,7 +83,8 @@ public class EmpenhoService {
                             .formatted(contrato.getNumero(), mes, ano));
         }
         BigDecimal valorCompetencia = contrato.calcularValorCompetencia(YearMonth.of(ano, mes));
-        DotacaoOrcamentaria dotacao = dotacaoRepository.findByIdComLock(contrato.getDotacao().getId())
+        DotacaoOrcamentaria dotacao = dotacaoRepository
+                .findByIdComLock(contrato.getDotacao().getId(), organizacaoId)
                 .orElseThrow(() -> new NotFoundException("Dotação orçamentária",
                         contrato.getDotacao().getId()));
         if (dotacao.getSaldoAtual().compareTo(valorCompetencia) < 0) {
@@ -102,8 +107,9 @@ public class EmpenhoService {
                 .valor(valorCompetencia)
                 .status(StatusEmpenho.EMPENHADO)
                 .dataEmissao(LocalDate.now())
+                .organizacao(organizacaoRepository.getReferenceById(organizacaoId))
                 .build());
-        dotacaoService.debitar(dotacao.getId(), valorCompetencia,
+        dotacaoService.debitar(organizacaoId, dotacao.getId(), valorCompetencia,
                 "Empenho competência %02d/%04d – contrato %s".formatted(mes, ano,
                         contrato.getNumero()));
         contrato.setSaldoRestante(contrato.getSaldoRestante().subtract(valorCompetencia));
@@ -111,18 +117,20 @@ public class EmpenhoService {
     }
 
     @Transactional
-    public EmpenhoResponseDTO anular(Long id) {
-        Empenho empenho = buscarEntidade(id);
+    public EmpenhoResponseDTO anular(Long organizacaoId, Long id) {
+        Empenho empenho = buscarEntidade(organizacaoId, id);
         if (empenho.getStatus() != StatusEmpenho.EMPENHADO) {
             throw new OperacaoNaoPermitidaException(
                     "O empenho da competência %02d/%04d está %s e não pode ser anulado."
                             .formatted(empenho.getMesReferencia(), empenho.getAnoReferencia(),
                                     empenho.getStatus()));
         }
-        Contrato contrato = contratoRepository.findByIdComLock(empenho.getContrato().getId())
-                .orElseThrow(() -> new NotFoundException("Contrato", empenho.getContrato().getId()));
+        Contrato contrato = contratoRepository.findByIdComLock(empenho.getContrato().getId(),
+                        organizacaoId)
+                .orElseThrow(() -> new NotFoundException("Contrato",
+                        empenho.getContrato().getId()));
         BigDecimal valor = empenho.getValor();
-        dotacaoService.creditar(contrato.getDotacao().getId(), valor,
+        dotacaoService.creditar(organizacaoId, contrato.getDotacao().getId(), valor,
                 "Estorno de anulação – empenho competência %02d/%04d – contrato %s"
                         .formatted(empenho.getMesReferencia(), empenho.getAnoReferencia(),
                                 contrato.getNumero()), TipoMovimentacao.ESTORNO);
@@ -132,17 +140,17 @@ public class EmpenhoService {
     }
 
     @Transactional(readOnly = true)
-    public Page<EmpenhoResponseDTO> listar(Long contratoId, Long dotacaoId, Integer mes,
-            Integer ano, LocalDate dataDe, LocalDate dataAte, Pageable pageable) {
+    public Page<EmpenhoResponseDTO> listar(Long organizacaoId, Long contratoId, Long dotacaoId,
+            Integer mes, Integer ano, LocalDate dataDe, LocalDate dataAte, Pageable pageable) {
         return empenhoRepository
-                .findAll(construirFiltro(contratoId, dotacaoId, mes, ano, dataDe, dataAte),
-                        pageable)
+                .findAll(construirFiltro(organizacaoId, contratoId, dotacaoId, mes, ano,
+                        dataDe, dataAte), pageable)
                 .map(EmpenhoResponseDTO::from);
     }
 
     @Transactional(readOnly = true)
-    public EmpenhoResponseDTO buscarPorId(Long id) {
-        return EmpenhoResponseDTO.from(buscarEntidade(id));
+    public EmpenhoResponseDTO buscarPorId(Long organizacaoId, Long id) {
+        return EmpenhoResponseDTO.from(buscarEntidade(organizacaoId, id));
     }
 
     private Usuario usuarioAutenticado() {
@@ -184,10 +192,11 @@ public class EmpenhoService {
         }
     }
 
-    private Specification<Empenho> construirFiltro(Long contratoId, Long dotacaoId, Integer mes,
-            Integer ano, LocalDate dataDe, LocalDate dataAte) {
+    private Specification<Empenho> construirFiltro(Long organizacaoId, Long contratoId,
+            Long dotacaoId, Integer mes, Integer ano, LocalDate dataDe, LocalDate dataAte) {
         return (root, query, cb) -> {
             List<Predicate> predicados = new ArrayList<>();
+            predicados.add(cb.equal(root.get("organizacao").get("id"), organizacaoId));
             if (contratoId != null) {
                 predicados.add(cb.equal(root.get("contrato").get("id"), contratoId));
             }
@@ -210,8 +219,8 @@ public class EmpenhoService {
         };
     }
 
-    private Empenho buscarEntidade(Long id) {
-        return empenhoRepository.findById(id)
+    private Empenho buscarEntidade(Long organizacaoId, Long id) {
+        return empenhoRepository.findByIdAndOrganizacaoId(id, organizacaoId)
                 .orElseThrow(() -> new NotFoundException("Empenho", id));
     }
 }

@@ -55,4 +55,8 @@ public class Empenho {
 
     @Column(name = "data_emissao", nullable = false)
     private LocalDate dataEmissao;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "organizacao_id", nullable = false)
+    private Organizacao organizacao;
 }

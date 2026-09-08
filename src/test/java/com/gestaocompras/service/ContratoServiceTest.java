@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,6 +19,7 @@ import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.model.Fornecedor;
 import com.gestaocompras.model.Licitacao;
 import com.gestaocompras.model.ModalidadeLicitacao;
+import com.gestaocompras.model.Organizacao;
 import com.gestaocompras.model.StatusContrato;
 import com.gestaocompras.model.StatusLicitacao;
 import com.gestaocompras.repository.ContratoRepository;
@@ -25,6 +27,7 @@ import com.gestaocompras.repository.DotacaoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
 import com.gestaocompras.repository.FornecedorRepository;
 import com.gestaocompras.repository.LicitacaoRepository;
+import com.gestaocompras.repository.OrganizacaoRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -39,6 +42,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ContratoServiceTest {
+
+    private static final long ORGANIZACAO_ID = 10L;
 
     @Mock
     private ContratoRepository contratoRepository;
@@ -55,6 +60,9 @@ class ContratoServiceTest {
     @Mock
     private LicitacaoRepository licitacaoRepository;
 
+    @Mock
+    private OrganizacaoRepository organizacaoRepository;
+
     @InjectMocks
     private ContratoService contratoService;
 
@@ -64,6 +72,8 @@ class ContratoServiceTest {
 
     @BeforeEach
     void setUp() {
+        Organizacao organizacao = Organizacao.builder().id(ORGANIZACAO_ID).nome("Prefeitura").build();
+        lenient().when(organizacaoRepository.getReferenceById(ORGANIZACAO_ID)).thenReturn(organizacao);
         dotacao = DotacaoOrcamentaria.builder()
                 .id(1L)
                 .codigo("3.3.90.30")
@@ -71,11 +81,13 @@ class ContratoServiceTest {
                 .anoExercicio(2026)
                 .saldoInicial(new BigDecimal("500000.00"))
                 .saldoAtual(new BigDecimal("500000.00"))
+                .organizacao(organizacao)
                 .build();
         fornecedor = Fornecedor.builder()
                 .id(10L)
                 .nome("Papelaria Central LTDA")
                 .cnpj("11444777000161")
+                .organizacao(organizacao)
                 .build();
         licitacaoEncerradaComVencedor = Licitacao.builder()
                 .id(20L)
@@ -87,6 +99,7 @@ class ContratoServiceTest {
                 .status(StatusLicitacao.ENCERRADA)
                 .valorEstimado(new BigDecimal("120000.00"))
                 .vencedor(fornecedor)
+                .organizacao(organizacao)
                 .build();
     }
 
@@ -103,13 +116,16 @@ class ContratoServiceTest {
 
     @Test
     void criarDeveDefinirSaldoRestanteIgualAoValorTotalEStatusVigente() {
-        when(contratoRepository.existsByNumero("012/2026")).thenReturn(false);
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
-        when(fornecedorRepository.findById(10L)).thenReturn(Optional.of(fornecedor));
+        when(contratoRepository.existsByNumeroAndOrganizacaoId("012/2026", ORGANIZACAO_ID))
+                .thenReturn(false);
+        when(dotacaoRepository.findByIdAndOrganizacaoId(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(dotacao));
+        when(fornecedorRepository.findByIdAndOrganizacaoId(10L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(fornecedor));
         when(contratoRepository.save(any(Contrato.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
-        var resposta = contratoService.criar(request(new BigDecimal("120000.00"), 12));
+        var resposta = contratoService.criar(ORGANIZACAO_ID, request(new BigDecimal("120000.00"), 12));
 
         assertThat(resposta.saldoRestante()).isEqualByComparingTo("120000.00");
         assertThat(resposta.status()).isEqualTo(StatusContrato.VIGENTE.name());
@@ -169,18 +185,23 @@ class ContratoServiceTest {
 
     @Test
     void criarNaoDeveAceitarNumeroDuplicado() {
-        when(contratoRepository.existsByNumero("012/2026")).thenReturn(true);
+        when(contratoRepository.existsByNumeroAndOrganizacaoId("012/2026", ORGANIZACAO_ID))
+                .thenReturn(true);
 
-        assertThatThrownBy(() -> contratoService.criar(request(new BigDecimal("120000.00"), 12)))
+        assertThatThrownBy(() -> contratoService.criar(ORGANIZACAO_ID,
+                request(new BigDecimal("120000.00"), 12)))
                 .isInstanceOf(RegistroDuplicadoException.class);
     }
 
     @Test
     void criarDeveLancarNotFoundParaDotacaoInexistente() {
-        when(contratoRepository.existsByNumero("012/2026")).thenReturn(false);
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.empty());
+        when(contratoRepository.existsByNumeroAndOrganizacaoId("012/2026", ORGANIZACAO_ID))
+                .thenReturn(false);
+        when(dotacaoRepository.findByIdAndOrganizacaoId(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> contratoService.criar(request(new BigDecimal("120000.00"), 12)))
+        assertThatThrownBy(() -> contratoService.criar(ORGANIZACAO_ID,
+                request(new BigDecimal("120000.00"), 12)))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -188,13 +209,16 @@ class ContratoServiceTest {
     void criarNaoDeveVincularLicitacaoVencidaPorOutroFornecedor() {
         Fornecedor outro = Fornecedor.builder().id(99L).nome("Outro LTDA").cnpj("45723174000110").build();
         licitacaoEncerradaComVencedor.setVencedor(outro);
-        when(contratoRepository.existsByNumero("013/2026")).thenReturn(false);
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
-        when(fornecedorRepository.findById(10L)).thenReturn(Optional.of(fornecedor));
-        when(licitacaoRepository.findById(20L))
+        when(contratoRepository.existsByNumeroAndOrganizacaoId("013/2026", ORGANIZACAO_ID))
+                .thenReturn(false);
+        when(dotacaoRepository.findByIdAndOrganizacaoId(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(dotacao));
+        when(fornecedorRepository.findByIdAndOrganizacaoId(10L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(fornecedor));
+        when(licitacaoRepository.findByIdAndOrganizacaoId(20L, ORGANIZACAO_ID))
                 .thenReturn(Optional.of(licitacaoEncerradaComVencedor));
 
-        assertThatThrownBy(() -> contratoService.criar(requestComLicitacao(20L)))
+        assertThatThrownBy(() -> contratoService.criar(ORGANIZACAO_ID, requestComLicitacao(20L)))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
     }
 
@@ -202,13 +226,16 @@ class ContratoServiceTest {
     void criarNaoDeveVincularLicitacaoAindaAberta() {
         licitacaoEncerradaComVencedor.setStatus(StatusLicitacao.ABERTA);
         licitacaoEncerradaComVencedor.setVencedor(null);
-        when(contratoRepository.existsByNumero("013/2026")).thenReturn(false);
-        when(dotacaoRepository.findById(1L)).thenReturn(Optional.of(dotacao));
-        when(fornecedorRepository.findById(10L)).thenReturn(Optional.of(fornecedor));
-        when(licitacaoRepository.findById(20L))
+        when(contratoRepository.existsByNumeroAndOrganizacaoId("013/2026", ORGANIZACAO_ID))
+                .thenReturn(false);
+        when(dotacaoRepository.findByIdAndOrganizacaoId(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(dotacao));
+        when(fornecedorRepository.findByIdAndOrganizacaoId(10L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(fornecedor));
+        when(licitacaoRepository.findByIdAndOrganizacaoId(20L, ORGANIZACAO_ID))
                 .thenReturn(Optional.of(licitacaoEncerradaComVencedor));
 
-        assertThatThrownBy(() -> contratoService.criar(requestComLicitacao(20L)))
+        assertThatThrownBy(() -> contratoService.criar(ORGANIZACAO_ID, requestComLicitacao(20L)))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
     }
 
@@ -222,10 +249,11 @@ class ContratoServiceTest {
                 .dotacao(dotacao)
                 .fornecedor(fornecedor)
                 .build();
-        when(contratoRepository.findById(30L)).thenReturn(Optional.of(contrato));
+        when(contratoRepository.findByIdAndOrganizacaoId(30L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(contrato));
 
         assertThatThrownBy(() -> contratoService
-                .atualizar(30L, request(new BigDecimal("90000.00"), 12)))
+                .atualizar(ORGANIZACAO_ID, 30L, request(new BigDecimal("90000.00"), 12)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -243,10 +271,12 @@ class ContratoServiceTest {
                 .dotacao(dotacao)
                 .fornecedor(fornecedor)
                 .build();
-        when(contratoRepository.findById(30L)).thenReturn(Optional.of(contrato));
-        when(contratoRepository.findByNumero("012/2026")).thenReturn(Optional.empty());
+        when(contratoRepository.findByIdAndOrganizacaoId(30L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(contrato));
+        when(contratoRepository.findByNumeroAndOrganizacaoId("012/2026", ORGANIZACAO_ID))
+                .thenReturn(Optional.empty());
 
-        var resposta = contratoService.atualizar(30L,
+        var resposta = contratoService.atualizar(ORGANIZACAO_ID, 30L,
                 request(new BigDecimal("120000.00"), 12));
 
         assertThat(resposta.objeto()).isEqualTo("Fornecimento de material de escritório");
@@ -260,10 +290,11 @@ class ContratoServiceTest {
                 .numero("012/2026")
                 .fornecedor(fornecedor)
                 .build();
-        when(contratoRepository.findById(30L)).thenReturn(Optional.of(contrato));
+        when(contratoRepository.findByIdAndOrganizacaoId(30L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(contrato));
         when(empenhoRepository.existsByContratoIdAndStatusIn(eq(30L), anyList())).thenReturn(true);
 
-        assertThatThrownBy(() -> contratoService.remover(30L))
+        assertThatThrownBy(() -> contratoService.remover(ORGANIZACAO_ID, 30L))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
 
         verify(contratoRepository, never()).delete(any(Contrato.class));
@@ -276,10 +307,11 @@ class ContratoServiceTest {
                 .numero("012/2026")
                 .fornecedor(fornecedor)
                 .build();
-        when(contratoRepository.findById(30L)).thenReturn(Optional.of(contrato));
+        when(contratoRepository.findByIdAndOrganizacaoId(30L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(contrato));
         when(empenhoRepository.existsByContratoIdAndStatusIn(eq(30L), anyList())).thenReturn(false);
 
-        contratoService.remover(30L);
+        contratoService.remover(ORGANIZACAO_ID, 30L);
 
         verify(contratoRepository).delete(contrato);
     }

@@ -6,6 +6,7 @@ import com.gestaocompras.exception.OperacaoNaoPermitidaException;
 import com.gestaocompras.model.CreditoSuplementar;
 import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.repository.CreditoSuplementarRepository;
+import com.gestaocompras.repository.OrganizacaoRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -21,15 +22,19 @@ public class CreditoSuplementarService {
 
     private final DotacaoService dotacaoService;
     private final CreditoSuplementarRepository creditoSuplementarRepository;
+    private final OrganizacaoRepository organizacaoRepository;
 
     public CreditoSuplementarService(DotacaoService dotacaoService,
-            CreditoSuplementarRepository creditoSuplementarRepository) {
+            CreditoSuplementarRepository creditoSuplementarRepository,
+            OrganizacaoRepository organizacaoRepository) {
         this.dotacaoService = dotacaoService;
         this.creditoSuplementarRepository = creditoSuplementarRepository;
+        this.organizacaoRepository = organizacaoRepository;
     }
 
     @Transactional
-    public CreditoSuplementarResponseDTO realizar(CreditoSuplementarRequestDTO request) {
+    public CreditoSuplementarResponseDTO realizar(Long organizacaoId,
+            CreditoSuplementarRequestDTO request) {
         if (request.dotacaoOrigemId().equals(request.dotacaoDestinoId())) {
             throw new OperacaoNaoPermitidaException("A dotação de origem e a de destino devem ser diferentes.");
         }
@@ -37,31 +42,33 @@ public class CreditoSuplementarService {
                 ? "Crédito suplementar"
                 : request.descricao();
         DotacaoOrcamentaria origem = dotacaoService.debitar(
-                request.dotacaoOrigemId(), request.valor(), descricao);
+                organizacaoId, request.dotacaoOrigemId(), request.valor(), descricao);
         DotacaoOrcamentaria destino = dotacaoService.creditar(
-                request.dotacaoDestinoId(), request.valor(), descricao);
+                organizacaoId, request.dotacaoDestinoId(), request.valor(), descricao);
         CreditoSuplementar registro = creditoSuplementarRepository.save(CreditoSuplementar.builder()
                 .dotacaoOrigem(origem)
                 .dotacaoDestino(destino)
                 .valor(request.valor())
                 .descricao(descricao)
                 .data(request.data() != null ? request.data() : LocalDate.now())
+                .organizacao(organizacaoRepository.getReferenceById(organizacaoId))
                 .build());
         return CreditoSuplementarResponseDTO.from(registro);
     }
 
     @Transactional(readOnly = true)
-    public Page<CreditoSuplementarResponseDTO> listar(Long dotacaoId, LocalDate dataInicio,
-            LocalDate dataFim, Pageable pageable) {
+    public Page<CreditoSuplementarResponseDTO> listar(Long organizacaoId, Long dotacaoId,
+            LocalDate dataInicio, LocalDate dataFim, Pageable pageable) {
         return creditoSuplementarRepository
-                .findAll(construirFiltro(dotacaoId, dataInicio, dataFim), pageable)
+                .findAll(construirFiltro(organizacaoId, dotacaoId, dataInicio, dataFim), pageable)
                 .map(CreditoSuplementarResponseDTO::from);
     }
 
-    private Specification<CreditoSuplementar> construirFiltro(Long dotacaoId, LocalDate dataInicio,
-            LocalDate dataFim) {
+    private Specification<CreditoSuplementar> construirFiltro(Long organizacaoId, Long dotacaoId,
+            LocalDate dataInicio, LocalDate dataFim) {
         return (root, query, cb) -> {
             List<Predicate> predicados = new ArrayList<>();
+            predicados.add(cb.equal(root.get("organizacao").get("id"), organizacaoId));
             if (dotacaoId != null) {
                 predicados.add(cb.or(
                         cb.equal(root.get("dotacaoOrigem").get("id"), dotacaoId),

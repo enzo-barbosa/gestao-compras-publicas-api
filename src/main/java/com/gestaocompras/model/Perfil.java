@@ -1,6 +1,6 @@
 package com.gestaocompras.model;
 
 public enum Perfil {
-    ADMIN,
+    SUPER_ADMIN,
     USUARIO
 }

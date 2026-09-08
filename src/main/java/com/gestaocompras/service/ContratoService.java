@@ -17,6 +17,7 @@ import com.gestaocompras.repository.DotacaoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
 import com.gestaocompras.repository.FornecedorRepository;
 import com.gestaocompras.repository.LicitacaoRepository;
+import com.gestaocompras.repository.OrganizacaoRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -36,33 +37,39 @@ public class ContratoService {
     private final EmpenhoRepository empenhoRepository;
     private final FornecedorRepository fornecedorRepository;
     private final LicitacaoRepository licitacaoRepository;
+    private final OrganizacaoRepository organizacaoRepository;
 
     public ContratoService(ContratoRepository contratoRepository,
             DotacaoRepository dotacaoRepository,
             EmpenhoRepository empenhoRepository,
             FornecedorRepository fornecedorRepository,
-            LicitacaoRepository licitacaoRepository) {
+            LicitacaoRepository licitacaoRepository,
+            OrganizacaoRepository organizacaoRepository) {
         this.contratoRepository = contratoRepository;
         this.dotacaoRepository = dotacaoRepository;
         this.empenhoRepository = empenhoRepository;
         this.fornecedorRepository = fornecedorRepository;
         this.licitacaoRepository = licitacaoRepository;
+        this.organizacaoRepository = organizacaoRepository;
     }
 
     @Transactional
-    public ContratoResponseDTO criar(ContratoRequestDTO request) {
+    public ContratoResponseDTO criar(Long organizacaoId, ContratoRequestDTO request) {
         validarCamposFinanceiros(request.valorTotal(), request.duracaoMeses());
-        if (contratoRepository.existsByNumero(request.numero())) {
+        if (contratoRepository.existsByNumeroAndOrganizacaoId(request.numero(), organizacaoId)) {
             throw new RegistroDuplicadoException(
                     "Já existe um contrato com o número %s.".formatted(request.numero()));
         }
-        DotacaoOrcamentaria dotacao = dotacaoRepository.findById(request.dotacaoId())
+        DotacaoOrcamentaria dotacao = dotacaoRepository
+                .findByIdAndOrganizacaoId(request.dotacaoId(), organizacaoId)
                 .orElseThrow(() -> new NotFoundException("Dotação orçamentária", request.dotacaoId()));
-        Fornecedor fornecedor = fornecedorRepository.findById(request.fornecedorId())
+        Fornecedor fornecedor = fornecedorRepository
+                .findByIdAndOrganizacaoId(request.fornecedorId(), organizacaoId)
                 .orElseThrow(() -> new NotFoundException("Fornecedor", request.fornecedorId()));
         Licitacao licitacao = null;
         if (request.licitacaoId() != null) {
-            licitacao = licitacaoRepository.findById(request.licitacaoId())
+            licitacao = licitacaoRepository
+                    .findByIdAndOrganizacaoId(request.licitacaoId(), organizacaoId)
                     .orElseThrow(() -> new NotFoundException("Licitação", request.licitacaoId()));
             validarVinculoLicitacao(licitacao, fornecedor);
         }
@@ -77,24 +84,27 @@ public class ContratoService {
                 .dotacao(dotacao)
                 .licitacao(licitacao)
                 .fornecedor(fornecedor)
+                .organizacao(organizacaoRepository.getReferenceById(organizacaoId))
                 .build()));
     }
 
     @Transactional(readOnly = true)
-    public Page<ContratoResponseDTO> listar(Long dotacaoId, Long fornecedorId,
-            StatusContrato status, Pageable pageable) {
-        return contratoRepository.findAll(construirFiltro(dotacaoId, fornecedorId, status), pageable)
+    public Page<ContratoResponseDTO> listar(Long organizacaoId, Long dotacaoId,
+            Long fornecedorId, StatusContrato status, Pageable pageable) {
+        return contratoRepository
+                .findAll(construirFiltro(organizacaoId, dotacaoId, fornecedorId, status), pageable)
                 .map(ContratoResponseDTO::from);
     }
 
     @Transactional(readOnly = true)
-    public ContratoResponseDTO buscarPorId(Long id) {
-        return ContratoResponseDTO.from(buscarEntidade(id));
+    public ContratoResponseDTO buscarPorId(Long organizacaoId, Long id) {
+        return ContratoResponseDTO.from(buscarEntidade(organizacaoId, id));
     }
 
     @Transactional
-    public ContratoResponseDTO atualizar(Long id, ContratoRequestDTO request) {
-        Contrato contrato = buscarEntidade(id);
+    public ContratoResponseDTO atualizar(Long organizacaoId, Long id,
+            ContratoRequestDTO request) {
+        Contrato contrato = buscarEntidade(organizacaoId, id);
         validarCamposFinanceiros(request.valorTotal(), request.duracaoMeses());
         if (request.valorTotal().compareTo(contrato.getValorTotal()) != 0
                 || !request.duracaoMeses().equals(contrato.getDuracaoMeses())) {
@@ -113,7 +123,7 @@ public class ContratoService {
             throw new IllegalArgumentException(
                     "A licitação vinculada não pode ser alterada após a criação do contrato.");
         }
-        contratoRepository.findByNumero(request.numero())
+        contratoRepository.findByNumeroAndOrganizacaoId(request.numero(), organizacaoId)
                 .filter(outro -> !outro.getId().equals(id))
                 .ifPresent(outro -> {
                     throw new RegistroDuplicadoException(
@@ -126,8 +136,8 @@ public class ContratoService {
     }
 
     @Transactional
-    public void remover(Long id) {
-        Contrato contrato = buscarEntidade(id);
+    public void remover(Long organizacaoId, Long id) {
+        Contrato contrato = buscarEntidade(organizacaoId, id);
         if (empenhoRepository.existsByContratoIdAndStatusIn(contrato.getId(),
                 List.of(StatusEmpenho.EMPENHADO, StatusEmpenho.LIQUIDADO, StatusEmpenho.PAGO))) {
             throw new OperacaoNaoPermitidaException(
@@ -162,10 +172,11 @@ public class ContratoService {
         }
     }
 
-    private Specification<Contrato> construirFiltro(Long dotacaoId, Long fornecedorId,
-            StatusContrato status) {
+    private Specification<Contrato> construirFiltro(Long organizacaoId, Long dotacaoId,
+            Long fornecedorId, StatusContrato status) {
         return (root, query, cb) -> {
             List<Predicate> predicados = new ArrayList<>();
+            predicados.add(cb.equal(root.get("organizacao").get("id"), organizacaoId));
             if (dotacaoId != null) {
                 predicados.add(cb.equal(root.get("dotacao").get("id"), dotacaoId));
             }
@@ -183,8 +194,8 @@ public class ContratoService {
         return contrato.getLicitacao() == null ? null : contrato.getLicitacao().getId();
     }
 
-    private Contrato buscarEntidade(Long id) {
-        return contratoRepository.findById(id)
+    private Contrato buscarEntidade(Long organizacaoId, Long id) {
+        return contratoRepository.findByIdAndOrganizacaoId(id, organizacaoId)
                 .orElseThrow(() -> new NotFoundException("Contrato", id));
     }
 }

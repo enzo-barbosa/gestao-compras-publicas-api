@@ -45,14 +45,20 @@ public class SecurityConfig {
                 .sessionManagement(sessao -> sessao.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
-                        .requestMatchers("/api/auth/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
-                        .requestMatchers("/actuator/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/empenhos").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/empenhos/**").authenticated()
-                        .anyRequest().hasRole("ADMIN"))
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register")
+                                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/actuator/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/**")
+                                .hasAnyRole("ADMIN", "OPERADOR", "VISITANTE", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/**")
+                                .hasAnyRole("ADMIN", "OPERADOR", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/**")
+                                .hasAnyRole("ADMIN", "OPERADOR", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/**")
+                                .hasAnyRole("ADMIN", "OPERADOR", "SUPER_ADMIN")
+                        .anyRequest().hasAnyRole("ADMIN", "SUPER_ADMIN"))
                 .exceptionHandling(excecoes -> excecoes
                         .authenticationEntryPoint((requisicao, resposta, naoAutenticado) ->
                                 escreverErro(resposta, HttpStatus.UNAUTHORIZED,

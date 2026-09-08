@@ -3,6 +3,7 @@ package com.gestaocompras.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,9 +15,11 @@ import com.gestaocompras.exception.RegistroDuplicadoException;
 import com.gestaocompras.model.Fornecedor;
 import com.gestaocompras.model.Licitacao;
 import com.gestaocompras.model.ModalidadeLicitacao;
+import com.gestaocompras.model.Organizacao;
 import com.gestaocompras.model.StatusLicitacao;
 import com.gestaocompras.repository.FornecedorRepository;
 import com.gestaocompras.repository.LicitacaoRepository;
+import com.gestaocompras.repository.OrganizacaoRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -30,11 +33,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class LicitacaoServiceTest {
 
+    private static final long ORGANIZACAO_ID = 10L;
+
     @Mock
     private LicitacaoRepository licitacaoRepository;
 
     @Mock
     private FornecedorRepository fornecedorRepository;
+
+    @Mock
+    private OrganizacaoRepository organizacaoRepository;
 
     @InjectMocks
     private LicitacaoService licitacaoService;
@@ -44,6 +52,8 @@ class LicitacaoServiceTest {
 
     @BeforeEach
     void setUp() {
+        Organizacao organizacao = Organizacao.builder().id(ORGANIZACAO_ID).nome("Prefeitura").build();
+        lenient().when(organizacaoRepository.getReferenceById(ORGANIZACAO_ID)).thenReturn(organizacao);
         licitacaoAberta = Licitacao.builder()
                 .id(1L)
                 .numeroEdital("001/2026")
@@ -53,11 +63,13 @@ class LicitacaoServiceTest {
                 .dataEncerramento(LocalDate.of(2026, 8, 30))
                 .status(StatusLicitacao.ABERTA)
                 .valorEstimado(new BigDecimal("80000.00"))
+                .organizacao(organizacao)
                 .build();
         fornecedor = Fornecedor.builder()
                 .id(10L)
                 .nome("Papelaria Central LTDA")
                 .cnpj("11444777000161")
+                .organizacao(organizacao)
                 .build();
     }
 
@@ -69,11 +81,12 @@ class LicitacaoServiceTest {
 
     @Test
     void criarDeveNascerAbertaSemVencedor() {
-        when(licitacaoRepository.existsByNumeroEdital("001/2026")).thenReturn(false);
+        when(licitacaoRepository.existsByNumeroEditalAndOrganizacaoId("001/2026", ORGANIZACAO_ID))
+                .thenReturn(false);
         when(licitacaoRepository.save(any(Licitacao.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
-        var resposta = licitacaoService.criar(request());
+        var resposta = licitacaoService.criar(ORGANIZACAO_ID, request());
 
         assertThat(resposta.status()).isEqualTo("ABERTA");
         assertThat(resposta.vencedor()).isNull();
@@ -81,9 +94,10 @@ class LicitacaoServiceTest {
 
     @Test
     void criarNaoDeveAceitarNumeroDeEditalDuplicado() {
-        when(licitacaoRepository.existsByNumeroEdital("001/2026")).thenReturn(true);
+        when(licitacaoRepository.existsByNumeroEditalAndOrganizacaoId("001/2026", ORGANIZACAO_ID))
+                .thenReturn(true);
 
-        assertThatThrownBy(() -> licitacaoService.criar(request()))
+        assertThatThrownBy(() -> licitacaoService.criar(ORGANIZACAO_ID, request()))
                 .isInstanceOf(RegistroDuplicadoException.class);
     }
 
@@ -93,16 +107,18 @@ class LicitacaoServiceTest {
                 "Objeto qualquer", LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 1),
                 new BigDecimal("1000.00"));
 
-        assertThatThrownBy(() -> licitacaoService.criar(invalida))
+        assertThatThrownBy(() -> licitacaoService.criar(ORGANIZACAO_ID, invalida))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void definirVencedorDeveRegistrarVencedorEEncerrarALicitacao() {
-        when(licitacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(licitacaoAberta));
-        when(fornecedorRepository.findById(10L)).thenReturn(Optional.of(fornecedor));
+        when(licitacaoRepository.findByIdComLock(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(licitacaoAberta));
+        when(fornecedorRepository.findByIdAndOrganizacaoId(10L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(fornecedor));
 
-        var resposta = licitacaoService.definirVencedor(1L, 10L);
+        var resposta = licitacaoService.definirVencedor(ORGANIZACAO_ID, 1L, 10L);
 
         assertThat(resposta.status()).isEqualTo("ENCERRADA");
         assertThat(resposta.vencedor().id()).isEqualTo(10L);
@@ -111,10 +127,12 @@ class LicitacaoServiceTest {
 
     @Test
     void definirVencedorDeveLancarNotFoundParaFornecedorInexistente() {
-        when(licitacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(licitacaoAberta));
-        when(fornecedorRepository.findById(99L)).thenReturn(Optional.empty());
+        when(licitacaoRepository.findByIdComLock(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(licitacaoAberta));
+        when(fornecedorRepository.findByIdAndOrganizacaoId(99L, ORGANIZACAO_ID))
+                .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> licitacaoService.definirVencedor(1L, 99L))
+        assertThatThrownBy(() -> licitacaoService.definirVencedor(ORGANIZACAO_ID, 1L, 99L))
                 .isInstanceOf(NotFoundException.class);
 
         assertThat(licitacaoAberta.getStatus()).isEqualTo(StatusLicitacao.ABERTA);
@@ -123,9 +141,10 @@ class LicitacaoServiceTest {
     @Test
     void naoDevePermitirDefinirVencedorEmLicitaçãoHomologada() {
         licitacaoAberta.setStatus(StatusLicitacao.HOMOLOGADA);
-        when(licitacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(licitacaoAberta));
+        when(licitacaoRepository.findByIdComLock(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(licitacaoAberta));
 
-        assertThatThrownBy(() -> licitacaoService.definirVencedor(1L, 10L))
+        assertThatThrownBy(() -> licitacaoService.definirVencedor(ORGANIZACAO_ID, 1L, 10L))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
     }
 
@@ -133,20 +152,22 @@ class LicitacaoServiceTest {
     void naoDevePermitirSubstituirVencedorJaDefinidoEmLicitaçãoEncerrada() {
         licitacaoAberta.setStatus(StatusLicitacao.ENCERRADA);
         licitacaoAberta.setVencedor(fornecedor);
-        when(licitacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(licitacaoAberta));
+        when(licitacaoRepository.findByIdComLock(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(licitacaoAberta));
 
-        assertThatThrownBy(() -> licitacaoService.definirVencedor(1L, 10L))
+        assertThatThrownBy(() -> licitacaoService.definirVencedor(ORGANIZACAO_ID, 1L, 10L))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
 
-        verify(fornecedorRepository, never()).findById(any());
+        verify(fornecedorRepository, never()).findByIdAndOrganizacaoId(any(), any());
     }
 
     @Test
     void atualizarDeveBloquearLicitaçãoEncerrada() {
         licitacaoAberta.setStatus(StatusLicitacao.ENCERRADA);
-        when(licitacaoRepository.findById(1L)).thenReturn(Optional.of(licitacaoAberta));
+        when(licitacaoRepository.findByIdAndOrganizacaoId(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(licitacaoAberta));
 
-        assertThatThrownBy(() -> licitacaoService.atualizar(1L, request()))
+        assertThatThrownBy(() -> licitacaoService.atualizar(ORGANIZACAO_ID, 1L, request()))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
     }
 
@@ -154,9 +175,10 @@ class LicitacaoServiceTest {
     void removerDeveBloquearLicitaçãoEncerrada() {
         licitacaoAberta.setStatus(StatusLicitacao.ENCERRADA);
         licitacaoAberta.setVencedor(fornecedor);
-        when(licitacaoRepository.findById(1L)).thenReturn(Optional.of(licitacaoAberta));
+        when(licitacaoRepository.findByIdAndOrganizacaoId(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(licitacaoAberta));
 
-        assertThatThrownBy(() -> licitacaoService.remover(1L))
+        assertThatThrownBy(() -> licitacaoService.remover(ORGANIZACAO_ID, 1L))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
 
         verify(licitacaoRepository, never()).delete(any(Licitacao.class));

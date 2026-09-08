@@ -19,13 +19,16 @@ public interface LicitacaoRepository
     @EntityGraph(attributePaths = {"vencedor"})
     Page<Licitacao> findAll(Specification<Licitacao> spec, Pageable pageable);
 
-    boolean existsByNumeroEdital(String numeroEdital);
+    boolean existsByNumeroEditalAndOrganizacaoId(String numeroEdital, Long organizacaoId);
 
-    boolean existsByVencedorId(Long fornecedorId);
+    boolean existsByVencedorIdAndOrganizacaoId(Long fornecedorId, Long organizacaoId);
 
-    Optional<Licitacao> findByNumeroEdital(String numeroEdital);
+    Optional<Licitacao> findByNumeroEditalAndOrganizacaoId(String numeroEdital,
+            Long organizacaoId);
+
+    Optional<Licitacao> findByIdAndOrganizacaoId(Long id, Long organizacaoId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select l from Licitacao l where l.id = :id")
-    Optional<Licitacao> findByIdComLock(Long id);
+    @Query("select l from Licitacao l where l.id = :id and l.organizacao.id = :organizacaoId")
+    Optional<Licitacao> findByIdComLock(Long id, Long organizacaoId);
 }

@@ -59,6 +59,10 @@ public class Licitacao {
     @JoinColumn(name = "fornecedor_vencedor_id")
     private Fornecedor vencedor;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "organizacao_id", nullable = false)
+    private Organizacao organizacao;
+
     public boolean isEditavel() {
         return status == StatusLicitacao.ABERTA && vencedor == null;
     }

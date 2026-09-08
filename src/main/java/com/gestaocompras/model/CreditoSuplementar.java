@@ -46,4 +46,8 @@ public class CreditoSuplementar {
 
     @Column(nullable = false)
     private LocalDate data;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "organizacao_id", nullable = false)
+    private Organizacao organizacao;
 }

@@ -2,6 +2,7 @@ package com.gestaocompras.controller;
 
 import com.gestaocompras.dto.CreditoSuplementarRequestDTO;
 import com.gestaocompras.dto.CreditoSuplementarResponseDTO;
+import com.gestaocompras.security.UsuarioLogado;
 import com.gestaocompras.service.CreditoSuplementarService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,21 +32,24 @@ public class CreditoSuplementarController {
 
     @PostMapping
     public ResponseEntity<CreditoSuplementarResponseDTO> realizar(
+            @AuthenticationPrincipal UsuarioLogado usuarioLogado,
             @Valid @RequestBody CreditoSuplementarRequestDTO request) {
-        CreditoSuplementarResponseDTO resposta = creditoSuplementarService.realizar(request);
+        CreditoSuplementarResponseDTO resposta = creditoSuplementarService.realizar(
+                usuarioLogado.organizacaoId(), request);
         return ResponseEntity.created(URI.create("/api/creditos-suplementares/%d".formatted(resposta.id())))
                 .body(resposta);
     }
 
     @GetMapping
     public ResponseEntity<Page<CreditoSuplementarResponseDTO>> listar(
+            @AuthenticationPrincipal UsuarioLogado usuarioLogado,
             @RequestParam(required = false) Long dotacaoId,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
             @PageableDefault(size = 20, sort = "data") Pageable pageable) {
-        return ResponseEntity
-                .ok(creditoSuplementarService.listar(dotacaoId, dataInicio, dataFim, pageable));
+        return ResponseEntity.ok(creditoSuplementarService.listar(
+                usuarioLogado.organizacaoId(), dotacaoId, dataInicio, dataFim, pageable));
     }
 }

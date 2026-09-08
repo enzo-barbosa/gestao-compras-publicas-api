@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,34 +17,25 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "fornecedores")
+@Table(name = "organizacoes")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Fornecedor {
+public class Organizacao {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 150)
+    @Column(nullable = false, length = 120)
     private String nome;
 
-    @Column(nullable = false, unique = true, length = 14)
-    private String cnpj;
-
-    @Column(length = 150)
-    private String email;
-
-    @Column(length = 30)
-    private String telefone;
-
-    @Column(length = 250)
-    private String endereco;
+    @Column(name = "criado_em", nullable = false)
+    private LocalDateTime criadoEm;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "organizacao_id", nullable = false)
-    private Organizacao organizacao;
+    @JoinColumn(name = "criado_por", nullable = false)
+    private Usuario criadoPor;
 }

@@ -21,13 +21,16 @@ public interface ContratoRepository
     @EntityGraph(attributePaths = {"dotacao", "fornecedor", "licitacao"})
     Page<Contrato> findAll(Specification<Contrato> spec, Pageable pageable);
 
-    boolean existsByNumero(String numero);
+    boolean existsByNumeroAndOrganizacaoId(String numero, Long organizacaoId);
 
-    boolean existsByFornecedorIdAndStatusIn(Long fornecedorId, Collection<StatusContrato> status);
+    boolean existsByFornecedorIdAndOrganizacaoIdAndStatusIn(Long fornecedorId,
+            Long organizacaoId, Collection<StatusContrato> status);
 
-    Optional<Contrato> findByNumero(String numero);
+    Optional<Contrato> findByNumeroAndOrganizacaoId(String numero, Long organizacaoId);
+
+    Optional<Contrato> findByIdAndOrganizacaoId(Long id, Long organizacaoId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select c from Contrato c where c.id = :id")
-    Optional<Contrato> findByIdComLock(Long id);
+    @Query("select c from Contrato c where c.id = :id and c.organizacao.id = :organizacaoId")
+    Optional<Contrato> findByIdComLock(Long id, Long organizacaoId);
 }

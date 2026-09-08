@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -16,7 +17,9 @@ import com.gestaocompras.exception.OperacaoNaoPermitidaException;
 import com.gestaocompras.exception.SaldoInsuficienteException;
 import com.gestaocompras.model.CreditoSuplementar;
 import com.gestaocompras.model.DotacaoOrcamentaria;
+import com.gestaocompras.model.Organizacao;
 import com.gestaocompras.repository.CreditoSuplementarRepository;
+import com.gestaocompras.repository.OrganizacaoRepository;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,11 +31,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class CreditoSuplementarServiceTest {
 
+    private static final long ORGANIZACAO_ID = 10L;
+
     @Mock
     private DotacaoService dotacaoService;
 
     @Mock
     private CreditoSuplementarRepository creditoSuplementarRepository;
+
+    @Mock
+    private OrganizacaoRepository organizacaoRepository;
 
     @InjectMocks
     private CreditoSuplementarService creditoSuplementarService;
@@ -42,6 +50,8 @@ class CreditoSuplementarServiceTest {
 
     @BeforeEach
     void setUp() {
+        Organizacao organizacao = Organizacao.builder().id(ORGANIZACAO_ID).nome("Prefeitura").build();
+        lenient().when(organizacaoRepository.getReferenceById(ORGANIZACAO_ID)).thenReturn(organizacao);
         origem = DotacaoOrcamentaria.builder()
                 .id(1L)
                 .codigo("8.2.2.09.001")
@@ -67,17 +77,22 @@ class CreditoSuplementarServiceTest {
 
     @Test
     void realizarDeveDebitarOrigemCreditarDestinoERegistrarORemaniejamento() {
-        when(dotacaoService.debitar(1L, new BigDecimal("10000.00"), "Reforco de dotação"))
+        when(dotacaoService.debitar(ORGANIZACAO_ID, 1L, new BigDecimal("10000.00"),
+                "Reforco de dotação"))
                 .thenReturn(origem);
-        when(dotacaoService.creditar(2L, new BigDecimal("10000.00"), "Reforco de dotação"))
+        when(dotacaoService.creditar(ORGANIZACAO_ID, 2L, new BigDecimal("10000.00"),
+                "Reforco de dotação"))
                 .thenReturn(destino);
         when(creditoSuplementarRepository.save(any(CreditoSuplementar.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
-        CreditoSuplementarResponseDTO resposta = creditoSuplementarService.realizar(request());
+        CreditoSuplementarResponseDTO resposta = creditoSuplementarService.realizar(
+                ORGANIZACAO_ID, request());
 
-        verify(dotacaoService).debitar(1L, new BigDecimal("10000.00"), "Reforco de dotação");
-        verify(dotacaoService).creditar(2L, new BigDecimal("10000.00"), "Reforco de dotação");
+        verify(dotacaoService).debitar(ORGANIZACAO_ID, 1L, new BigDecimal("10000.00"),
+                "Reforco de dotação");
+        verify(dotacaoService).creditar(ORGANIZACAO_ID, 2L, new BigDecimal("10000.00"),
+                "Reforco de dotação");
         assertThat(resposta.dotacaoOrigemCodigo()).isEqualTo("8.2.2.09.001");
         assertThat(resposta.dotacaoDestinoCodigo()).isEqualTo("8.2.2.09.002");
         assertThat(resposta.data()).isNotNull();
@@ -88,7 +103,7 @@ class CreditoSuplementarServiceTest {
         CreditoSuplementarRequestDTO invalida = new CreditoSuplementarRequestDTO(1L, 1L,
                 new BigDecimal("1000.00"), null, null);
 
-        assertThatThrownBy(() -> creditoSuplementarService.realizar(invalida))
+        assertThatThrownBy(() -> creditoSuplementarService.realizar(ORGANIZACAO_ID, invalida))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
 
         verifyNoInteractions(dotacaoService, creditoSuplementarRepository);
@@ -96,12 +111,13 @@ class CreditoSuplementarServiceTest {
 
     @Test
     void realizarDeveLancarNotFoundQuandoOrigemNaoExistir() {
-        when(dotacaoService.debitar(99L, new BigDecimal("1000.00"), "Crédito suplementar"))
+        when(dotacaoService.debitar(ORGANIZACAO_ID, 99L, new BigDecimal("1000.00"),
+                "Crédito suplementar"))
                 .thenThrow(new NotFoundException("Dotação orçamentária", 99L));
         CreditoSuplementarRequestDTO invalida = new CreditoSuplementarRequestDTO(99L, 2L,
                 new BigDecimal("1000.00"), null, null);
 
-        assertThatThrownBy(() -> creditoSuplementarService.realizar(invalida))
+        assertThatThrownBy(() -> creditoSuplementarService.realizar(ORGANIZACAO_ID, invalida))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -109,11 +125,12 @@ class CreditoSuplementarServiceTest {
     void realizarDevePropagarSaldoInsuficienteESemRegistrarRemanejamento() {
         doThrow(new SaldoInsuficienteException("Dotação orçamentária", origem.getSaldoAtual(),
                 new BigDecimal("999999.00")))
-                .when(dotacaoService).debitar(1L, new BigDecimal("999999.00"), "Crédito suplementar");
+                .when(dotacaoService).debitar(ORGANIZACAO_ID, 1L, new BigDecimal("999999.00"),
+                        "Crédito suplementar");
         CreditoSuplementarRequestDTO invalida = new CreditoSuplementarRequestDTO(1L, 2L,
                 new BigDecimal("999999.00"), null, null);
 
-        assertThatThrownBy(() -> creditoSuplementarService.realizar(invalida))
+        assertThatThrownBy(() -> creditoSuplementarService.realizar(ORGANIZACAO_ID, invalida))
                 .isInstanceOf(SaldoInsuficienteException.class);
 
         verify(creditoSuplementarRepository, never()).save(any(CreditoSuplementar.class));

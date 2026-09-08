@@ -5,9 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,6 +22,7 @@ import com.gestaocompras.model.Contrato;
 import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.model.Empenho;
 import com.gestaocompras.model.Fornecedor;
+import com.gestaocompras.model.Organizacao;
 import com.gestaocompras.model.Perfil;
 import com.gestaocompras.model.StatusContrato;
 import com.gestaocompras.model.StatusEmpenho;
@@ -29,6 +31,7 @@ import com.gestaocompras.model.Usuario;
 import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.DotacaoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
+import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -49,6 +52,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @ExtendWith(MockitoExtension.class)
 class EmpenhoServiceTest {
 
+    private static final long ORGANIZACAO_ID = 10L;
+
     @Mock
     private EmpenhoRepository empenhoRepository;
 
@@ -64,6 +69,9 @@ class EmpenhoServiceTest {
     @Mock
     private UsuarioRepository usuarioRepository;
 
+    @Mock
+    private OrganizacaoRepository organizacaoRepository;
+
     @InjectMocks
     private EmpenhoService empenhoService;
 
@@ -72,6 +80,8 @@ class EmpenhoServiceTest {
 
     @BeforeEach
     void setUp() {
+        Organizacao organizacao = Organizacao.builder().id(ORGANIZACAO_ID).nome("Prefeitura").build();
+        lenient().when(organizacaoRepository.getReferenceById(ORGANIZACAO_ID)).thenReturn(organizacao);
         dotacao = DotacaoOrcamentaria.builder()
                 .id(1L)
                 .codigo("3.3.90.30")
@@ -79,6 +89,7 @@ class EmpenhoServiceTest {
                 .anoExercicio(2026)
                 .saldoInicial(new BigDecimal("25000.00"))
                 .saldoAtual(new BigDecimal("25000.00"))
+                .organizacao(organizacao)
                 .build();
         contratoVigente = Contrato.builder()
                 .id(30L)
@@ -92,6 +103,7 @@ class EmpenhoServiceTest {
                 .dotacao(dotacao)
                 .fornecedor(Fornecedor.builder().id(2L).nome("Papelaria Central LTDA")
                         .cnpj("11444777000161").build())
+                .organizacao(organizacao)
                 .build();
     }
 
@@ -100,11 +112,12 @@ class EmpenhoServiceTest {
     }
 
     private void contratoEncontrado() {
-        when(contratoRepository.findByIdComLock(30L)).thenReturn(Optional.of(contratoVigente));
+        when(contratoRepository.findByIdComLock(30L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(contratoVigente));
     }
 
     private void dotacaoEncontrada() {
-        when(dotacaoRepository.findByIdComLock(1L)).thenReturn(Optional.of(dotacao));
+        when(dotacaoRepository.findByIdComLock(1L, ORGANIZACAO_ID)).thenReturn(Optional.of(dotacao));
     }
 
     private void competenciaNaoDuplicada(Integer mes, Integer ano) {
@@ -133,12 +146,12 @@ class EmpenhoServiceTest {
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
-        var resposta = empenhoService.gerar(request(1, 2026));
+        var resposta = empenhoService.gerar(ORGANIZACAO_ID, request(1, 2026));
 
         assertThat(resposta.valor()).isEqualByComparingTo("10000.00");
         assertThat(resposta.status()).isEqualTo(StatusEmpenho.EMPENHADO.name());
-        verify(dotacaoService).debitar(eq(1L), eq(new BigDecimal("10000.00")),
-                contains("01/2026"));
+        verify(dotacaoService).debitar(eq(ORGANIZACAO_ID), eq(1L),
+                eq(new BigDecimal("10000.00")), contains("01/2026"));
         assertThat(contratoVigente.getSaldoRestante()).isEqualByComparingTo("50000.00");
     }
 
@@ -153,7 +166,7 @@ class EmpenhoServiceTest {
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
-        var resposta = empenhoService.gerar(request(1, 2026));
+        var resposta = empenhoService.gerar(ORGANIZACAO_ID, request(1, 2026));
 
         assertThat(resposta.valor()).isEqualByComparingTo("3333.33");
     }
@@ -171,11 +184,11 @@ class EmpenhoServiceTest {
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
-        var resposta = empenhoService.gerar(request(3, 2026));
+        var resposta = empenhoService.gerar(ORGANIZACAO_ID, request(3, 2026));
 
         assertThat(resposta.valor()).isEqualByComparingTo("3333.34");
-        verify(dotacaoService).debitar(eq(1L), eq(new BigDecimal("3333.34")),
-                contains("03/2026"));
+        verify(dotacaoService).debitar(eq(ORGANIZACAO_ID), eq(1L),
+                eq(new BigDecimal("3333.34")), contains("03/2026"));
         assertThat(contratoVigente.getSaldoRestante()).isEqualByComparingTo("0.00");
     }
 
@@ -191,13 +204,13 @@ class EmpenhoServiceTest {
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
         competenciaNaoDuplicada(1, 2026);
-        var janeiro = empenhoService.gerar(request(1, 2026));
+        var janeiro = empenhoService.gerar(ORGANIZACAO_ID, request(1, 2026));
         competenciaNaoDuplicada(2, 2026);
         competenciaAtivaAnterior(1, 2026);
-        var fevereiro = empenhoService.gerar(request(2, 2026));
+        var fevereiro = empenhoService.gerar(ORGANIZACAO_ID, request(2, 2026));
         competenciaNaoDuplicada(3, 2026);
         competenciaAtivaAnterior(2, 2026);
-        var marco = empenhoService.gerar(request(3, 2026));
+        var marco = empenhoService.gerar(ORGANIZACAO_ID, request(3, 2026));
 
         assertThat(janeiro.valor()).isEqualByComparingTo("3333.33");
         assertThat(fevereiro.valor()).isEqualByComparingTo("3333.33");
@@ -209,15 +222,15 @@ class EmpenhoServiceTest {
     void naoDeveGerarCompetenciaForaDaVigenciaDoContrato() {
         contratoEncontrado();
 
-        assertThatThrownBy(() -> empenhoService.gerar(request(7, 2026)))
+        assertThatThrownBy(() -> empenhoService.gerar(ORGANIZACAO_ID, request(7, 2026)))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
 
-        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+        verify(dotacaoService, never()).debitar(anyLong(), anyLong(), any(), anyString());
     }
 
     @Test
     void naoDeveGerarComMesInvalido() {
-        assertThatThrownBy(() -> empenhoService.gerar(request(13, 2026)))
+        assertThatThrownBy(() -> empenhoService.gerar(ORGANIZACAO_ID, request(13, 2026)))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(empenhoRepository, never()).save(any(Empenho.class));
@@ -233,10 +246,10 @@ class EmpenhoServiceTest {
                                 StatusEmpenho.PAGO)))
                 .thenReturn(true);
 
-        assertThatThrownBy(() -> empenhoService.gerar(request(1, 2026)))
+        assertThatThrownBy(() -> empenhoService.gerar(ORGANIZACAO_ID, request(1, 2026)))
                 .isInstanceOf(RegistroDuplicadoException.class);
 
-        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+        verify(dotacaoService, never()).debitar(anyLong(), anyLong(), any(), anyString());
     }
 
     @Test
@@ -247,11 +260,11 @@ class EmpenhoServiceTest {
         competenciaAtivaAnterior(1, 2026);
         dotacao.setSaldoAtual(new BigDecimal("5000.00"));
 
-        assertThatThrownBy(() -> empenhoService.gerar(request(2, 2026)))
+        assertThatThrownBy(() -> empenhoService.gerar(ORGANIZACAO_ID, request(2, 2026)))
                 .isInstanceOf(SaldoInsuficienteException.class)
                 .hasMessageContaining("dotação");
 
-        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+        verify(dotacaoService, never()).debitar(anyLong(), anyLong(), any(), anyString());
         verify(empenhoRepository, never()).save(any(Empenho.class));
     }
 
@@ -263,11 +276,11 @@ class EmpenhoServiceTest {
         competenciaAtivaAnterior(4, 2026);
         contratoVigente.setSaldoRestante(new BigDecimal("9000.00"));
 
-        assertThatThrownBy(() -> empenhoService.gerar(request(5, 2026)))
+        assertThatThrownBy(() -> empenhoService.gerar(ORGANIZACAO_ID, request(5, 2026)))
                 .isInstanceOf(SaldoInsuficienteException.class)
                 .hasMessageContaining("contrato");
 
-        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+        verify(dotacaoService, never()).debitar(anyLong(), anyLong(), any(), anyString());
     }
 
     @Test
@@ -275,10 +288,10 @@ class EmpenhoServiceTest {
         contratoVigente.setStatus(StatusContrato.RESCINDIDO);
         contratoEncontrado();
 
-        assertThatThrownBy(() -> empenhoService.gerar(request(1, 2026)))
+        assertThatThrownBy(() -> empenhoService.gerar(ORGANIZACAO_ID, request(1, 2026)))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
 
-        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+        verify(dotacaoService, never()).debitar(anyLong(), anyLong(), any(), anyString());
     }
 
     @Test
@@ -291,11 +304,11 @@ class EmpenhoServiceTest {
                                 StatusEmpenho.PAGO)))
                 .thenReturn(false);
 
-        assertThatThrownBy(() -> empenhoService.gerar(request(3, 2026)))
+        assertThatThrownBy(() -> empenhoService.gerar(ORGANIZACAO_ID, request(3, 2026)))
                 .isInstanceOf(OperacaoNaoPermitidaException.class)
                 .hasMessageContaining("02/2026");
 
-        verify(dotacaoService, never()).debitar(anyLong(), any(), anyString());
+        verify(dotacaoService, never()).debitar(anyLong(), anyLong(), any(), anyString());
     }
 
     @Test
@@ -306,7 +319,7 @@ class EmpenhoServiceTest {
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
-        var resposta = empenhoService.gerar(request(1, 2026));
+        var resposta = empenhoService.gerar(ORGANIZACAO_ID, request(1, 2026));
 
         assertThat(resposta.valor()).isEqualByComparingTo("10000.00");
     }
@@ -324,7 +337,7 @@ class EmpenhoServiceTest {
         when(empenhoRepository.save(any(Empenho.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
 
-        var resposta = empenhoService.gerar(request(1, 2026));
+        var resposta = empenhoService.gerar(ORGANIZACAO_ID, request(1, 2026));
 
         assertThat(resposta.valor()).isEqualByComparingTo("10000.00");
         assertThat(resposta.status()).isEqualTo(StatusEmpenho.EMPENHADO.name());
@@ -342,14 +355,16 @@ class EmpenhoServiceTest {
                 .dataEmissao(LocalDate.now())
                 .build();
         contratoVigente.setSaldoRestante(new BigDecimal("50000.00"));
-        when(empenhoRepository.findById(40L)).thenReturn(Optional.of(empenho));
+        when(empenhoRepository.findByIdAndOrganizacaoId(40L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(empenho));
         contratoEncontrado();
 
-        var resposta = empenhoService.anular(40L);
+        var resposta = empenhoService.anular(ORGANIZACAO_ID, 40L);
 
         assertThat(resposta.status()).isEqualTo(StatusEmpenho.ANULADO.name());
-        verify(dotacaoService).creditar(eq(1L), eq(new BigDecimal("10000.00")),
-                contains("anulação"), eq(TipoMovimentacao.ESTORNO));
+        verify(dotacaoService).creditar(eq(ORGANIZACAO_ID), eq(1L),
+                eq(new BigDecimal("10000.00")), contains("anulação"),
+                eq(TipoMovimentacao.ESTORNO));
         assertThat(contratoVigente.getSaldoRestante()).isEqualByComparingTo("60000.00");
     }
 
@@ -364,22 +379,24 @@ class EmpenhoServiceTest {
                 .status(StatusEmpenho.LIQUIDADO)
                 .dataEmissao(LocalDate.now())
                 .build();
-        when(empenhoRepository.findById(41L)).thenReturn(Optional.of(empenho));
+        when(empenhoRepository.findByIdAndOrganizacaoId(41L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(empenho));
 
-        assertThatThrownBy(() -> empenhoService.anular(41L))
+        assertThatThrownBy(() -> empenhoService.anular(ORGANIZACAO_ID, 41L))
                 .isInstanceOf(OperacaoNaoPermitidaException.class);
 
-        verify(dotacaoService, never()).creditar(anyLong(), any(), anyString());
+        verify(dotacaoService, never()).creditar(anyLong(), anyLong(), any(), anyString());
     }
 
     @Test
     void naoDeveAnularEmpenhoInexistente() {
-        when(empenhoRepository.findById(999L)).thenReturn(Optional.empty());
+        when(empenhoRepository.findByIdAndOrganizacaoId(999L, ORGANIZACAO_ID))
+                .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> empenhoService.anular(999L))
+        assertThatThrownBy(() -> empenhoService.anular(ORGANIZACAO_ID, 999L))
                 .isInstanceOf(NotFoundException.class);
 
-        verify(dotacaoService, never()).creditar(anyLong(), any(), anyString());
+        verify(dotacaoService, never()).creditar(anyLong(), anyLong(), any(), anyString());
     }
 
     @Test
@@ -401,7 +418,7 @@ class EmpenhoServiceTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("joao@gestao.com", null, List.of()));
         try {
-            var resposta = empenhoService.gerar(request(3, 2026));
+            var resposta = empenhoService.gerar(ORGANIZACAO_ID, request(3, 2026));
 
             assertThat(resposta.usuarioId()).isEqualTo(5L);
             verify(empenhoRepository).save(argThat((Empenho salvo) ->
@@ -416,7 +433,8 @@ class EmpenhoServiceTest {
         when(empenhoRepository.findAll(any(Specification.class), eq(PageRequest.of(0, 10))))
                 .thenReturn(Page.empty());
 
-        empenhoService.listar(30L, null, 2, 2026, null, null, PageRequest.of(0, 10));
+        empenhoService.listar(ORGANIZACAO_ID, 30L, null, 2, 2026, null, null,
+                PageRequest.of(0, 10));
 
         verify(empenhoRepository).findAll(any(Specification.class), eq(PageRequest.of(0, 10)));
     }

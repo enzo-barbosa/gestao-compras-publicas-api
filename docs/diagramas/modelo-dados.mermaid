@@ -1,15 +1,40 @@
 erDiagram
+    ORGANIZACAO {
+        bigint id PK
+        varchar nome UK "cada grupo equivale a uma organizacao"
+        timestamp criado_em
+        bigint criado_por FK "usuario que criou o grupo"
+    }
+
+    MEMBRO_ORGANIZACAO {
+        bigint organizacao_id PK,FK
+        bigint usuario_id PK,FK
+        enum papel "ADMIN, OPERADOR, VISITANTE"
+        timestamp desde
+    }
+
+    CONVITE_ORGANIZACAO {
+        bigint id PK
+        bigint organizacao_id FK
+        varchar email "convite por e-mail pendente"
+        varchar codigo UK "convite por codigo"
+        enum papel "ADMIN, OPERADOR, VISITANTE"
+        timestamp criado_em
+        timestamp usado_em "null enquanto pendente"
+    }
+
     USUARIO {
         bigint id PK
         varchar nome
         varchar email UK
         varchar senha_hash
-        enum perfil "ADMIN ou USUARIO"
+        enum perfil "SUPER_ADMIN (global) ou USUARIO"
     }
 
     DOTACAO_ORCAMENTARIA {
         bigint id PK
-        varchar codigo UK
+        bigint organizacao_id FK "escopo do grupo"
+        varchar codigo UK "unico por organizacao"
         varchar descricao
         numeric saldo_inicial "imutavel apos criacao"
         numeric saldo_atual "governado por movimentacoes"
@@ -27,8 +52,9 @@ erDiagram
 
     FORNECEDOR {
         bigint id PK
+        bigint organizacao_id FK "escopo do grupo"
         varchar nome
-        varchar cnpj UK "validado digito mod 11"
+        varchar cnpj UK "unico por organizacao, validado digito mod 11"
         varchar email
         varchar telefone
         varchar endereco
@@ -36,7 +62,8 @@ erDiagram
 
     LICITACAO {
         bigint id PK
-        varchar numero_edital UK
+        bigint organizacao_id FK "escopo do grupo"
+        varchar numero_edital UK "unico por organizacao"
         enum modalidade "9 valores - Leis 8666 e 14133"
         varchar objeto
         date data_abertura
@@ -48,7 +75,8 @@ erDiagram
 
     CONTRATO {
         bigint id PK
-        varchar numero UK
+        bigint organizacao_id FK "escopo do grupo"
+        varchar numero UK "unico por organizacao"
         varchar objeto
         numeric valor_total "imutavel apos criacao"
         int duracao_meses "imutavel apos criacao"
@@ -62,6 +90,7 @@ erDiagram
 
     EMPENHO {
         bigint id PK
+        bigint organizacao_id FK "escopo do grupo"
         bigint contrato_id FK
         bigint usuario_id FK "auditoria de quem gerou"
         int mes_referencia
@@ -71,10 +100,31 @@ erDiagram
         date data_emissao
     }
 
+    CREDITO_SUPLEMENTAR {
+        bigint id PK
+        bigint organizacao_id FK "escopo do grupo"
+        bigint dotacao_origem_id FK "debitada"
+        bigint dotacao_destino_id FK "creditada"
+        numeric valor
+        varchar descricao
+        date data
+    }
+
+    ORGANIZACAO ||--o{ MEMBRO_ORGANIZACAO : "acolhe usuários"
+    USUARIO ||--o{ MEMBRO_ORGANIZACAO : "participa de n grupos"
+    ORGANIZACAO ||--o{ CONVITE_ORGANIZACAO : "convida"
+    ORGANIZACAO ||--o{ DOTACAO_ORCAMENTARIA : "possui"
+    ORGANIZACAO ||--o{ FORNECEDOR : "possui"
+    ORGANIZACAO ||--o{ LICITACAO : "possui"
+    ORGANIZACAO ||--o{ CONTRATO : "possui"
+    ORGANIZACAO ||--o{ EMPENHO : "possui"
+    ORGANIZACAO ||--o{ CREDITO_SUPLEMENTAR : "possui"
     DOTACAO_ORCAMENTARIA ||--o{ MOVIMENTACAO_DOTACAO : "registra"
     DOTACAO_ORCAMENTARIA ||--o{ CONTRATO : "orcamenta"
     FORNECEDOR ||--o{ LICITACAO : "vence"
     FORNECEDOR ||--o{ CONTRATO : "executa"
     LICITACAO |o--o| CONTRATO : "formaliza"
     CONTRATO ||--o{ EMPENHO : "rateia por competencia"
+    CREDITO_SUPLEMENTAR }o--|| DOTACAO_ORCAMENTARIA : "origem"
+    CREDITO_SUPLEMENTAR }o--|| DOTACAO_ORCAMENTARIA : "destino"
     USUARIO ||--o{ EMPENHO : "gera"

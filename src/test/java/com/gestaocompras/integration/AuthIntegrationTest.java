@@ -23,6 +23,7 @@ import org.springframework.web.client.RestTemplate;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AuthIntegrationTest {
 
+    private static final String ORGANIZACAO_ID = "1";
     private static final String EMAIL_USUARIO = "maria.operacional"
             + System.nanoTime() + "@gestao.com";
 
@@ -63,6 +64,16 @@ class AuthIntegrationTest {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         return headers;
+    }
+
+    private HttpHeaders comBearerEOrganizacao(String token) {
+        HttpHeaders headers = comBearer(token);
+        headers.set("X-Org-Id", ORGANIZACAO_ID);
+        return headers;
+    }
+
+    private HttpHeaders adminComOrganizacao() {
+        return comBearerEOrganizacao(tokenDoAdmin());
     }
 
     private <T> ResponseEntity<Map> troca(String urlRelativa, HttpMethod metodo,
@@ -114,7 +125,7 @@ class AuthIntegrationTest {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody().token()).isNotBlank();
-        assertThat(resposta.getBody().perfil()).isEqualTo("ADMIN");
+        assertThat(resposta.getBody().perfil()).isEqualTo("SUPER_ADMIN");
     }
 
     @Test
@@ -163,28 +174,32 @@ class AuthIntegrationTest {
 
     @Test
     @Order(6)
-    void usuarioComumNaoPodeRegistrarNemEscreverMasLe() {
+    void usuarioComumSemMembrosiaNaoPodeEscreverNemLerNaOrganizacao() {
         String tokenUsuario = http.postForEntity(url("/api/auth/login"),
                 new LoginRequestDTO(EMAIL_USUARIO, "senhaSegura123"), TokenResponseDTO.class)
                 .getBody().token();
-        HttpHeaders headers = comBearer(tokenUsuario);
 
-        var tentativaRegistro = troca("/api/auth/register", HttpMethod.POST, headers,
+        var tentativaRegistro = troca("/api/auth/register", HttpMethod.POST,
+                comBearer(tokenUsuario),
                 new RegistroRequestDTO("Outro", "outro" + System.nanoTime()
                         + "@x.com", "senhaSegura123"));
-        var tentativaEscrita = troca("/api/dotacoes", HttpMethod.POST, headers,
+        var tentativaEscrita = troca("/api/dotacoes", HttpMethod.POST,
+                comBearerEOrganizacao(tokenUsuario),
                 Map.of("codigo", "X", "descricao", "x", "saldoInicial", 1, "anoExercicio", 2026));
-        var leituraAutenticada = troca("/api/dotacoes", HttpMethod.GET, headers, null);
+        var leituraSemMembrosia = troca("/api/dotacoes", HttpMethod.GET,
+                comBearerEOrganizacao(tokenUsuario), null);
 
         assertThat(tentativaRegistro.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(tentativaEscrita.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(leituraAutenticada.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(leituraSemMembrosia.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat((String) ((Map<?, ?>) leituraSemMembrosia.getBody()).get("mensagem"))
+                .contains("não é membro");
     }
 
     @Test
     @Order(7)
-    void usuarioComumDeveGerarEmpenhoComUsuarioIdPreenchido() {
-        HttpHeaders admin = comBearer(tokenDoAdmin());
+    void adminDeveGerarEmpenhoComUsuarioIdPreenchidoNaOrganizacaoDeOrigem() {
+        HttpHeaders admin = adminComOrganizacao();
         String sufixo = String.valueOf(System.nanoTime());
 
         Long dotacaoId = criarId("/api/dotacoes", admin, Map.of(
@@ -210,11 +225,7 @@ class AuthIntegrationTest {
                 "dotacaoId", dotacaoId, "licitacaoId", licitacaoId,
                 "fornecedorId", fornecedorId));
 
-        String tokenUsuario = http.postForEntity(url("/api/auth/login"),
-                new LoginRequestDTO(EMAIL_USUARIO, "senhaSegura123"), TokenResponseDTO.class)
-                .getBody().token();
-
-        var empenho = troca("/api/empenhos", HttpMethod.POST, comBearer(tokenUsuario), Map.of(
+        var empenho = troca("/api/empenhos", HttpMethod.POST, admin, Map.of(
                 "contratoId", contratoId, "mesReferencia", 1, "anoReferencia", 2026));
 
         assertThat(empenho.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -225,14 +236,12 @@ class AuthIntegrationTest {
     @Test
     @Order(8)
     void meDeveRetornarOUsuarioAutenticadoParaAdminEUsuarioComum() {
-        HttpHeaders admin = comBearer(tokenDoAdmin());
-
-        var meAdmin = troca("/api/auth/me", HttpMethod.GET, admin, null);
+        var meAdmin = troca("/api/auth/me", HttpMethod.GET, comBearer(tokenDoAdmin()), null);
 
         assertThat(meAdmin.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat((String) ((Map<?, ?>) meAdmin.getBody()).get("email"))
                 .isEqualTo("admin@admin.com");
-        assertThat((String) ((Map<?, ?>) meAdmin.getBody()).get("perfil")).isEqualTo("ADMIN");
+        assertThat((String) ((Map<?, ?>) meAdmin.getBody()).get("perfil")).isEqualTo("SUPER_ADMIN");
 
         HttpHeaders usuarioComum = comBearer(http.postForEntity(url("/api/auth/login"),
                 new LoginRequestDTO(EMAIL_USUARIO, "senhaSegura123"), TokenResponseDTO.class)

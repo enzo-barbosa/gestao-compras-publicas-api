@@ -4,6 +4,7 @@ import com.gestaocompras.model.Empenho;
 import com.gestaocompras.model.StatusEmpenho;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -17,6 +18,8 @@ public interface EmpenhoRepository
     @Override
     @EntityGraph(attributePaths = {"contrato", "contrato.dotacao", "contrato.fornecedor", "usuario"})
     Page<Empenho> findAll(Specification<Empenho> spec, Pageable pageable);
+
+    Optional<Empenho> findByIdAndOrganizacaoId(Long id, Long organizacaoId);
 
     boolean existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(Long contratoId,
             Integer anoReferencia, Integer mesReferencia, List<StatusEmpenho> status);
