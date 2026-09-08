@@ -150,9 +150,16 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 
 ## Prints do sistema
 
-![Tela de login](docs/img/login.jpeg)
+![Landing pública](docs/img/landing.jpeg)
+![Cadastro aberto](docs/img/cadastro.jpeg)
+![Login](docs/img/login.jpeg)
+![Onboarding: criar grupo ou aceitar convite](docs/img/onboarding.jpeg)
+![Seletor de grupo](docs/img/selecionar-grupo.jpeg)
 ![Dashboard com saldos por dotação](docs/img/dashboard.jpeg)
 ![Empenhos com badges de saldo](docs/img/empenhos.jpeg)
+![Gestão de membros do grupo](docs/img/membros.jpeg)
+![Convites do grupo](docs/img/membros-convites.jpeg)
+![Painel oculto de super administrador](docs/img/superpainel.jpeg)
 
 ## Roadmap
 
