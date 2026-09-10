@@ -32,6 +32,9 @@ public class SecurityConfig {
     @Value("${cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
 
+    @Value("${swagger.ativo:true}")
+    private boolean swaggerAtivo;
+
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, ObjectMapper objectMapper) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.objectMapper = objectMapper;
@@ -43,32 +46,37 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sessao -> sessao.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/organizacoes").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/organizacoes").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/organizacoes/**").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/organizacoes/**")
-                                .hasAnyRole("ADMIN", "SUPER_ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/organizacoes/**")
-                                .hasAnyRole("ADMIN", "SUPER_ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/organizacoes/**")
-                                .hasAnyRole("ADMIN", "SUPER_ADMIN")
-                        .requestMatchers("/api/convites/**").authenticated()
-                        .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
-                        .requestMatchers("/actuator/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/**")
-                                .hasAnyRole("ADMIN", "OPERADOR", "VISITANTE", "SUPER_ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/**")
-                                .hasAnyRole("ADMIN", "OPERADOR", "SUPER_ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/**")
-                                .hasAnyRole("ADMIN", "OPERADOR", "SUPER_ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/**")
-                                .hasAnyRole("ADMIN", "OPERADOR", "SUPER_ADMIN")
-                        .anyRequest().hasAnyRole("ADMIN", "SUPER_ADMIN"))
+                .authorizeHttpRequests(auth -> {
+                    if (swaggerAtivo) {
+                        auth.requestMatchers("/swagger-ui.html", "/swagger-ui/**",
+                                        "/v3/api-docs/**").permitAll();
+                    }
+                    auth.requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                            .requestMatchers(HttpMethod.POST, "/api/organizacoes").authenticated()
+                            .requestMatchers(HttpMethod.GET, "/api/organizacoes").authenticated()
+                            .requestMatchers(HttpMethod.GET, "/api/organizacoes/**").authenticated()
+                            .requestMatchers(HttpMethod.PUT, "/api/organizacoes/**")
+                                    .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                            .requestMatchers(HttpMethod.DELETE, "/api/organizacoes/**")
+                                    .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                            .requestMatchers(HttpMethod.POST, "/api/organizacoes/**")
+                                    .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                            .requestMatchers("/api/convites/**").authenticated()
+                            .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
+                            .requestMatchers("/actuator/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                            .requestMatchers(HttpMethod.GET, "/api/**")
+                                    .hasAnyRole("ADMIN", "OPERADOR", "VISITANTE", "SUPER_ADMIN")
+                            .requestMatchers(HttpMethod.POST, "/api/**")
+                                    .hasAnyRole("ADMIN", "OPERADOR", "SUPER_ADMIN")
+                            .requestMatchers(HttpMethod.PUT, "/api/**")
+                                    .hasAnyRole("ADMIN", "OPERADOR", "SUPER_ADMIN")
+                            .requestMatchers(HttpMethod.DELETE, "/api/**")
+                                    .hasAnyRole("ADMIN", "OPERADOR", "SUPER_ADMIN")
+                            .anyRequest().hasAnyRole("ADMIN", "SUPER_ADMIN");
+                })
                 .exceptionHandling(excecoes -> excecoes
                         .authenticationEntryPoint((requisicao, resposta, naoAutenticado) ->
                                 escreverErro(resposta, HttpStatus.UNAUTHORIZED,
