@@ -59,3 +59,12 @@ Funcionalidade: Geração mensal de empenhos com rateio do contrato
     Dado um empenho LIQUIDADO da competência 01/2026
     Quando eu tento anulá-lo
     Então recebo erro 409 informando que empenhos liquidados ou pagos não podem ser anulados
+
+  Cenário: Anulação concorrente do mesmo empenho estorna os saldos exatamente uma vez
+    Dado um empenho EMPENHADO de R$ 10.000,00 da competência 01/2026
+      E que o saldo atual da dotação é R$ 15.000,00
+      E que o saldo restante do contrato é R$ 50.000,00
+    Quando duas anulações do mesmo empenho são disparadas simultaneamente
+    Então apenas uma anulação é aceita e a outra recebe erro 409
+      E o saldo atual da dotação é estornado uma única vez (volta a R$ 25.000,00)
+      E o saldo restante do contrato é estornado uma única vez (volta a R$ 60.000,00)

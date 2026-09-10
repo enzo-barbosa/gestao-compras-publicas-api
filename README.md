@@ -38,7 +38,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V5) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 143 testes backend (JUnit 5 + Mockito + integração) + 34 testes de frontend (Vitest) |
+| Qualidade | 144 testes backend (JUnit 5 + Mockito + integração) + 34 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
 
 ## Como rodar
 
@@ -58,11 +58,17 @@ email: admin@admin.com
 senha: admin
 ```
 
+### Documentação interativa da API (Swagger/OpenAPI)
+
+Com a API rodando, acesse `http://localhost:8080/swagger-ui.html`. A especificação OpenAPI (`/v3/api-docs`) documenta todos os endpoints com **autenticação Bearer (JWT)** e o **header `X-Org-Id`** (requerido em todos os endpoints de negócio) — permitindo testar as chamadas diretamente pelo navegador. Em produção o Swagger fica **desabilitado** (`swagger.ativo=false`, `springdoc.api-docs.enabled=false`).
+
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 143 testes
+./mvnw test                          # 144 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
+
+A estratégia de testes (pirâmide unitário → integração → E2E), o caso de regressão de concorrência e os números de cobertura estão em [`docs/testes.md`](docs/testes.md). Os cenários de aceitação (Gherkin) estão em [`docs/cenarios.feature`](docs/cenarios.feature) — 10 cenários.
 
 ### Smoke test da API
 ```bash
