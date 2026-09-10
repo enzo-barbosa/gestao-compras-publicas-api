@@ -118,7 +118,8 @@ public class EmpenhoService {
 
     @Transactional
     public EmpenhoResponseDTO anular(Long organizacaoId, Long id) {
-        Empenho empenho = buscarEntidade(organizacaoId, id);
+        Empenho empenho = empenhoRepository.findByIdComLock(id, organizacaoId)
+                .orElseThrow(() -> new NotFoundException("Empenho", id));
         if (empenho.getStatus() != StatusEmpenho.EMPENHADO) {
             throw new OperacaoNaoPermitidaException(
                     "O empenho da competência %02d/%04d está %s e não pode ser anulado."

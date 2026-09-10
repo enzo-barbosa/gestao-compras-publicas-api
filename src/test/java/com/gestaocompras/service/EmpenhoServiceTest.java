@@ -355,13 +355,14 @@ class EmpenhoServiceTest {
                 .dataEmissao(LocalDate.now())
                 .build();
         contratoVigente.setSaldoRestante(new BigDecimal("50000.00"));
-        when(empenhoRepository.findByIdAndOrganizacaoId(40L, ORGANIZACAO_ID))
+        when(empenhoRepository.findByIdComLock(40L, ORGANIZACAO_ID))
                 .thenReturn(Optional.of(empenho));
         contratoEncontrado();
 
         var resposta = empenhoService.anular(ORGANIZACAO_ID, 40L);
 
         assertThat(resposta.status()).isEqualTo(StatusEmpenho.ANULADO.name());
+        verify(empenhoRepository).findByIdComLock(40L, ORGANIZACAO_ID);
         verify(dotacaoService).creditar(eq(ORGANIZACAO_ID), eq(1L),
                 eq(new BigDecimal("10000.00")), contains("anulação"),
                 eq(TipoMovimentacao.ESTORNO));
@@ -379,7 +380,7 @@ class EmpenhoServiceTest {
                 .status(StatusEmpenho.LIQUIDADO)
                 .dataEmissao(LocalDate.now())
                 .build();
-        when(empenhoRepository.findByIdAndOrganizacaoId(41L, ORGANIZACAO_ID))
+        when(empenhoRepository.findByIdComLock(41L, ORGANIZACAO_ID))
                 .thenReturn(Optional.of(empenho));
 
         assertThatThrownBy(() -> empenhoService.anular(ORGANIZACAO_ID, 41L))
@@ -390,7 +391,7 @@ class EmpenhoServiceTest {
 
     @Test
     void naoDeveAnularEmpenhoInexistente() {
-        when(empenhoRepository.findByIdAndOrganizacaoId(999L, ORGANIZACAO_ID))
+        when(empenhoRepository.findByIdComLock(999L, ORGANIZACAO_ID))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> empenhoService.anular(ORGANIZACAO_ID, 999L))
