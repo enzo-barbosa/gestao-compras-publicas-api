@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.gestaocompras.dto.LoginRequestDTO;
 import com.gestaocompras.dto.TokenResponseDTO;
 import java.math.BigDecimal;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -128,31 +129,34 @@ class AnulacaoConcorrenteIntegrationTest {
     void anulacoesConcorrentesDevemResultarEmUmaUnicaOperacaoAceitaEUmUnicoEstorno() throws Exception {
         HttpHeaders admin = adminComOrganizacao();
         String sufixo = String.valueOf(System.nanoTime());
+        YearMonth vigencia = YearMonth.now();
+        String dataInicio = vigencia.atDay(1).toString();
 
         Long dotacaoId = criarId("/api/dotacoes", admin, Map.of(
                 "codigo", "9.9." + sufixo.substring(sufixo.length() - 6),
                 "descricao", "Dotação anulação concorrente",
-                "saldoInicial", 20000, "anoExercicio", 2026));
+                "saldoInicial", 20000, "anoExercicio", vigencia.getYear()));
         String cnpj = cnpjValidoUnico();
         Long fornecedorId = criarId("/api/fornecedores", admin, Map.of(
                 "nome", "Fornecedor Anulação " + sufixo, "cnpj", cnpj));
         Long licitacaoId = criarId("/api/licitacoes", admin, Map.of(
-                "numeroEdital", "AC-" + sufixo + "/2026",
+                "numeroEdital", "AC-" + sufixo + "/" + vigencia.getYear(),
                 "modalidade", "DISPENSA",
                 "objeto", "Objeto anulação concorrente",
-                "dataAbertura", "2026-01-01",
+                "dataAbertura", dataInicio,
                 "valorEstimado", 20000));
         troca("/api/licitacoes/%d/vencedor".formatted(licitacaoId), HttpMethod.PUT, admin,
                 Map.of("fornecedorId", fornecedorId));
         Long contratoId = criarId("/api/contratos", admin, Map.of(
-                "numero", "AC-" + sufixo + "/2026",
+                "numero", "AC-" + sufixo + "/" + vigencia.getYear(),
                 "objeto", "Contrato anulação concorrente",
                 "valorTotal", 20000, "duracaoMeses", 2,
-                "dataInicio", "2026-01-01",
+                "dataInicio", dataInicio,
                 "dotacaoId", dotacaoId, "licitacaoId", licitacaoId,
                 "fornecedorId", fornecedorId));
         Long empenhoId = criarId("/api/empenhos", admin, Map.of(
-                "contratoId", contratoId, "mesReferencia", 1, "anoReferencia", 2026));
+                "contratoId", contratoId, "mesReferencia", vigencia.getMonthValue(),
+                "anoReferencia", vigencia.getYear()));
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         List<HttpStatus> statuses;

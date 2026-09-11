@@ -20,6 +20,7 @@ import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -41,19 +42,22 @@ public class EmpenhoService {
     private final DotacaoService dotacaoService;
     private final UsuarioRepository usuarioRepository;
     private final OrganizacaoRepository organizacaoRepository;
+    private final Clock clock;
 
     public EmpenhoService(EmpenhoRepository empenhoRepository,
             ContratoRepository contratoRepository,
             DotacaoRepository dotacaoRepository,
             DotacaoService dotacaoService,
             UsuarioRepository usuarioRepository,
-            OrganizacaoRepository organizacaoRepository) {
+            OrganizacaoRepository organizacaoRepository,
+            Clock clock) {
         this.empenhoRepository = empenhoRepository;
         this.contratoRepository = contratoRepository;
         this.dotacaoRepository = dotacaoRepository;
         this.dotacaoService = dotacaoService;
         this.usuarioRepository = usuarioRepository;
         this.organizacaoRepository = organizacaoRepository;
+        this.clock = clock != null ? clock : Clock.systemDefaultZone();
     }
 
     @Transactional
@@ -74,6 +78,7 @@ public class EmpenhoService {
                             .formatted(contrato.getNumero(), contrato.getStatus()));
         }
         validarCompetenciaNaVigencia(contrato, mes, ano);
+        validarCompetenciaEmitivel(mes, ano);
         validarSequencialidade(contrato, mes, ano);
         if (empenhoRepository.existsByContratoIdAndAnoReferenciaAndMesReferenciaAndStatusIn(
                 contrato.getId(), ano, mes,
@@ -106,7 +111,7 @@ public class EmpenhoService {
                 .anoReferencia(ano)
                 .valor(valorCompetencia)
                 .status(StatusEmpenho.EMPENHADO)
-                .dataEmissao(LocalDate.now())
+                .dataEmissao(LocalDate.now(clock))
                 .organizacao(organizacaoRepository.getReferenceById(organizacaoId))
                 .build());
         dotacaoService.debitar(organizacaoId, dotacao.getId(), valorCompetencia,
@@ -171,6 +176,17 @@ public class EmpenhoService {
                     "A competência %02d/%d está fora da vigência do contrato %s (%s a %s)."
                             .formatted(mes, ano, contrato.getNumero(),
                                     inicio, fim));
+        }
+    }
+
+    private void validarCompetenciaEmitivel(Integer mes, Integer ano) {
+        YearMonth competencia = YearMonth.of(ano, mes);
+        YearMonth corrente = YearMonth.now(clock);
+        YearMonth anterior = corrente.minusMonths(1);
+        if (!competencia.equals(corrente) && !competencia.equals(anterior)) {
+            throw new OperacaoNaoPermitidaException(
+                    "A competência %02d/%d não é elegível para empenho: só é permitida a competência corrente (%s) ou, se pendente, a imediatamente anterior (%s)."
+                            .formatted(mes, ano, corrente, anterior));
         }
     }
 

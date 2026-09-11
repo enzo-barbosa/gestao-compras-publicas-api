@@ -25,6 +25,8 @@ interface Props {
 export default function EmpenhoForm({ onGerado }: Props) {
   const [contratos, setContratos] = useState<ContratoVigente[]>([])
   const hoje = new Date()
+  const mesAnterior = String(hoje.getMonth()) === '0' ? '12' : String(hoje.getMonth())
+  const anoMesAnterior = hoje.getMonth() === 0 ? String(hoje.getFullYear() - 1) : String(hoje.getFullYear())
   const [contratoId, setContratoId] = useState('')
   const [mes, setMes] = useState(String(hoje.getMonth() + 1))
   const [ano, setAno] = useState(String(hoje.getFullYear()))
@@ -48,6 +50,14 @@ export default function EmpenhoForm({ onGerado }: Props) {
   async function gerar(evento: FormEvent) {
     evento.preventDefault()
     if (!contratoId) return
+    const competenciaSelecionada = Number(ano) * 12 + Number(mes)
+    const competenciaCorrente = hoje.getFullYear() * 12 + (hoje.getMonth() + 1)
+    const competenciaAnterior = Number(anoMesAnterior) * 12 + Number(mesAnterior)
+    if (competenciaSelecionada > competenciaCorrente
+      || competenciaSelecionada < competenciaAnterior) {
+      setErro('Só é permitido empenhar a competência corrente ou a imediatamente anterior.')
+      return
+    }
     setErro(null)
     setFeedback(null)
     setGerando(true)
@@ -120,7 +130,8 @@ export default function EmpenhoForm({ onGerado }: Props) {
           {selecionado && (
             <p className="dica campo-largo">
               O valor mensal deste contrato ({formatarMoeda(selecionado.valorMensal)}) será debitado do saldo do
-              contrato e da dotação vinculada, uma única vez por competência.
+              contrato e da dotação vinculada, uma única vez por competência. O empenho só pode ser emitido na
+              competência corrente ou na imediatamente anterior (a reserva acontece no mês do desembolso, nunca à frente).
             </p>
           )}
         </form>

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.gestaocompras.dto.LoginRequestDTO;
 import com.gestaocompras.dto.RegistroRequestDTO;
 import com.gestaocompras.dto.TokenResponseDTO;
+import java.time.YearMonth;
 import java.util.Map;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -200,32 +201,35 @@ class AuthIntegrationTest {
     void adminDeveGerarEmpenhoComUsuarioIdPreenchidoNaOrganizacaoDeOrigem() {
         HttpHeaders admin = adminComOrganizacao();
         String sufixo = String.valueOf(System.nanoTime());
+        YearMonth vigencia = YearMonth.now();
+        String dataInicio = vigencia.atDay(1).toString();
 
         Long dotacaoId = criarId("/api/dotacoes", admin, Map.of(
                 "codigo", "9.9." + sufixo.substring(sufixo.length() - 6),
                 "descricao", "Dotação teste integração auth",
-                "saldoInicial", 20000, "anoExercicio", 2026));
+                "saldoInicial", 20000, "anoExercicio", vigencia.getYear()));
         String cnpj = cnpjValidoUnico();
         Long fornecedorId = criarId("/api/fornecedores", admin, Map.of(
                 "nome", "Fornecedor Integração " + sufixo, "cnpj", cnpj));
         Long licitacaoId = criarId("/api/licitacoes", admin, Map.of(
-                "numeroEdital", "IT-" + sufixo + "/2026",
+                "numeroEdital", "IT-" + sufixo + "/" + vigencia.getYear(),
                 "modalidade", "DISPENSA",
                 "objeto", "Objeto integração auth",
-                "dataAbertura", "2026-01-01",
+                "dataAbertura", dataInicio,
                 "valorEstimado", 20000));
         troca("/api/licitacoes/%d/vencedor".formatted(licitacaoId), HttpMethod.PUT, admin,
                 Map.of("fornecedorId", fornecedorId));
         Long contratoId = criarId("/api/contratos", admin, Map.of(
-                "numero", "CT-" + sufixo + "/2026",
+                "numero", "CT-" + sufixo + "/" + vigencia.getYear(),
                 "objeto", "Contrato integração auth",
                 "valorTotal", 20000, "duracaoMeses", 2,
-                "dataInicio", "2026-01-01",
+                "dataInicio", dataInicio,
                 "dotacaoId", dotacaoId, "licitacaoId", licitacaoId,
                 "fornecedorId", fornecedorId));
 
         var empenho = troca("/api/empenhos", HttpMethod.POST, admin, Map.of(
-                "contratoId", contratoId, "mesReferencia", 1, "anoReferencia", 2026));
+                "contratoId", contratoId, "mesReferencia", vigencia.getMonthValue(),
+                "anoReferencia", vigencia.getYear()));
 
         assertThat(empenho.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(((Number) ((Map<?, ?>) empenho.getBody()).get("usuarioId")).longValue())

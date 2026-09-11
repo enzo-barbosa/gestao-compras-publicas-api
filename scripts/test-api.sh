@@ -22,7 +22,11 @@ BASE="${BASE:-http://localhost:8080}"
 SUFIXO="$(date +%s)"
 ANO="$(date +%Y)"
 MES="$(date +%-m)"
-MES_SEGUINTE="$(date -d '+1 month' +%-m)"
+INICIO_MES="$(date +%Y-%m)-01"
+MES_ANTERIOR="$(date -d "$INICIO_MES -1 month" +%-m)"
+ANO_ANTERIOR="$(date -d "$INICIO_MES -1 month" +%Y)"
+MES_SEGUINTE="$(date -d "$INICIO_MES +1 month" +%-m)"
+ANO_SEGUINTE="$(date -d "$INICIO_MES +1 month" +%Y)"
 ARQ_RESPOSTA="$(mktemp)"
 PASSOS=0
 FALHAS=0
@@ -169,7 +173,7 @@ IDS_CRIADOS+=("licitação #$LICITACAO_ID (grupo $ORG_ADMIN)")
 
 # ── 5. Contrato ─────────────────────────────────────────────────────────────
 verbo "Contrato"
-INICIO="$(date -d "$(date +%Y-%m)-01" +%F)"
+INICIO="$(date -d "$INICIO_MES -1 month" +%F)"
 CORPO="{\"numero\":\"SMOKE-$SUFIXO\",\"objeto\":\"Contrato do smoke test\",\"valorTotal\":30000,\"duracaoMeses\":3,\"dataInicio\":\"$INICIO\",\"dotacaoId\":$DOTACAO_ID,\"fornecedorId\":$FORNECEDOR_ID,\"licitacaoId\":$LICITACAO_ID}"
 codigo="$(requisicao_org POST /api/contratos "$CORPO" "$TOKEN" "$ORG_ADMIN")"
 assert_status "criação do contrato vinculado à tríade dotação+fornecedor+licitação" 201 "$codigo" || true
@@ -180,17 +184,21 @@ echo "  · valor mensal calculado pelo sistema: R$ $VALOR_MENSAL"
 
 # ── 6. Empenhos por competência ─────────────────────────────────────────────
 verbo "Empenhos"
-CORPO="{\"contratoId\":$CONTRATO_ID,\"mesReferencia\":$MES,\"anoReferencia\":$ANO}"
+CORPO="{\"contratoId\":$CONTRATO_ID,\"mesReferencia\":$MES_ANTERIOR,\"anoReferencia\":$ANO_ANTERIOR}"
 codigo="$(requisicao_org POST /api/empenhos "$CORPO" "$TOKEN" "$ORG_ADMIN")"
-assert_status "empenho da competência $(printf '%02d' "$MES")/$ANO" 201 "$codigo" || true
+assert_status "empenho da competência pendente $(printf '%02d' "$MES_ANTERIOR")/$ANO_ANTERIOR" 201 "$codigo" || true
 EMPENHO_1="$(campo_json "['id']")"
 VALOR_EMPENHO="$(campo_json "['valor']")"
 echo "  · valor empenhado: R$ $VALOR_EMPENHO"
 
-CORPO_SEGUNDO="{\"contratoId\":$CONTRATO_ID,\"mesReferencia\":$MES_SEGUINTE,\"anoReferencia\":$ANO}"
+CORPO_SEGUNDO="{\"contratoId\":$CONTRATO_ID,\"mesReferencia\":$MES,\"anoReferencia\":$ANO}"
 codigo="$(requisicao_org POST /api/empenhos "$CORPO_SEGUNDO" "$TOKEN" "$ORG_ADMIN")"
-assert_status "rateio mensal permite competência seguinte" 201 "$codigo" || true
+assert_status "empenho da competência corrente $(printf '%02d' "$MES")/$ANO" 201 "$codigo" || true
 EMPENHO_2="$(campo_json "['id']")"
+
+CORPO_FUTURO="{\"contratoId\":$CONTRATO_ID,\"mesReferencia\":$MES_SEGUINTE,\"anoReferencia\":$ANO_SEGUINTE}"
+codigo="$(requisicao_org POST /api/empenhos "$CORPO_FUTURO" "$TOKEN" "$ORG_ADMIN")"
+assert_status "competência futura apenas na competência corrente é rejeitada" 409 "$codigo" || true
 
 codigo="$(requisicao_org POST /api/empenhos "$CORPO" "$TOKEN" "$ORG_ADMIN")"
 assert_status "competência duplicada é rejeitada" 409 "$codigo" || true
