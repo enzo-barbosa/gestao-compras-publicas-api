@@ -1,8 +1,21 @@
 # Sistema de Gestão de Compras Públicas
 
 [![CI](https://github.com/enzo-barbosa/gestao-compras-publicas-api/actions/workflows/ci.yml/badge.svg)](https://github.com/enzo-barbosa/gestao-compras-publicas-api/actions/workflows/ci.yml)
+![Java](https://img.shields.io/badge/Java-21-F8981D)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F)
+![React](https://img.shields.io/badge/React-19-61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791)
+![Docker](https://img.shields.io/badge/Docker-2496ED)
+![Cobertura](https://img.shields.io/badge/cobertura-83.9%25-brightgreen)
+
+**Em uma frase:** plataforma web que ajuda prefeituras e órgãos públicos a controlar dotação orçamentária, fornecedores, licitações, contratos e empenhos em um só lugar — com rateio mensal automático dos contratos e dados isolados por organização.
 
 Plataforma full-stack para gestão de despesas públicas municipais com um diferencial de arquitetura: **empenho por rateio mensal** em vez do modelo tradicional de empenhar o valor total do contrato de uma só vez — prática que satura o saldo orçamentário antes do fim do exercício e distorce os relatórios de execução.
+
+## Demonstração
+
+![Demo — login, dashboard e empenhos com anulação](docs/img/demo.gif)
 
 ## O problema que este projeto resolve
 
