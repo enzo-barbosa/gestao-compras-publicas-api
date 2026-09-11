@@ -1,13 +1,13 @@
 # Estratégia e documentação de testes
 
-> Camada de qualidade do projeto: 144 testes backend (JUnit 5 + Mockito + Spring Boot Test), 34 testes de frontend (Vitest), smoke E2E com 45 verificações e relatório de cobertura JaCoCo.
+> Camada de qualidade do projeto: 147 testes backend (JUnit 5 + Mockito + Spring Boot Test), 34 testes de frontend (Vitest), smoke E2E com 46 verificações e relatório de cobertura JaCoCo.
 
 ## Pirâmide de testes
 
 O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e isolados), **alguns testes de integração** (fluxos reais com banco de verdade) e **um smoke E2E** (o sistema de ponta a ponta via API).
 
 ```
-        /e2e\        scripts/test-api.sh — 45 verificações curl
+        /e2e\        scripts/test-api.sh — 46 verificações curl
        /integração\  Spring Boot Test + PostgreSQL real — 22 testes
       /__unitários__\  JUnit 5 + Mockito — 121 testes (services + handler global)
 ```
@@ -18,7 +18,7 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 
 **Cobrem**:
 - Regras de negócio de cada módulo: `DotacaoServiceTest`, `ContratoServiceTest`, `EmpenhoServiceTest`, `LicitacaoServiceTest`, `FornecedorServiceTest`, `OrganizacaoServiceTest`, `CreditoSuplementarServiceTest`, `ConviteServiceTest`, `AdminServiceTest`.
-- Rateio do contrato (parcelas com HALF_UP e a **última competência absorvendo o resíduo**), sequencialidade de competências, unicidade, vigência, saldo insuficiente (dotação e contrato), anulação com estorno completo.
+- Rateio do contrato (parcelas com HALF_UP e a **última competência absorvendo o resíduo**), **elegibilidade da competência (apenas corrente ou imediatamente anterior pendente)**, sequencialidade de competências, unicidade, vigência, saldo insuficiente (dotação e contrato), anulação com estorno completo.
 - Validações cross-cutting e o envelope de erro: `GlobalExceptionHandlerTest` (13 casos, MockMvc standalone).
 
 **Não cobrem**: interação com o banco (Hibernate/PostgreSQL — delegado aos testes de integração) e a cadeia do Spring Security.
@@ -53,12 +53,12 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 ```bash
 # Backend — requer PostgreSQL de pé
 docker compose up -d
-./mvnw test                              # 144 testes
+./mvnw test                              # 147 testes
 ./mvnw verify                            # testes + relatório JaCoCo em target/site/jacoco/
 ./mvnw -Dtest=AnulacaoConcorrenteIntegrationTest test   # só o teste de concorrência
 
 # Smoke E2E
-./scripts/test-api.sh                    # 45 verificações
+./scripts/test-api.sh                    # 46 verificações
 
 # Frontend
 cd frontend && npm install
@@ -69,11 +69,11 @@ npm run build                            # tsc + vite
 
 ## Cobertura (JaCoCo)
 
-Medida em `./mvnw verify` (JaCoCo 0.8.13, 2026-09-10):
+Medida em `./mvnw verify` (JaCoCo 0.8.13, 2026-09-11):
 
 | Métrica | Cobertura |
 |---|---|
-| Instruções | 83,9% |
-| Ramos (branches) | 69,6% |
+| Instruções | 84,0% |
+| Ramos (branches) | 69,9% |
 
 Relatório interativo gerado em `target/site/jacoco/` (abrir `index.html`). O CI publica o relatório como artefato em cada run.

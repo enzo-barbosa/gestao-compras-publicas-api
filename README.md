@@ -38,7 +38,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 - **Fornecedores** com CNPJ validado por dígito verificador (módulo 11)
 - **Licitações** nas 9 modalidades das Leis 8.666/93 e 14.133/21, com fluxo de definição de vencedor
 - **Contratos** vinculados a dotação + fornecedor (+ licitação opcional), com valor mensal calculado (HALF_UP) e data de término prevista derivada
-- **Empenhos mensais** transacionais: competência única por contrato, débito duplo atômico (dotação + contrato), anulação com estorno completo
+- **Empenhos mensais** transacionais: competência única por contrato, débito duplo atômico (dotação + contrato), **emitidos apenas na competência corrente ou pendente** e anulação com estorno completo
 - **Autenticação JWT** (HS256, 8h) com papéis globais (`SUPER_ADMIN`) e papéis **por grupo/organização** (`ADMIN`/`OPERADOR`/`VISITANTE`) selecionada pelo header `X-Org-Id`
 - **Multitenancy por grupos**: cada organização tem seus próprios dotações/fornecedores/licitações/contratos/empenhos — isolamento total entre grupos, com convites por e-mail ou código
 - **Frontend React** (Vite + TypeScript) com dashboard de saldos, CRUDs e formulário de empenho com feedback visual
@@ -51,7 +51,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V5) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 144 testes backend (JUnit 5 + Mockito + integração) + 34 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
+| Qualidade | 147 testes backend (JUnit 5 + Mockito + integração) + 34 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
 
 ## Como rodar
 
@@ -77,7 +77,7 @@ Com a API rodando, acesse `http://localhost:8080/swagger-ui.html`. A especifica�
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 144 testes
+./mvnw test                          # 147 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
@@ -85,7 +85,7 @@ A estratégia de testes (pirâmide unitário → integração → E2E), o caso d
 
 ### Smoke test da API
 ```bash
-./scripts/test-api.sh                # 45 verificações end-to-end via curl
+./scripts/test-api.sh                # 46 verificações end-to-end via curl
 ```
 
 O script cria registros próprios (sufixo único por execução) e exercita, além do fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos → anulação → saldos), o ciclo multitenancy: cadastro público, criação de grupo com vínculo de ADMIN, membros por e-mail, convites por código/e-mail, papéis por grupo (`VISITANTE` lê mas não escreve, `OPERADOR` escreve), isolamento por `X-Org-Id` e painel do super admin. Inclui caminhos negativos (401/400/403/409) e imprime o resumo.
@@ -163,9 +163,10 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 1. **Competência imutável**: existe no máximo um empenho por contrato/mês/ano (controle de unicidade na aplicação — status ANULADO não bloqueia recriação).
 2. **Débito duplo atômico**: gerar empenho debita dotação e contrato na mesma transação; qualquer falha reverte tudo.
 3. **Vigência respeitada**: só se empenha competência dentro do período do contrato, e apenas com contrato VIGENTE.
-4. **Imutabilidade contratual**: valor total, duração e vínculos não mudam após a criação — protege a integridade do rateio.
-5. **Rateio que fecha exato**: cada competência empenha o valor mensal (HALF_UP); a última competência da vigência absorve o resíduo de arredondamento — a soma das parcelas é sempre igual ao valor total, independente da ordem de criação dos empenhos.
-6. **Trilha de auditoria dupla**: toda variação de dotação gera `MovimentacaoDotacao` tipada; todo empenho registra o usuário autenticado.
+4. **Amarrar a reserva ao desembolso**: o empenho só pode ser emitido na **competência corrente** ou, se pendente, na **imediatamente anterior** — a dotação nunca é comprometida à frente no calendário (salvo competências vencidas de exercícios anteriores, empenháveis como pendência do mês anterior).
+5. **Imutabilidade contratual**: valor total, duração e vínculos não mudam após a criação — protege a integridade do rateio.
+6. **Rateio que fecha exato**: cada competência empenha o valor mensal (HALF_UP); a última competência da vigência absorve o resíduo de arredondamento — a soma das parcelas é sempre igual ao valor total, independente da ordem de criação dos empenhos.
+7. **Trilha de auditoria dupla**: toda variação de dotação gera `MovimentacaoDotacao` tipada; todo empenho registra o usuário autenticado.
 
 ## Prints do sistema
 
