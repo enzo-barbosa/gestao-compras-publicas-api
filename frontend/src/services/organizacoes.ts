@@ -35,6 +35,13 @@ export function organizacaoAtiva(
   return organizacoes.find((o) => o.id === id) ?? null
 }
 
+export function papelAtivo(
+  organizacoes: OrganizacaoInfo[],
+  id: number | null,
+): string | undefined {
+  return organizacaoAtiva(organizacoes, id)?.papel
+}
+
 export function destinoPosLogin(
   organizacoes: OrganizacaoInfo[],
   id: number | null,

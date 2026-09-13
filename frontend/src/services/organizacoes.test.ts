@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   destinoPosLogin,
   organizacaoAtiva,
+  papelAtivo,
   podeEmitirEmpenho,
   podeGerir,
 } from './organizacoes'
@@ -50,6 +51,23 @@ describe('destinoPosLogin', () => {
 })
 
 describe('papéis por grupo', () => {
+  it('papelAtivo resolve o papel da organização ativa', () => {
+    expect(papelAtivo(orgs, 1)).toBe('ADMIN')
+    expect(papelAtivo(orgs, 2)).toBe('OPERADOR')
+    expect(papelAtivo(orgs, 999)).toBeUndefined()
+    expect(papelAtivo(orgs, null)).toBeUndefined()
+    expect(papelAtivo([], 1)).toBeUndefined()
+  })
+
+  it('USUARIO global com papel ADMIN na org ativa gerencia (regressão do bug ehAdmin)', () => {
+    expect(papelAtivo(orgs, 1)).toBe('ADMIN')
+    expect(podeGerir('USUARIO', papelAtivo(orgs, 1))).toBe(true)
+  })
+
+  it('USUARIO global sem ser ADMIN da org ativa não gerencia', () => {
+    expect(podeGerir('USUARIO', papelAtivo(orgs, 2))).toBe(false)
+  })
+
   it('SUPER_ADMIN gerencia e emite empenho', () => {
     expect(podeGerir('SUPER_ADMIN', undefined)).toBe(true)
     expect(podeEmitirEmpenho('SUPER_ADMIN', undefined)).toBe(true)

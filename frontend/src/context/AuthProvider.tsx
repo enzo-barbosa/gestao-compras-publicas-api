@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import api, { TOKEN_KEY, USUARIO_KEY, ORGAO_KEY } from '../services/api'
-import { EVENTO_ORG, organizacaoAtiva, orgIdAtiva, podeGerir } from '../services/organizacoes'
+import { EVENTO_ORG, orgIdAtiva, papelAtivo, podeGerir } from '../services/organizacoes'
 import { AuthContext } from './AuthContext'
 import type { UsuarioLogado } from './AuthContext'
 
@@ -26,12 +26,12 @@ function carregarUsuario(): UsuarioLogado | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioLogado | null>(carregarUsuario)
   const [orgPapel, setOrgPapel] = useState<string | undefined>(() =>
-    organizacaoAtiva(usuario?.organizacoes ?? [], orgIdAtiva())?.papel,
+    papelAtivo(usuario?.organizacoes ?? [], orgIdAtiva()),
   )
 
   useEffect(() => {
     const atualizar = () => {
-      setOrgPapel(organizacaoAtiva(usuario?.organizacoes ?? [], orgIdAtiva())?.papel)
+      setOrgPapel(papelAtivo(usuario?.organizacoes ?? [], orgIdAtiva()))
     }
     window.addEventListener(EVENTO_ORG, atualizar)
     window.addEventListener('storage', atualizar)
