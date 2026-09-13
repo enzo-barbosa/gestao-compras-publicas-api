@@ -16,12 +16,15 @@ export function orgIdAtiva(): number | null {
   return bruto ? Number(bruto) : null
 }
 
+export const EVENTO_ORG = 'gc:org'
+
 export function definirOrgAtiva(id: number | null): void {
   if (id === null) {
     localStorage.removeItem(ORGAO_KEY)
   } else {
     localStorage.setItem(ORGAO_KEY, String(id))
   }
+  window.dispatchEvent(new Event(EVENTO_ORG))
 }
 
 export function organizacaoAtiva(

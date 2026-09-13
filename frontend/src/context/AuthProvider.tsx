@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import api, { TOKEN_KEY, USUARIO_KEY, ORGAO_KEY } from '../services/api'
+import { EVENTO_ORG, organizacaoAtiva, orgIdAtiva, podeGerir } from '../services/organizacoes'
 import { AuthContext } from './AuthContext'
 import type { UsuarioLogado } from './AuthContext'
 
@@ -24,6 +25,21 @@ function carregarUsuario(): UsuarioLogado | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioLogado | null>(carregarUsuario)
+  const [orgPapel, setOrgPapel] = useState<string | undefined>(() =>
+    organizacaoAtiva(usuario?.organizacoes ?? [], orgIdAtiva())?.papel,
+  )
+
+  useEffect(() => {
+    const atualizar = () => {
+      setOrgPapel(organizacaoAtiva(usuario?.organizacoes ?? [], orgIdAtiva())?.papel)
+    }
+    window.addEventListener(EVENTO_ORG, atualizar)
+    window.addEventListener('storage', atualizar)
+    return () => {
+      window.removeEventListener(EVENTO_ORG, atualizar)
+      window.removeEventListener('storage', atualizar)
+    }
+  }, [usuario])
 
   const buscarUsuario = useCallback(async (): Promise<UsuarioLogado> => {
     const dados = await api.get<UsuarioLogado>('/auth/me').then((r) => r.data)
@@ -80,12 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       usuario,
       autenticado: !!usuario,
-      ehAdmin: usuario?.perfil === 'ADMIN',
+      ehAdmin: podeGerir(usuario?.perfil ?? '', orgPapel),
       login,
       logout,
       recarregarOrganizacoes,
     }),
-    [usuario, login, logout, recarregarOrganizacoes],
+    [usuario, orgPapel, login, logout, recarregarOrganizacoes],
   )
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>
