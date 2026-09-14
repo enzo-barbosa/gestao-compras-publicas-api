@@ -39,4 +39,8 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Perfil perfil;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer versaoToken = 0;
 }

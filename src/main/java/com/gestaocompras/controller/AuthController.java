@@ -1,5 +1,7 @@
 package com.gestaocompras.controller;
 
+import com.gestaocompras.dto.AlterarNomeRequestDTO;
+import com.gestaocompras.dto.AlterarSenhaRequestDTO;
 import com.gestaocompras.dto.LoginRequestDTO;
 import com.gestaocompras.dto.RegistroRequestDTO;
 import com.gestaocompras.dto.TokenResponseDTO;
@@ -12,6 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,5 +43,26 @@ public class AuthController {
     public ResponseEntity<UsuarioResponseDTO> registrar(
             @Valid @RequestBody RegistroRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(request));
+    }
+
+    @PutMapping("/minha-conta")
+    public UsuarioResponseDTO atualizarNome(
+            @AuthenticationPrincipal UserDetails principal,
+            @Valid @RequestBody AlterarNomeRequestDTO request) {
+        return authService.atualizarNome(principal.getUsername(), request);
+    }
+
+    @PutMapping("/alterar-senha")
+    public TokenResponseDTO alterarSenha(
+            @AuthenticationPrincipal UserDetails principal,
+            @Valid @RequestBody AlterarSenhaRequestDTO request) {
+        return authService.alterarSenha(principal.getUsername(), request);
+    }
+
+    @PostMapping("/logout-todos")
+    public ResponseEntity<Void> sairEmTodosDispositivos(
+            @AuthenticationPrincipal UserDetails principal) {
+        authService.sairEmTodosDispositivos(principal.getUsername());
+        return ResponseEntity.noContent().build();
     }
 }

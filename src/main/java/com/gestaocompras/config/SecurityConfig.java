@@ -55,6 +55,8 @@ public class SecurityConfig {
                             .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                             .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                            .requestMatchers(HttpMethod.PUT, "/api/auth/**").authenticated()
+                            .requestMatchers(HttpMethod.POST, "/api/auth/logout-todos").authenticated()
                             .requestMatchers(HttpMethod.POST, "/api/organizacoes").authenticated()
                             .requestMatchers(HttpMethod.GET, "/api/organizacoes").authenticated()
                             .requestMatchers(HttpMethod.GET, "/api/organizacoes/**").authenticated()

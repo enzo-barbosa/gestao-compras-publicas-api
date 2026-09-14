@@ -1,5 +1,7 @@
 package com.gestaocompras.service;
 
+import com.gestaocompras.dto.AlterarNomeRequestDTO;
+import com.gestaocompras.dto.AlterarSenhaRequestDTO;
 import com.gestaocompras.dto.LoginRequestDTO;
 import com.gestaocompras.dto.OrganizacaoResponseDTO;
 import com.gestaocompras.dto.RegistroRequestDTO;
@@ -44,20 +46,15 @@ public class AuthService {
             throw new BadCredentialsException("Credenciais inválidas.");
         }
         return TokenResponseDTO.of(
-                jwtService.gerarToken(usuario.getEmail(), usuario.getPerfil().name()), usuario);
+                jwtService.gerarToken(usuario.getEmail(), usuario.getPerfil().name(),
+                        usuario.getVersaoToken()), usuario);
     }
 
     @Transactional(readOnly = true)
     public UsuarioResponseDTO buscarUsuarioAtual(String email) {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Sessão inválida."));
-        List<OrganizacaoResponseDTO> organizacoes = membroRepository
-                .findByIdUsuarioId(usuario.getId()).stream()
-                .map(membro -> OrganizacaoResponseDTO.from(
-                        membro.getId().getOrganizacao(), membro.getPapel().name()))
-                .sorted(Comparator.comparing(OrganizacaoResponseDTO::nome))
-                .toList();
-        return UsuarioResponseDTO.from(usuario, organizacoes);
+        return UsuarioResponseDTO.from(usuario, organizacoesDoUsuario(usuario.getId()));
     }
 
     @Transactional
@@ -71,6 +68,55 @@ public class AuthService {
                 .email(request.email())
                 .senha(passwordEncoder.encode(request.senha()))
                 .perfil(Perfil.USUARIO)
+                .versaoToken(0)
                 .build()), List.of());
+    }
+
+    @Transactional
+    public UsuarioResponseDTO atualizarNome(String email, AlterarNomeRequestDTO request) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Sessão inválida."));
+        usuario.setNome(request.nome());
+        return UsuarioResponseDTO.from(usuarioRepository.save(usuario),
+                organizacoesDoUsuario(usuario.getId()));
+    }
+
+    @Transactional
+    public TokenResponseDTO alterarSenha(String email, AlterarSenhaRequestDTO request) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Sessão inválida."));
+        if (!passwordEncoder.matches(request.senhaAtual(), usuario.getSenha())) {
+            throw new IllegalArgumentException("Senha atual incorreta.");
+        }
+        if (passwordEncoder.matches(request.novaSenha(), usuario.getSenha())) {
+            throw new IllegalArgumentException(
+                    "A nova senha deve ser diferente da senha atual.");
+        }
+        usuario.setSenha(passwordEncoder.encode(request.novaSenha()));
+        usuario.setVersaoToken(incrementarVersao(usuario.getVersaoToken()));
+        usuarioRepository.save(usuario);
+        return TokenResponseDTO.of(
+                jwtService.gerarToken(usuario.getEmail(), usuario.getPerfil().name(),
+                        usuario.getVersaoToken()), usuario);
+    }
+
+    @Transactional
+    public void sairEmTodosDispositivos(String email) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Sessão inválida."));
+        usuario.setVersaoToken(incrementarVersao(usuario.getVersaoToken()));
+        usuarioRepository.save(usuario);
+    }
+
+    private int incrementarVersao(Integer atual) {
+        return atual == null ? 1 : atual + 1;
+    }
+
+    private List<OrganizacaoResponseDTO> organizacoesDoUsuario(Long usuarioId) {
+        return membroRepository.findByIdUsuarioId(usuarioId).stream()
+                .map(membro -> OrganizacaoResponseDTO.from(
+                        membro.getId().getOrganizacao(), membro.getPapel().name()))
+                .sorted(Comparator.comparing(OrganizacaoResponseDTO::nome))
+                .toList();
     }
 }

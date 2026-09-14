@@ -257,4 +257,115 @@ class AuthIntegrationTest {
                 .isEqualTo(EMAIL_USUARIO);
         assertThat((String) ((Map<?, ?>) meUsuario.getBody()).get("perfil")).isEqualTo("USUARIO");
     }
+
+    @Test
+    @Order(9)
+    void endpointsDeContaSemTokenDevemRetornar401() {
+        var alterarSenha = troca("/api/auth/alterar-senha", HttpMethod.PUT, new HttpHeaders(),
+                Map.of("senhaAtual", "x", "novaSenha", "blablabla"));
+        var alterarNome = troca("/api/auth/minha-conta", HttpMethod.PUT, new HttpHeaders(),
+                Map.of("nome", "X"));
+        var logoutTodos = troca("/api/auth/logout-todos", HttpMethod.POST, new HttpHeaders(),
+                null);
+
+        assertThat(alterarSenha.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(alterarNome.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(logoutTodos.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @Order(10)
+    void devePermitirAlterarNomeDoUsuarioAutenticado() {
+        String email = "conta" + System.nanoTime() + "@x.com";
+        troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
+                new RegistroRequestDTO("Nome Antigo", email, "senhaSegura123"));
+        String token = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(email, "senhaSegura123"), TokenResponseDTO.class)
+                .getBody().token();
+
+        var alteracao = troca("/api/auth/minha-conta", HttpMethod.PUT, comBearer(token),
+                Map.of("nome", "Nome Novo"));
+
+        assertThat(alteracao.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((String) ((Map<?, ?>) alteracao.getBody()).get("nome")).isEqualTo("Nome Novo");
+
+        var me = troca("/api/auth/me", HttpMethod.GET, comBearer(token), null);
+        assertThat((String) ((Map<?, ?>) me.getBody()).get("nome")).isEqualTo("Nome Novo");
+    }
+
+    @Test
+    @Order(11)
+    void alterarSenhaDeveRejeitarSenhaAtualIncorretaETamanhoInvalido() {
+        String email = "senha" + System.nanoTime() + "@x.com";
+        troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
+                new RegistroRequestDTO("Usuário Senha", email, "senhaSegura123"));
+        String token = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(email, "senhaSegura123"), TokenResponseDTO.class)
+                .getBody().token();
+
+        var atualErrada = troca("/api/auth/alterar-senha", HttpMethod.PUT, comBearer(token),
+                Map.of("senhaAtual", "errada", "novaSenha", "novaSenhaSegura123"));
+        var curta = troca("/api/auth/alterar-senha", HttpMethod.PUT, comBearer(token),
+                Map.of("senhaAtual", "senhaSegura123", "novaSenha", "curta"));
+
+        assertThat(atualErrada.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat((String) ((Map<?, ?>) atualErrada.getBody()).get("mensagem"))
+                .contains("Senha atual incorreta");
+        assertThat(curta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(12)
+    void alterarSenhaDeveInvalidarTokenAntigoEManterOUsuarioAutenticadoNoNovoToken() {
+        String email = "troca" + System.nanoTime() + "@x.com";
+        String senhaInicial = "senhaSegura123";
+        troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
+                new RegistroRequestDTO("Troca Senha", email, senhaInicial));
+        String tokenAntigo = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(email, senhaInicial), TokenResponseDTO.class)
+                .getBody().token();
+
+        String novaSenha = "senhaNovaSegura456";
+        var resposta = troca("/api/auth/alterar-senha", HttpMethod.PUT, comBearer(tokenAntigo),
+                Map.of("senhaAtual", senhaInicial, "novaSenha", novaSenha));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String tokenNovo = (String) ((Map<?, ?>) resposta.getBody()).get("token");
+        assertThat(tokenNovo).isNotBlank();
+
+        var meAntigo = troca("/api/auth/me", HttpMethod.GET, comBearer(tokenAntigo), null);
+        assertThat(meAntigo.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        var meNovo = troca("/api/auth/me", HttpMethod.GET, comBearer(tokenNovo), null);
+        assertThat(meNovo.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        var loginAntiga = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(email, senhaInicial), String.class);
+        assertThat(loginAntiga.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        var loginNova = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(email, novaSenha), TokenResponseDTO.class);
+        assertThat(loginNova.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @Order(13)
+    void logoutTodosDeveInvalidarTodasAsSessoesExistentes() {
+        String email = "logout" + System.nanoTime() + "@x.com";
+        troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
+                new RegistroRequestDTO("Logout Todos", email, "senhaSegura123"));
+        String token = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(email, "senhaSegura123"), TokenResponseDTO.class)
+                .getBody().token();
+
+        var logout = troca("/api/auth/logout-todos", HttpMethod.POST, comBearer(token), null);
+
+        assertThat(logout.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        var me = troca("/api/auth/me", HttpMethod.GET, comBearer(token), null);
+        assertThat(me.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        var loginNovo = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(email, "senhaSegura123"), TokenResponseDTO.class);
+        assertThat(loginNovo.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
 }

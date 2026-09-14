@@ -56,6 +56,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         String email = jwtService.extrairEmail(token);
         usuarioRepository.findByEmail(email).ifPresent(usuario -> {
+            if (jwtService.extrairVersaoToken(token) != usuario.getVersaoToken()) {
+                return;
+            }
             UsuarioLogado principal;
             if (usuario.getPerfil() == Perfil.SUPER_ADMIN) {
                 principal = UsuarioLogado.superAdmin(email,

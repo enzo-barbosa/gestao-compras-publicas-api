@@ -26,11 +26,12 @@ public class JwtService {
         this.expiracaoMs = expiracaoMs;
     }
 
-    public String gerarToken(String email, String perfil) {
+    public String gerarToken(String email, String perfil, Integer versaoToken) {
         Date agora = new Date();
         return Jwts.builder()
                 .subject(email)
                 .claim("perfil", perfil)
+                .claim("vt", versaoToken == null ? 0 : versaoToken)
                 .issuedAt(agora)
                 .expiration(new Date(agora.getTime() + expiracaoMs))
                 .signWith(chave)
@@ -48,6 +49,11 @@ public class JwtService {
 
     public String extrairEmail(String token) {
         return extrairClaims(token).getSubject();
+    }
+
+    public int extrairVersaoToken(String token) {
+        Object valor = extrairClaims(token).get("vt");
+        return valor instanceof Number numero ? numero.intValue() : 0;
     }
 
     private Claims extrairClaims(String token) {
