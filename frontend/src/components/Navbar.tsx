@@ -49,6 +49,7 @@ export default function Navbar() {
         {podeEmitirEmpenho(usuario?.perfil ?? '', orgAtiva?.papel) && (
           <NavLink to="/app/empenhos" className={linkClass}>Empenhos</NavLink>
         )}
+        <NavLink to="/app/conta" className={linkClass}>Minha conta</NavLink>
         {podeGerir(usuario?.perfil ?? '', orgAtiva?.papel) && (
           <NavLink to="/app/membros" className={linkClass}>Membros</NavLink>
         )}
