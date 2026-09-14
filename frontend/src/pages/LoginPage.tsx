@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import CampoSenha from '../components/CampoSenha'
 import { extrairMensagemErro } from '../utils/format'
 
 export default function LoginPage() {
@@ -19,6 +20,10 @@ export default function LoginPage() {
   const [cadastrado, setCadastrado] = useState(() => {
     const estado = localizacao.state as { cadastrado?: boolean } | null
     return Boolean(estado?.cadastrado)
+  })
+  const [sessaoEncerrada] = useState(() => {
+    const estado = localizacao.state as { sessaoEncerrada?: boolean } | null
+    return Boolean(estado?.sessaoEncerrada)
   })
 
   useEffect(() => {
@@ -60,15 +65,13 @@ export default function LoginPage() {
           required
         />
 
-        <label htmlFor="senha">Senha</label>
-        <input
+        <CampoSenha
           id="senha"
-          type="password"
+          label="Senha"
           value={senha}
-          onChange={(e) => setSenha(e.target.value)}
+          onChange={setSenha}
           placeholder="••••••••"
           autoComplete="current-password"
-          required
         />
 
         {sessaoExpirada && (
@@ -84,6 +87,12 @@ export default function LoginPage() {
         )}
 
         {erro && <div className="alerta erro" role="alert">{erro}</div>}
+
+        {sessaoEncerrada && (
+          <div className="alerta aviso" role="alert">
+            Sua sessão foi encerrada em todos os dispositivos. Entre novamente para continuar.
+          </div>
+        )}
 
         <button className="btn primario" type="submit" disabled={aguardando}>
           {aguardando ? 'Entrando…' : 'Entrar'}

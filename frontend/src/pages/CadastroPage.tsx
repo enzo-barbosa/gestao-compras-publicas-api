@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import CampoSenha from '../components/CampoSenha'
+import { confirmaSenhaValida, senhaValidaMinima } from '../utils/validacao'
 import { extrairMensagemErro } from '../utils/format'
 
 export default function CadastroPage() {
@@ -9,12 +11,21 @@ export default function CadastroPage() {
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
+  const [confirmacao, setConfirmacao] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [aguardando, setAguardando] = useState(false)
 
   async function submeter(evento: FormEvent) {
     evento.preventDefault()
     setErro(null)
+    if (!senhaValidaMinima(senha)) {
+      setErro('A senha deve ter no mínimo 8 caracteres.')
+      return
+    }
+    if (!confirmaSenhaValida(senha, confirmacao)) {
+      setErro('A confirmação não confere com a senha informada.')
+      return
+    }
     setAguardando(true)
     try {
       await api.post('/auth/register', { nome, email, senha })
@@ -54,13 +65,23 @@ export default function CadastroPage() {
           required
         />
 
-        <label htmlFor="senha">Senha</label>
-        <input
+        <CampoSenha
           id="senha"
-          type="password"
+          label="Senha"
           value={senha}
-          onChange={(e) => setSenha(e.target.value)}
+          onChange={setSenha}
           placeholder="Mínimo de 8 caracteres"
+          autoComplete="new-password"
+          minLength={8}
+          required
+        />
+
+        <CampoSenha
+          id="confirmacao"
+          label="Confirmar senha"
+          value={confirmacao}
+          onChange={setConfirmacao}
+          placeholder="Repita a senha"
           autoComplete="new-password"
           minLength={8}
           required

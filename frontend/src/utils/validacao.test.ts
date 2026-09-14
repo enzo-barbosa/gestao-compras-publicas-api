@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { apenasDigitos, cnpjValido, dataEncerramentoValida } from './validacao'
+import {
+  apenasDigitos,
+  cnpjValido,
+  confirmaSenhaValida,
+  dataEncerramentoValida,
+  senhaValidaMinima,
+} from './validacao'
 
 describe('apenasDigitos', () => {
   it('remove pontos, barras e hifens do CNPJ', () => {
@@ -46,5 +52,31 @@ describe('dataEncerramentoValida', () => {
   it('aceita licitação sem data de encerramento', () => {
     expect(dataEncerramentoValida('2026-01-10', null)).toBe(true)
     expect(dataEncerramentoValida('2026-01-10', '')).toBe(true)
+  })
+})
+
+describe('senhaValidaMinima', () => {
+  it('aceita senha com 8 ou mais caracteres', () => {
+    expect(senhaValidaMinima('12345678')).toBe(true)
+    expect(senhaValidaMinima('umasenhaBemLonga')).toBe(true)
+  })
+
+  it('rejeita senha menor que 8 caracteres', () => {
+    expect(senhaValidaMinima('1234567')).toBe(false)
+    expect(senhaValidaMinima('')).toBe(false)
+  })
+})
+
+describe('confirmaSenhaValida', () => {
+  it('aceita quando senha e confirmação coincidem', () => {
+    expect(confirmaSenhaValida('segredo123', 'segredo123')).toBe(true)
+  })
+
+  it('rejeita quando as senhas não coincidem', () => {
+    expect(confirmaSenhaValida('segredo123', 'segredo124')).toBe(false)
+  })
+
+  it('rejeita confirmação vazia', () => {
+    expect(confirmaSenhaValida('segredo123', '')).toBe(false)
   })
 })

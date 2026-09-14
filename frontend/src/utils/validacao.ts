@@ -10,3 +10,11 @@ export function dataEncerramentoValida(abertura: string, encerramento: string | 
   if (!encerramento) return true
   return encerramento >= abertura
 }
+
+export function senhaValidaMinima(senha: string): boolean {
+  return senha.length >= 8
+}
+
+export function confirmaSenhaValida(senha: string, confirmacao: string): boolean {
+  return senha.length > 0 && senha === confirmacao
+}
