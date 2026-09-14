@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   apenasDigitos,
   cnpjValido,
+  codigoConviteValido,
   confirmaSenhaValida,
   dataEncerramentoValida,
+  gerarCodigoConvite,
   senhaValidaMinima,
 } from './validacao'
 
@@ -78,5 +80,39 @@ describe('confirmaSenhaValida', () => {
 
   it('rejeita confirmação vazia', () => {
     expect(confirmaSenhaValida('segredo123', '')).toBe(false)
+  })
+})
+
+describe('codigoConviteValido', () => {
+  it('aceita códigos gerados e customizados válidos', () => {
+    expect(codigoConviteValido('ABCD1234')).toBe(true)
+    expect(codigoConviteValido('prefeitura-2026')).toBe(true)
+    expect(codigoConviteValido('s4')).toBe(false)
+  })
+
+  it('rejeita e-mails, símbolos, espaços e tamanho inválido', () => {
+    expect(codigoConviteValido('fulano@email.com')).toBe(false)
+    expect(codigoConviteValido('codigo com espaco')).toBe(false)
+    expect(codigoConviteValido('codigo!')).toBe(false)
+    expect(codigoConviteValido('abc')).toBe(false)
+    expect(codigoConviteValido('')).toBe(false)
+    expect(codigoConviteValido('-comeca-com-hifen')).toBe(false)
+  })
+})
+
+describe('gerarCodigoConvite', () => {
+  it('gera código com o tamanho pedido usando apenas caracteres não ambíguos', () => {
+    const codigo = gerarCodigoConvite()
+    expect(codigo).toHaveLength(8)
+    expect(codigoConviteValido(codigo)).toBe(true)
+    expect(codigo).not.toMatch(/[0O1I]/)
+  })
+
+  it('gera códigos diferentes a cada chamada', () => {
+    expect(gerarCodigoConvite()).not.toBe(gerarCodigoConvite())
+  })
+
+  it('respeita tamanho customizado', () => {
+    expect(gerarCodigoConvite(12)).toHaveLength(12)
   })
 })

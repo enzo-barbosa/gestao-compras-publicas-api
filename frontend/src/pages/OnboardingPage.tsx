@@ -5,7 +5,7 @@ import api from '../services/api'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
 import { definirOrgAtiva } from '../services/organizacoes'
-import { extrairMensagemErro } from '../utils/format'
+import { extrairMensagemErro, saudacaoBemVindo } from '../utils/format'
 
 export default function OnboardingPage() {
   const { usuario, recarregarOrganizacoes } = useAuth()
@@ -75,7 +75,7 @@ export default function OnboardingPage() {
   return (
     <div className="tela-auxiliar">
       <div className="card card-onboarding">
-        <h1>Bem-vindo, {usuario?.nome}!</h1>
+        <h1>{saudacaoBemVindo(usuario?.nome, usuario?.genero)}</h1>
         <p className="subtitulo">
           Você ainda não participa de nenhum grupo. Crie um ou aceite um convite para começar.
         </p>

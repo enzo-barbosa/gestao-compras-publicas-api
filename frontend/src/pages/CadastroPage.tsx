@@ -10,14 +10,17 @@ export default function CadastroPage() {
   const navegar = useNavigate()
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
+  const [genero, setGenero] = useState('NAO_INFORMADO')
   const [senha, setSenha] = useState('')
   const [confirmacao, setConfirmacao] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [aguardando, setAguardando] = useState(false)
+  const [emailJaUsado, setEmailJaUsado] = useState(false)
 
   async function submeter(evento: FormEvent) {
     evento.preventDefault()
     setErro(null)
+    setEmailJaUsado(false)
     if (!senhaValidaMinima(senha)) {
       setErro('A senha deve ter no mínimo 8 caracteres.')
       return
@@ -28,9 +31,11 @@ export default function CadastroPage() {
     }
     setAguardando(true)
     try {
-      await api.post('/auth/register', { nome, email, senha })
+      await api.post('/auth/register', { nome, email, genero, senha })
       navegar('/login', { state: { cadastrado: true } })
     } catch (e) {
+      const http = e as { response?: { status?: number } }
+      setEmailJaUsado(http.response?.status === 409)
       setErro(extrairMensagemErro(e))
     } finally {
       setAguardando(false)
@@ -65,6 +70,22 @@ export default function CadastroPage() {
           required
         />
 
+        <fieldset className="grupo-radio">
+          <legend>Como você quer ser tratado(a)?</legend>
+          <label className="radio-linha">
+            <input type="radio" name="genero" value="MASCULINO" checked={genero === 'MASCULINO'} onChange={(e) => setGenero(e.target.value)} />
+            Masculino
+          </label>
+          <label className="radio-linha">
+            <input type="radio" name="genero" value="FEMININO" checked={genero === 'FEMININO'} onChange={(e) => setGenero(e.target.value)} />
+            Feminino
+          </label>
+          <label className="radio-linha">
+            <input type="radio" name="genero" value="NAO_INFORMADO" checked={genero === 'NAO_INFORMADO'} onChange={(e) => setGenero(e.target.value)} />
+            Prefiro não informar
+          </label>
+        </fieldset>
+
         <CampoSenha
           id="senha"
           label="Senha"
@@ -88,6 +109,12 @@ export default function CadastroPage() {
         />
 
         {erro && <div className="alerta erro" role="alert">{erro}</div>}
+
+        {emailJaUsado && (
+          <p className="alerta aviso">
+            Já tem uma conta? <Link to="/login">Entre aqui</Link>
+          </p>
+        )}
 
         <button className="btn primario" type="submit" disabled={aguardando}>
           {aguardando ? 'Criando…' : 'Criar conta'}

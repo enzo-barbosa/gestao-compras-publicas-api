@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import api, { TOKEN_KEY, USUARIO_KEY, ORGAO_KEY } from '../services/api'
-import { EVENTO_ORG, orgIdAtiva, papelAtivo, podeGerir } from '../services/organizacoes'
+import { EVENTO_ORG, orgIdAtiva, papelAtivo, podeGerir, podeOperar } from '../services/organizacoes'
 import { AuthContext } from './AuthContext'
 import type { UsuarioLogado } from './AuthContext'
 
@@ -16,6 +16,7 @@ function carregarUsuario(): UsuarioLogado | null {
       nome: dados.nome,
       email: dados.email ?? '',
       perfil: dados.perfil ?? 'USUARIO',
+      genero: dados.genero ?? 'NAO_INFORMADO',
       organizacoes: dados.organizacoes ?? [],
     }
   } catch {
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       nome: dados.nome,
       email: dados.email,
       perfil: dados.perfil,
+      genero: dados.genero ?? 'NAO_INFORMADO',
       organizacoes: dados.organizacoes ?? [],
     }
     localStorage.setItem(USUARIO_KEY, JSON.stringify(normalizado))
@@ -97,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       usuario,
       autenticado: !!usuario,
       ehAdmin: podeGerir(usuario?.perfil ?? '', orgPapel),
+      podeOperar: podeOperar(usuario?.perfil ?? '', orgPapel),
       login,
       logout,
       recarregarOrganizacoes,

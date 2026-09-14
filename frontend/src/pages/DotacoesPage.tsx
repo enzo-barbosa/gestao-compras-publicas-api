@@ -29,7 +29,7 @@ function formVazio(): DotacaoForm {
 const PARAMS = { size: 100 }
 
 export default function DotacoesPage() {
-  const { ehAdmin } = useAuth()
+  const { podeOperar } = useAuth()
   const crud = useCrudPage<Dotacao, DotacaoForm>({
     rota: '/dotacoes',
     params: PARAMS,
@@ -76,7 +76,7 @@ export default function DotacoesPage() {
       <h2>Dotações orçamentárias</h2>
       {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
 
-      {ehAdmin && (
+      {podeOperar && (
         <div className="card form-card">
           <h3>{crud.editandoId === null ? 'Nova dotação' : `Editando dotação #${crud.editandoId}`}</h3>
           <form onSubmit={crud.salvar} className="grade-form" noValidate>
@@ -113,7 +113,7 @@ export default function DotacoesPage() {
         mensagemVazio="Nenhuma dotação cadastrada."
         ariaLabel="Tabela de dotações orçamentárias"
         acoes={
-          ehAdmin
+          podeOperar
             ? (d) => (
                 <>
                   <button className="btn secundario" onClick={() => crud.iniciarEdicao(d)} aria-label={`Editar dotação ${d.codigo}`}>Editar</button>

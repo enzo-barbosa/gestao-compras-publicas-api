@@ -69,7 +69,7 @@ const FORM_VAZIO: ContratoForm = {
 const PARAMS = { size: 100, sort: 'dataInicio,desc' } as const
 
 export default function ContratosPage() {
-  const { ehAdmin } = useAuth()
+  const { podeOperar } = useAuth()
   const { exibir } = useToast()
   const [dotacoes, setDotacoes] = useState<DotacaoOpcao[]>([])
   const [fornecedores, setFornecedores] = useState<FornecedorOpcao[]>([])
@@ -134,7 +134,7 @@ export default function ContratosPage() {
   })
 
   useEffect(() => {
-    if (!ehAdmin) return
+    if (!podeOperar) return
     api.get<Pagina<DotacaoOpcao>>('/dotacoes', { params: { size: 200 } })
       .then((r) => setDotacoes(r.data.content))
       .catch(() => undefined)
@@ -144,7 +144,7 @@ export default function ContratosPage() {
     api.get<Pagina<LicitacaoOpcao>>('/licitacoes', { params: { size: 200 } })
       .then((r) => setLicitacoes(r.data.content))
       .catch(() => undefined)
-  }, [ehAdmin])
+  }, [podeOperar])
 
   const colunas: Coluna<Contrato>[] = [
     { key: 'numero', label: 'Número' },
@@ -177,7 +177,7 @@ export default function ContratosPage() {
       <h2>Contratos</h2>
       {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
 
-      {ehAdmin && (
+      {podeOperar && (
         <div className="card form-card">
           <h3>{crud.editandoId === null ? 'Novo contrato' : `Editando contrato #${crud.editandoId}`}</h3>
           <form onSubmit={crud.salvar} className="grade-form" noValidate>
@@ -260,7 +260,7 @@ export default function ContratosPage() {
         mensagemVazio="Nenhum contrato cadastrado."
         ariaLabel="Tabela de contratos"
         acoes={
-          ehAdmin
+          podeOperar
             ? (c) => (
                 <>
                   <button className="btn secundario" onClick={() => crud.iniciarEdicao(c)} aria-label={`Editar contrato ${c.numero}`}>Editar</button>

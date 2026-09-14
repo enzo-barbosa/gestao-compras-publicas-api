@@ -62,6 +62,13 @@ export function podeGerir(
   return perfil === 'SUPER_ADMIN' || papelOrg === 'ADMIN'
 }
 
+export function podeOperar(
+  perfil: string,
+  papelOrg: string | undefined,
+): boolean {
+  return perfil === 'SUPER_ADMIN' || papelOrg === 'ADMIN' || papelOrg === 'OPERADOR'
+}
+
 export function podeEmitirEmpenho(
   perfil: string,
   papelOrg: string | undefined,

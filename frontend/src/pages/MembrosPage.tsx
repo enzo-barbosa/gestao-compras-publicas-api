@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
-import { orgIdAtiva } from '../services/organizacoes'
+import { destinoPosLogin, orgIdAtiva, podeGerir } from '../services/organizacoes'
+import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
+import { codigoConviteValido, gerarCodigoConvite } from '../utils/validacao'
 import { extrairMensagemErro, formatarData } from '../utils/format'
 
 interface Membro {
@@ -19,6 +22,7 @@ interface Convite {
   codigo: string | null
   papel: string
   criadoEm: string
+  expiraEm: string | null
 }
 
 const PAPEIS = ['ADMIN', 'OPERADOR', 'VISITANTE'] as const
@@ -27,7 +31,12 @@ type TipoConvite = 'email' | 'codigo'
 
 export default function MembrosPage() {
   const { exibir } = useToast()
+  const { usuario, recarregarOrganizacoes } = useAuth()
+  const navegar = useNavigate()
   const organizacaoId = orgIdAtiva()
+  const papelOrg = usuario?.organizacoes.find((o) => o.id === organizacaoId)?.papel
+  const gerencia = podeGerir(usuario?.perfil ?? '', papelOrg)
+
   const [aba, setAba] = useState<Aba>('membros')
   const [erro, setErro] = useState<string | null>(null)
 
@@ -43,6 +52,9 @@ export default function MembrosPage() {
   const [valorConvite, setValorConvite] = useState('')
   const [papelConvite, setPapelConvite] = useState<string>(PAPEIS[1])
   const [criandoConvite, setCriandoConvite] = useState(false)
+
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false)
+  const [saindo, setSaindo] = useState(false)
 
   const buscarMembros = useCallback(async (): Promise<Membro[]> => {
     if (organizacaoId === null) return []
@@ -98,7 +110,7 @@ export default function MembrosPage() {
         email: novoEmail,
         papel: novoPapel,
       })
-      exibir('sucesso', `Membro adicionado.`)
+      exibir('sucesso', 'Membro adicionado.')
       setNovoEmail('')
       setMembros(await buscarMembros())
       setErro(null)
@@ -140,14 +152,19 @@ export default function MembrosPage() {
     evento.preventDefault()
     if (organizacaoId === null) return
     setErro(null)
+    const valor = valorConvite.trim()
+    if (tipoConvite === 'codigo' && !codigoConviteValido(valor)) {
+      setErro('Código inválido: use 4 a 24 letras, números ou hífens, sem @, espaços ou símbolos.')
+      return
+    }
     setCriandoConvite(true)
     try {
       const corpo =
         tipoConvite === 'email'
-          ? { email: valorConvite, papel: papelConvite }
-          : { codigo: valorConvite, papel: papelConvite }
+          ? { email: valor, papel: papelConvite }
+          : { codigo: valor, papel: papelConvite }
       await api.post(`/organizacoes/${organizacaoId}/convites`, corpo)
-      exibir('sucesso', 'Convite criado.')
+      exibir('sucesso', 'Convite criado. Ele expira em 7 dias.')
       setValorConvite('')
       setConvites(await buscarConvites())
       setErro(null)
@@ -175,65 +192,90 @@ export default function MembrosPage() {
     return convite.email ?? `Código ${convite.codigo}`
   }
 
+  async function sairDoGrupo() {
+    if (organizacaoId === null) return
+    if (!confirmandoSaida) {
+      setConfirmandoSaida(true)
+      return
+    }
+    setErro(null)
+    setSaindo(true)
+    try {
+      await api.delete(`/organizacoes/${organizacaoId}/membros/eu`)
+      exibir('sucesso', 'Você saiu do grupo.')
+      const atualizado = await recarregarOrganizacoes()
+      const destino = destinoPosLogin(atualizado.organizacoes ?? [], null)
+      navegar(destino.rota)
+    } catch (e) {
+      setErro(extrairMensagemErro(e))
+      setConfirmandoSaida(false)
+    } finally {
+      setSaindo(false)
+    }
+  }
+
   return (
     <section>
-      <h2>Membros e convites</h2>
+      <h2>Integrantes</h2>
       {erro && <div className="alerta erro" role="alert">{erro}</div>}
       <p className="dica">
-        O criador do grupo não pode ser rebaixado nem removido. Convite por e-mail exige usuário
-        cadastrado; o código pode ser compartilhado.
+        Todos os integrantes veem esta lista. Papéis são ajustados pelo administrador do grupo.
       </p>
 
-      <div className="abas">
-        <button
-          type="button"
-          className={`btn fantasma ${aba === 'membros' ? 'ativo' : ''}`}
-          onClick={() => setAba('membros')}
-        >
-          Membros
-        </button>
-        <button
-          type="button"
-          className={`btn fantasma ${aba === 'convites' ? 'ativo' : ''}`}
-          onClick={abrirConvites}
-        >
-          Convites
-        </button>
-      </div>
+      {gerencia && (
+        <div className="abas">
+          <button
+            type="button"
+            className={`btn fantasma ${aba === 'membros' ? 'ativo' : ''}`}
+            onClick={() => setAba('membros')}
+          >
+            Membros
+          </button>
+          <button
+            type="button"
+            className={`btn fantasma ${aba === 'convites' ? 'ativo' : ''}`}
+            onClick={abrirConvites}
+          >
+            Convites
+          </button>
+        </div>
+      )}
 
       {aba === 'membros' && (
         <>
-          <form className="card form-card" onSubmit={adicionarMembro}>
-            <h3>Adicionar membro</h3>
-            <div className="grade-form">
-              <div className="campo-largo">
-                <label htmlFor="novo-email">E-mail do usuário</label>
-                <input
-                  id="novo-email"
-                  type="email"
-                  value={novoEmail}
-                  onChange={(e) => setNovoEmail(e.target.value)}
-                  placeholder="colega@prefeitura.gov.br"
-                  required
-                />
+          {gerencia && (
+            <form className="card form-card" onSubmit={adicionarMembro}>
+              <h3>Adicionar membro</h3>
+              <div className="grade-form">
+                <div className="campo-largo">
+                  <label htmlFor="novo-email">E-mail do usuário</label>
+                  <input
+                    id="novo-email"
+                    type="email"
+                    value={novoEmail}
+                    onChange={(e) => setNovoEmail(e.target.value)}
+                    placeholder="colega@prefeitura.gov.br"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="novo-papel">Papel</label>
+                  <select
+                    id="novo-papel"
+                    value={novoPapel}
+                    onChange={(e) => setNovoPapel(e.target.value)}
+                  >
+                    {PAPEIS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+                <button className="btn primario" type="submit" disabled={adicionando}>
+                  {adicionando ? 'Adicionando…' : 'Adicionar'}
+                </button>
               </div>
-              <div>
-                <label htmlFor="novo-papel">Papel</label>
-                <select
-                  id="novo-papel"
-                  value={novoPapel}
-                  onChange={(e) => setNovoPapel(e.target.value)}
-                >
-                  {PAPEIS.map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-              <button className="btn primario" type="submit" disabled={adicionando}>
-                {adicionando ? 'Adicionando…' : 'Adicionar'}
-              </button>
-            </div>
-          </form>
+            </form>
+          )}
 
           {carregandoMembros ? (
             <p className="vazio">Carregando…</p>
@@ -248,45 +290,79 @@ export default function MembrosPage() {
                     <th>E-mail</th>
                     <th>Papel</th>
                     <th>Desde</th>
-                    <th aria-label="Ações">Ações</th>
+                    {gerencia && <th aria-label="Ações">Ações</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {membros.map((membro) => (
                     <tr key={membro.usuarioId}>
-                      <td>{membro.nome}</td>
+                      <td>
+                        {membro.usuarioId === usuario?.id ? (
+                          <strong>{membro.nome} (você)</strong>
+                        ) : (
+                          membro.nome
+                        )}
+                      </td>
                       <td>{membro.email}</td>
                       <td>
-                        <select
-                          value={membro.papel}
-                          onChange={(e) => alterarPapel(membro, e.target.value)}
-                          aria-label={`Papel de ${membro.nome}`}
-                        >
-                          {PAPEIS.map((p) => (
-                            <option key={p} value={p}>{p}</option>
-                          ))}
-                        </select>
+                        {gerencia ? (
+                          <select
+                            value={membro.papel}
+                            onChange={(e) => alterarPapel(membro, e.target.value)}
+                            aria-label={`Papel de ${membro.nome}`}
+                          >
+                            {PAPEIS.map((p) => (
+                              <option key={p} value={p}>{p}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className={`badge papel-${membro.papel.toLowerCase()}`}>
+                            {membro.papel}
+                          </span>
+                        )}
                       </td>
                       <td>{formatarData(membro.desde)}</td>
-                      <td>
-                        <button
-                          className="btn perigo"
-                          onClick={() => removerMembro(membro)}
-                          aria-label={`Remover ${membro.nome}`}
-                        >
-                          Remover
-                        </button>
-                      </td>
+                      {gerencia && (
+                        <td>
+                          <button
+                            className="btn perigo"
+                            onClick={() => removerMembro(membro)}
+                            aria-label={`Remover ${membro.nome}`}
+                          >
+                            Remover
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+
+          <div className="card form-card zona-perigo">
+            <h3>Sair do grupo</h3>
+            <p className="dica">
+              Você deixa de participar desta organização. Se for o último administrador, a saída é
+              bloqueada: designe outro administrador antes.
+            </p>
+            <button
+              className={`btn perigo${confirmandoSaida ? ' confirmando' : ''}`}
+              type="button"
+              onClick={sairDoGrupo}
+              disabled={saindo}
+            >
+              {saindo
+                ? 'Saindo…'
+                : confirmandoSaida
+                  ? 'Clique de novo para confirmar'
+                  : 'Sair do grupo'}
+            </button>
+          </div>
         </>
       )}
 
-      {aba === 'convites' && (
+      {gerencia && aba === 'convites' && (
         <>
           <form className="card form-card" onSubmit={criarConvite}>
             <h3>Criar convite</h3>
@@ -311,15 +387,31 @@ export default function MembrosPage() {
                 <label htmlFor="valor-convite">
                   {tipoConvite === 'email' ? 'E-mail do convidado' : 'Código do convite'}
                 </label>
-                <input
-                  id="valor-convite"
-                  type={tipoConvite === 'email' ? 'email' : 'text'}
-                  value={valorConvite}
-                  onChange={(e) => setValorConvite(e.target.value)}
-                  placeholder={tipoConvite === 'email' ? 'colega@prefeitura.gov.br' : 'Ex.: ACESSO-2026'}
-                  maxLength={tipoConvite === 'email' ? 150 : 24}
-                  required
-                />
+                <div className="linha-input-botao">
+                  <input
+                    id="valor-convite"
+                    type={tipoConvite === 'email' ? 'email' : 'text'}
+                    value={valorConvite}
+                    onChange={(e) => setValorConvite(e.target.value)}
+                    placeholder={tipoConvite === 'email' ? 'colega@prefeitura.gov.br' : 'Ex.: ACESSO-2026'}
+                    maxLength={tipoConvite === 'email' ? 150 : 24}
+                    required
+                  />
+                  {tipoConvite === 'codigo' && (
+                    <button
+                      className="btn secundario"
+                      type="button"
+                      onClick={() => setValorConvite(gerarCodigoConvite())}
+                    >
+                      Gerar código
+                    </button>
+                  )}
+                </div>
+                {tipoConvite === 'codigo' && (
+                  <p className="dica">
+                    4 a 24 caracteres (letras, números ou hífens). O convite expira em 7 dias.
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="papel-convite">Papel</label>
@@ -351,6 +443,7 @@ export default function MembrosPage() {
                     <th>Destino</th>
                     <th>Papel</th>
                     <th>Criado em</th>
+                    <th>Expira em</th>
                     <th aria-label="Ações">Ações</th>
                   </tr>
                 </thead>
@@ -360,6 +453,7 @@ export default function MembrosPage() {
                       <td className="mono">{destinoConvite(convite)}</td>
                       <td>{convite.papel}</td>
                       <td>{formatarData(convite.criadoEm)}</td>
+                      <td>{formatarData(convite.expiraEm)}</td>
                       <td>
                         <button
                           className="btn perigo"

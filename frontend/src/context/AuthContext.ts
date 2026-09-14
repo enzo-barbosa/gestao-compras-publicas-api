@@ -6,6 +6,7 @@ export interface UsuarioLogado {
   nome: string
   email: string
   perfil: string
+  genero: string
   organizacoes: OrganizacaoInfo[]
 }
 
@@ -13,6 +14,7 @@ export interface AuthContexto {
   usuario: UsuarioLogado | null
   autenticado: boolean
   ehAdmin: boolean
+  podeOperar: boolean
   login: (email: string, senha: string) => Promise<UsuarioLogado>
   logout: () => void
   recarregarOrganizacoes: () => Promise<UsuarioLogado>

@@ -26,7 +26,7 @@ const FORM_VAZIO: FornecedorForm = { nome: '', cnpj: '', email: '', telefone: ''
 const PARAMS = { size: 100 }
 
 export default function FornecedoresPage() {
-  const { ehAdmin } = useAuth()
+  const { podeOperar } = useAuth()
   const crud = useCrudPage<Fornecedor, FornecedorForm>({
     rota: '/fornecedores',
     params: PARAMS,
@@ -77,7 +77,7 @@ export default function FornecedoresPage() {
       <h2>Fornecedores</h2>
       {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
 
-      {ehAdmin && (
+      {podeOperar && (
         <div className="card form-card">
           <h3>{crud.editandoId === null ? 'Novo fornecedor' : `Editando fornecedor #${crud.editandoId}`}</h3>
           <form onSubmit={crud.salvar} className="grade-form" noValidate>
@@ -118,7 +118,7 @@ export default function FornecedoresPage() {
         mensagemVazio="Nenhum fornecedor cadastrado."
         ariaLabel="Tabela de fornecedores"
         acoes={
-          ehAdmin
+          podeOperar
             ? (f) => (
                 <>
                   <button className="btn secundario" onClick={() => crud.iniciarEdicao(f)} aria-label={`Editar fornecedor ${f.nome}`}>Editar</button>

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { extrairMensagemErro, formatarCompetencia, formatarData, formatarMoeda, formatarStatusEmpenho } from './format'
+import {
+  extrairMensagemErro,
+  formatarCompetencia,
+  formatarData,
+  formatarMoeda,
+  formatarStatusEmpenho,
+  generoRotulo,
+  saudacaoBemVindo,
+} from './format'
 
 const moeda = (valor: number): string => formatarMoeda(valor).replace(/\u00A0/g, ' ')
 
@@ -75,5 +83,31 @@ describe('extrairMensagemErro', () => {
   it('retorna mensagem padrão para erros sem resposta estruturada', () => {
     expect(extrairMensagemErro(new Error('sem response'))).toBe('Erro inesperado. Tente novamente.')
     expect(extrairMensagemErro(undefined)).toBe('Erro inesperado. Tente novamente.')
+  })
+})
+
+describe('generoRotulo', () => {
+  it('traduz os gêneros suportados', () => {
+    expect(generoRotulo('MASCULINO')).toBe('Masculino')
+    expect(generoRotulo('FEMININO')).toBe('Feminino')
+    expect(generoRotulo('NAO_INFORMADO')).toBe('Prefiro não informar')
+    expect(generoRotulo(null)).toBe('Prefiro não informar')
+    expect(generoRotulo(undefined)).toBe('Prefiro não informar')
+  })
+})
+
+describe('saudacaoBemVindo', () => {
+  it('intercala o gênero quando informado', () => {
+    expect(saudacaoBemVindo('Rita', 'FEMININO')).toBe('Bem-vindo(a), Rita!')
+    expect(saudacaoBemVindo('João', 'MASCULINO')).toBe('Bem-vindo(a), João!')
+  })
+
+  it('fica neutra quando não informado', () => {
+    expect(saudacaoBemVindo('Ana', 'NAO_INFORMADO')).toBe('Bem-vindo, Ana!')
+    expect(saudacaoBemVindo('Ana', undefined)).toBe('Bem-vindo, Ana!')
+  })
+
+  it('cobre nome ausente', () => {
+    expect(saudacaoBemVindo(undefined, 'FEMININO')).toBe('Bem-vindo(a), você!')
   })
 })

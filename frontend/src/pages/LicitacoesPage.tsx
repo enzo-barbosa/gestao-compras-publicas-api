@@ -59,7 +59,7 @@ const FORM_VAZIO: LicitacaoForm = {
 const PARAMS = { size: 100, sort: 'dataAbertura,desc' } as const
 
 export default function LicitacoesPage() {
-  const { ehAdmin } = useAuth()
+  const { podeOperar } = useAuth()
   const { exibir } = useToast()
   const [fornecedores, setFornecedores] = useState<FornecedorOpcao[]>([])
   const [vencedorEm, setVencedorEm] = useState<number | null>(null)
@@ -100,11 +100,11 @@ export default function LicitacoesPage() {
   })
 
   useEffect(() => {
-    if (!ehAdmin) return
+    if (!podeOperar) return
     api.get<Pagina<FornecedorOpcao>>('/fornecedores', { params: { size: 200 } })
       .then((r) => setFornecedores(r.data.content))
       .catch(() => undefined)
-  }, [ehAdmin])
+  }, [podeOperar])
 
   async function definirVencedor(id: number) {
     if (!vencedorSelecionado) return
@@ -147,7 +147,7 @@ export default function LicitacoesPage() {
       <h2>Licitações</h2>
       {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
 
-      {ehAdmin && (
+      {podeOperar && (
         <>
           <div className="card form-card">
             <h3>{crud.editandoId === null ? 'Nova licitação' : `Editando licitação #${crud.editandoId}`}</h3>
@@ -217,7 +217,7 @@ export default function LicitacoesPage() {
         mensagemVazio="Nenhuma licitação cadastrada."
         ariaLabel="Tabela de licitações"
         acoes={
-          ehAdmin
+          podeOperar
             ? (l) => (
                 <>
                   {l.status === 'ABERTA' && (

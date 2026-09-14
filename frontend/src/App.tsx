@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage'
 import CadastroPage from './pages/CadastroPage'
 import OnboardingPage from './pages/OnboardingPage'
 import SelecionarGrupoPage from './pages/SelecionarGrupoPage'
+import EsqueciSenhaPage from './pages/EsqueciSenhaPage'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cadastro" element={<CadastroPage />} />
+            <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
             <Route path="/onboarding" element={<RotaProtegida><OnboardingPage /></RotaProtegida>} />
             <Route
               path="/selecionar-grupo"

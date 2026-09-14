@@ -5,6 +5,7 @@ import {
   papelAtivo,
   podeEmitirEmpenho,
   podeGerir,
+  podeOperar,
 } from './organizacoes'
 import type { OrganizacaoInfo } from './organizacoes'
 
@@ -81,5 +82,13 @@ describe('papéis por grupo', () => {
   it('OPERADOR emite empenho; VISITANTE não', () => {
     expect(podeEmitirEmpenho('USUARIO', 'OPERADOR')).toBe(true)
     expect(podeEmitirEmpenho('USUARIO', 'VISITANTE')).toBe(false)
+  })
+
+  it('podeOperar libera ADMIN e OPERADOR, mas não VISITANTE', () => {
+    expect(podeOperar('SUPER_ADMIN', undefined)).toBe(true)
+    expect(podeOperar('USUARIO', 'ADMIN')).toBe(true)
+    expect(podeOperar('USUARIO', 'OPERADOR')).toBe(true)
+    expect(podeOperar('USUARIO', 'VISITANTE')).toBe(false)
+    expect(podeOperar('USUARIO', undefined)).toBe(false)
   })
 })

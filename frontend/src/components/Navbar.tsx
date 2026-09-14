@@ -5,7 +5,6 @@ import {
   organizacaoAtiva,
   orgIdAtiva,
   podeEmitirEmpenho,
-  podeGerir,
 } from '../services/organizacoes'
 
 function linkClass({ isActive }: { isActive: boolean }) {
@@ -18,6 +17,7 @@ export default function Navbar() {
 
   const organizacoes = usuario?.organizacoes ?? []
   const orgAtiva = organizacaoAtiva(organizacoes, orgIdAtiva())
+  const temGrupo = organizacoes.length > 0
 
   function sair() {
     logout()
@@ -38,7 +38,7 @@ export default function Navbar() {
 
       <nav aria-label="Navegação principal">
         <NavLink to="/app" end className={linkClass}>Dashboard</NavLink>
-        {podeGerir(usuario?.perfil ?? '', orgAtiva?.papel) && (
+        {temGrupo && (
           <>
             <NavLink to="/app/dotacoes" className={linkClass}>Dotações</NavLink>
             <NavLink to="/app/fornecedores" className={linkClass}>Fornecedores</NavLink>
@@ -49,16 +49,15 @@ export default function Navbar() {
         {podeEmitirEmpenho(usuario?.perfil ?? '', orgAtiva?.papel) && (
           <NavLink to="/app/empenhos" className={linkClass}>Empenhos</NavLink>
         )}
-        <NavLink to="/app/conta" className={linkClass}>Minha conta</NavLink>
-        {podeGerir(usuario?.perfil ?? '', orgAtiva?.papel) && (
-          <NavLink to="/app/membros" className={linkClass}>Membros</NavLink>
+        {temGrupo && (
+          <NavLink to="/app/membros" className={linkClass}>Integrantes</NavLink>
         )}
         {usuario?.perfil === 'SUPER_ADMIN' && (
           <NavLink to="/app/superpainel" className={linkClass}>Super admin</NavLink>
         )}
       </nav>
 
-      {organizacoes.length > 0 && (
+      {temGrupo && (
         <label className="org-box">
           <span className="org-rotulo">Grupo</span>
           <select
@@ -75,11 +74,14 @@ export default function Navbar() {
         </label>
       )}
 
-      <div className="usuario-box">
+      <div className={`usuario-box${temGrupo ? '' : ' sem-org'}`}>
         <span className="nome">{usuario?.nome}</span>
         {orgAtiva && (
           <span className={`badge papel-${orgAtiva.papel.toLowerCase()}`}>{orgAtiva.papel}</span>
         )}
+        <NavLink to="/app/conta" className="btn fantasma" title="Minha conta">
+          Minha conta
+        </NavLink>
         <button className="btn fantasma" type="button" onClick={sair}>
           Sair
         </button>

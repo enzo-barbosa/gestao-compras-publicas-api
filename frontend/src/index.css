@@ -887,6 +887,75 @@ a:focus-visible {
   outline: 2px solid var(--azul-500);
 }
 
+.navbar-grupo {
+  font-size: 13px;
+  color: #b9cede;
+  white-space: nowrap;
+}
+
+.usuario-box .nome {
+  color: #fff;
+}
+
+.usuario-box a.btn {
+  text-decoration: none;
+  color: #fff;
+}
+
+.usuario-box a.btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ===== Cadastro: gênero ===== */
+
+.grupo-radio {
+  border: 1px solid var(--cinza-300);
+  border-radius: 8px;
+  padding: 8px 12px 12px;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.grupo-radio legend {
+  font-size: 12px;
+  color: #66788a;
+  padding: 0 4px;
+}
+
+.radio-linha {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.radio-linha input[type="radio"] {
+  accent-color: var(--azul-500);
+  width: 15px;
+  height: 15px;
+}
+
+/* ===== Convites: input + botão gerar ===== */
+
+.linha-input-botao {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.linha-input-botao input {
+  flex: 1;
+  min-width: 0;
+}
+
+.zona-perigo {
+  border: 1px dashed var(--vermelho-600);
+  margin-top: 18px;
+}
+
 /* ===== Landing (redesenho) e polish ===== */
 
 .landing-conteudo {

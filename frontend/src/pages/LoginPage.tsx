@@ -25,6 +25,10 @@ export default function LoginPage() {
     const estado = localizacao.state as { sessaoEncerrada?: boolean } | null
     return Boolean(estado?.sessaoEncerrada)
   })
+  const [senhaRedefinida] = useState(() => {
+    const estado = localizacao.state as { senhaRedefinida?: boolean } | null
+    return Boolean(estado?.senhaRedefinida)
+  })
 
   useEffect(() => {
     if (sessaoExpirada) {
@@ -94,9 +98,19 @@ export default function LoginPage() {
           </div>
         )}
 
+        {senhaRedefinida && (
+          <div className="alerta sucesso" role="alert">
+            Senha redefinida com sucesso. Entre com a nova senha.
+          </div>
+        )}
+
         <button className="btn primario" type="submit" disabled={aguardando}>
           {aguardando ? 'Entrando…' : 'Entrar'}
         </button>
+
+        <p className="link-alternativo">
+          Esqueceu a senha? <Link to="/esqueci-senha">Recuperar acesso</Link>
+        </p>
 
         <p className="link-alternativo">
           Ainda não tem conta? <Link to="/cadastro">Criar conta</Link>
