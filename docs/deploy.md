@@ -12,12 +12,12 @@
 |---|---|---|
 | API (Spring Boot 4 / Java 21) | Render **Web Service** (free) | Dockerfile multi-stage; escuta na **8080** (EXPOSE); dorme após ~15 min de inatividade e acorda em ~1 min (cold start); health check `/actuator/health` |
 | Banco (PostgreSQL) | Neon (free) | Conexão da aplicação via URL **pooled** (`-pooler`, pgBouncer) com `sslmode=require`; suspende após ~5 min de inatividade (dados preservados); URL **direct** para `psql`/`pg_dump` |
-| Front (React + Vite) | Vercel (static) | Root dir `frontend`; build `vite build` (saída `dist`); SPA fallback via `vercel.json` |
+| Front (React + Vite) | Vercel (static) | Projeto **`gestao-compras-publicas-api`** (team `enzo-barbosas-projects`); Root dir `frontend`; build `vite build` (saída `dist`); SPA fallback via `vercel.json` |
 
 Endpoints de produção:
 
 - API: `https://gestao-compras-publicas-api.onrender.com` (prefixo de negócio em `/api`)
-- Front: `https://gestao-compras-publicas.vercel.app`
+- Front — **domínio oficial**: `https://gestao-compras-publicas.vercel.app`; alias do projeto: `https://gestao-compras-publicas-api.vercel.app` (ambos apontam para o deploy de produção do mesmo projeto)
 
 ## 2. Provisionamento inicial (uma vez)
 
@@ -27,7 +27,7 @@ Endpoints de produção:
    - **Pooled** → usar em `SPRING_DATASOURCE_URL` (aplicação).
    - **Direct** → usar no `psql`/`pg_dump` (operações manuais).
 3. Schema e migrations: o **Flyway** gerencia o schema (`ddl-auto=validate`). Em banco novo, o
-   primeiro boot da API aplica `V1`–`V5` (arquivos em `src/main/resources/db/migration/`);
+   primeiro boot da API aplica `V1`–`V6` (arquivos em `src/main/resources/db/migration/`);
    alternativamente, aplicar manualmente via `psql` antes do boot. Conferir a tabela
    `flyway_schema_history` para validar o estado.
 
@@ -44,7 +44,9 @@ Endpoints de produção:
 3. `vercel.json` já cria o SPA fallback (rewrite de tudo para `/index.html`) — obrigatório para
    rotas profundas (`/app/empenhos`, etc.) funcionarem em recarga direta.
 4. **Integração GitHub (GitHub App) do Vercel não está entregando eventos de push** neste repo
-   (webhook ausente). Por isso, o caminho confiável de deploy é o **Deploy Hook** (seção 4).
+   (webhook ausente). O fluxo confiável de deploy é o **CLI Vercel** na pasta `frontend/`:
+   `npx vercel deploy --prod` (seção 4). Um **Deploy Hook** antigo foi apagado (o `curl -X POST`
+   devolve `not_found`); se preferir o fluxo por curl, recriar em Settings → Git → Deploy Hooks.
 
 ## 3. Variáveis de ambiente
 
@@ -60,7 +62,7 @@ Endpoints de produção:
 | `SPRING_DATASOURCE_USERNAME` | sim | usuário da Neon |
 | `SPRING_DATASOURCE_PASSWORD` | sim | senha da Neon |
 | `JWT_SECRET` | sim | chave de assinatura (ex.: `openssl rand -base64 48`); sem valor em prod o `JwtService` falha na inicialização (fail-fast) |
-| `CORS_ALLOWED_ORIGINS` | sim (prod) | `https://gestao-compras-publicas.vercel.app` (origin do front) |
+| `CORS_ALLOWED_ORIGINS` | sim (prod) | domains permitidos, separados por vírgula: `https://gestao-compras-publicas-api.vercel.app,https://gestao-compras-publicas.vercel.app` (alias + oficial do front) |
 | `JWT_EXPIRATION_MS` | não | padrão 8h (28.800.000) |
 
 **Vercel — front:**
@@ -79,17 +81,24 @@ Notas de config:
 
 ### Front (Vercel)
 1. `git push origin main` (CI roda: backend, front lint+build, publish GHCR).
-2. **Atenção:** se o Vercel não disparar sozinho (a integração GitHub não entrega eventos aqui),
-   usar o **Deploy Hook**:
-   - Vercel → projeto → Settings → Git → Deploy Hooks (criado para a branch `main`).
-   - Disparo: `curl -X POST <URL_DO_DEPLOY_HOOK>` (a URL contém token — guardar em gestor de senhas,
-     não commitar).
-   - Aguardar ~1 min e verificar o bundle novo (seção 5).
+2. Deploy via **CLI Vercel** (vinculado ao projeto `gestao-compras-publicas-api`):
+   ```bash
+   cd frontend
+   npx vercel deploy --prod
+   ```
+   - O vínculo local fica em `frontend/.vercel` (gitignored); em outra máquina, rodar
+     `npx vercel login` + `npx vercel link --yes` uma vez antes do primeiro deploy.
+   - A env `VITE_API_URL` e os domínios já estão configurados no projeto.
+3. **Alternativa opcional (fluxo por curl):** recriar um **Deploy Hook** em Vercel →
+   Settings → Git → Deploy Hooks (branch `main`) → `curl -X POST <URL_DO_DEPLOY_HOOK>`. A URL
+   contém token — guardar em gestor de senhas, não commitar.
+4. Aguardar ~1 min e verificar o bundle novo (seção 5).
 
 ### API (Render)
 - `git push origin main` → o Render deploya o branch automaticamente (ou "Manual Deploy" no painel).
 - Confirmar: 200 em `/actuator/health`; perfil `prod`; logs de erro no painel se houver falha de
-  migration (`validate` falha quando as entidades divergem do schema — nesse caso, gerar uma `V6`).
+  migration (`validate` falha quando as entidades divergem do schema — nesse caso, gerar uma nova
+  migration Flyway, ex.: `V7__...`).
 
 ## 5. Verificação pós-deploy (checklist)
 
@@ -118,7 +127,8 @@ Notas de config:
 ## 7. Backup, restore e rollback
 
 - **Dados:** usar a conexão **direct** da Neon com `pg_dump`/restore conforme [`backup.md`](backup.md).
-- **Front:** redeploy de um deploy anterior no Vercel (ou voltar o commit e re-disparar o hook).
+- **Front:** redeploy de um deploy anterior no Vercel (ou voltar o commit e rodar
+  `npx vercel deploy --prod` de novo).
 - **API:** Render → "Deploy" de um commit anterior; se a mudança tocou schema, o Flyway pode exigir
   reverter com a migration devolvida (ou restore do banco).
 
@@ -134,5 +144,7 @@ Notas de config:
 | `403 "sem permissão"` | Papel insuficiente (ex.: VISITANTE em escrita) | Conferir papel na org ativa |
 | `409` | Duplicado (empenho na competência, CNPJ, edital) ou conflito de lock | Ajustar dados; tratar como estado esperado no fluxo |
 | Bundle do front parece "velho" | Cache/roteamento SPA | Inspecionar por `/assets/index-*.js` com `--compressed` |
-| Falha de boot com `validate` | Entidade divergente do schema | Criar nova migration Flyway (`V6__...`) |
+| Falha de boot com `validate` | Entidade divergente do schema | Criar nova migration Flyway (`V7__...`) |
 | Preflight CORS 403 | Origin não liberada | Adicionar a origin exata em `CORS_ALLOWED_ORIGINS` |
+| Deploy Hook devolve `not_found` | Hook antigo apagado (projeto mudou/integração reautorizada) | Recriar o hook no dashboard ou usar o fluxo CLI (`npx vercel deploy --prod`) |
+| Sites do front em 404 `DEPLOYMENT_NOT_FOUND` | Projeto Vercel sem deployment (alias solto) | Rodar `npx vercel deploy --prod` e re-anexar os domínios em Settings → Domains |

@@ -73,3 +73,5 @@ build/
 
 # ---------- MARKDOWN ----------
 HELP.md
+.vercel
+.env*
