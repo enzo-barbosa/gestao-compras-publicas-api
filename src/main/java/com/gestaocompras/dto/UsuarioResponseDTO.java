@@ -8,12 +8,13 @@ public record UsuarioResponseDTO(
         String nome,
         String email,
         String perfil,
+        String genero,
         List<OrganizacaoResponseDTO> organizacoes
 ) {
 
     public static UsuarioResponseDTO from(Usuario usuario,
             List<OrganizacaoResponseDTO> organizacoes) {
         return new UsuarioResponseDTO(usuario.getId(), usuario.getNome(), usuario.getEmail(),
-                usuario.getPerfil().name(), organizacoes);
+                usuario.getPerfil().name(), usuario.getGenero().name(), organizacoes);
     }
 }

@@ -80,11 +80,14 @@ public class ConviteService {
             convite.setEmail(email);
         } else {
             String codigo = request.codigo().trim();
-            if (conviteRepository.findByCodigoAndUsadoEmIsNull(codigo).isPresent()) {
+            validarFormatoCodigo(codigo);
+            if (conviteRepository.existsByCodigo(codigo)) {
                 throw new RegistroDuplicadoException(
-                        "Já existe um convite pendente com o código %s.".formatted(codigo));
+                        "Já existe um convite com o código %s (pendente ou já utilizado)."
+                                .formatted(codigo));
             }
             convite.setCodigo(codigo);
+            convite.setExpiraEm(LocalDateTime.now().plusDays(7));
         }
         return ConviteResponseDTO.from(conviteRepository.save(convite));
     }
@@ -120,7 +123,8 @@ public class ConviteService {
         Usuario usuario = buscarAutenticado(principal);
         ConviteOrganizacao convite = conviteRepository
                 .findByCodigoAndUsadoEmIsNull(request.codigo().trim())
-                .orElseThrow(() -> new NotFoundException("Convite inválido ou já utilizado."));
+                .filter(this::naoExpirou)
+                .orElseThrow(() -> new NotFoundException("Convite inválido, expirado ou já utilizado."));
         return aceitar(convite, usuario);
     }
 
@@ -160,6 +164,19 @@ public class ConviteService {
                 .desde(LocalDateTime.now())
                 .build());
         return OrganizacaoResponseDTO.from(organizacao, convite.getPapel().name());
+    }
+
+    private boolean naoExpirou(ConviteOrganizacao convite) {
+        return convite.getExpiraEm() == null || convite.getExpiraEm().isAfter(LocalDateTime.now());
+    }
+
+    private void validarFormatoCodigo(String codigo) {
+        if (codigo.length() < 4 || codigo.length() > 24
+                || !codigo.matches("[A-Za-z0-9][A-Za-z0-9-]*")) {
+            throw new IllegalArgumentException(
+                    "O código deve ter de 4 a 24 caracteres usando letras, números e hífen, "
+                            + "sem espaços ou símbolos (e-mails não servem como código).");
+        }
     }
 
     private Organizacao org(Long id) {

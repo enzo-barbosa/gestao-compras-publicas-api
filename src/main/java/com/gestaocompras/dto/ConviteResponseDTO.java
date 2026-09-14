@@ -10,12 +10,13 @@ public record ConviteResponseDTO(
         String email,
         String codigo,
         String papel,
-        LocalDateTime criadoEm
+        LocalDateTime criadoEm,
+        LocalDateTime expiraEm
 ) {
 
     public static ConviteResponseDTO from(ConviteOrganizacao convite) {
         return new ConviteResponseDTO(convite.getId(), convite.getOrganizacao().getId(),
                 convite.getOrganizacao().getNome(), convite.getEmail(), convite.getCodigo(),
-                convite.getPapel().name(), convite.getCriadoEm());
+                convite.getPapel().name(), convite.getCriadoEm(), convite.getExpiraEm());
     }
 }

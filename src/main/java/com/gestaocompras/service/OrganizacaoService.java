@@ -135,6 +135,28 @@ public class OrganizacaoService {
         membroRepository.delete(membro);
     }
 
+    @Transactional
+    public void sairDaOrganizacao(Long organizacaoId, UsuarioLogado principal) {
+        org(organizacaoId);
+        Usuario usuario = buscarAutenticado(principal);
+        MembroOrganizacao membro = exigirMembro(organizacaoId, principal, usuario);
+        if (membro == null) {
+            throw new OperacaoNaoPermitidaException(
+                    "Administradores globais não participam de grupos.");
+        }
+        if (membro.getPapel() == PapelOrganizacao.ADMIN) {
+            boolean outroAdmin = membroRepository.findByIdOrganizacaoId(organizacaoId).stream()
+                    .anyMatch(outro -> outro.getPapel() == PapelOrganizacao.ADMIN
+                            && !outro.getId().getUsuario().getId().equals(usuario.getId()));
+            if (!outroAdmin) {
+                throw new OperacaoNaoPermitidaException(
+                        "Você é o único administrador. Promova outro membro a administrador "
+                                + "antes de sair do grupo.");
+            }
+        }
+        membroRepository.delete(membro);
+    }
+
     private void protegerCriadorESolicitante(Organizacao organizacao,
             MembroOrganizacao solicitante, Long usuarioAlvo) {
         if (organizacao.getCriadoPor().getId().equals(usuarioAlvo)) {

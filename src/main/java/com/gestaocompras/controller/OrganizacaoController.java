@@ -86,6 +86,13 @@ public class OrganizacaoController {
                 organizacaoService.alterarPapel(id, usuarioLogado, usuarioId, request));
     }
 
+    @DeleteMapping("/{id}/membros/eu")
+    public ResponseEntity<Void> sairDaOrganizacao(@AuthenticationPrincipal UsuarioLogado usuarioLogado,
+            @PathVariable Long id) {
+        organizacaoService.sairDaOrganizacao(id, usuarioLogado);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}/membros/{usuarioId}")
     public ResponseEntity<Void> removerMembro(@AuthenticationPrincipal UsuarioLogado usuarioLogado,
             @PathVariable Long id, @PathVariable Long usuarioId) {

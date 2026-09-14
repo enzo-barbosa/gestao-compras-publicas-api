@@ -19,42 +19,35 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "convites_organizacao")
+@Table(name = "recuperacao_senha")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ConviteOrganizacao {
+public class RecuperacaoSenhaToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "organizacao_id", nullable = false)
-    private Organizacao organizacao;
+    @JoinColumn(name = "usuario_id", nullable = false)
+    private Usuario usuario;
 
-    @Column(length = 150)
-    private String email;
+    @Column(name = "token_hash", nullable = false, length = 64)
+    private String tokenHash;
 
-    @Column(length = 24)
-    private String codigo;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private PapelOrganizacao papel;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "criado_por", nullable = false)
-    private Usuario criadoPor;
-
-    @Column(name = "criado_em", nullable = false)
-    private LocalDateTime criadoEm;
-
-    @Column(name = "expira_em")
+    @Column(name = "expira_em", nullable = false)
     private LocalDateTime expiraEm;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer tentativas = 0;
 
     @Column(name = "usado_em")
     private LocalDateTime usadoEm;
+
+    @Column(name = "criado_em", nullable = false)
+    private LocalDateTime criadoEm;
 }

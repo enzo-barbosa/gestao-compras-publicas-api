@@ -40,6 +40,11 @@ public class Usuario {
     @Column(nullable = false, length = 20)
     private Perfil perfil;
 
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(nullable = false, length = 20)
+    private Genero genero = Genero.NAO_INFORMADO;
+
     @Builder.Default
     @Column(nullable = false)
     private Integer versaoToken = 0;

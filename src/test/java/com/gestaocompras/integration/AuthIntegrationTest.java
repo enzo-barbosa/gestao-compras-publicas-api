@@ -368,4 +368,68 @@ class AuthIntegrationTest {
                 new LoginRequestDTO(email, "senhaSegura123"), TokenResponseDTO.class);
         assertThat(loginNovo.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
+
+    @Test
+    @Order(14)
+    void registrarComGeneroDeveRefletirNoMe() {
+        String email = "genero" + System.nanoTime() + "@x.com";
+        var registro = troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
+                new RegistroRequestDTO("Usuário Gênero", email, "senhaSegura123",
+                        com.gestaocompras.model.Genero.FEMININO));
+
+        assertThat(registro.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat((String) ((Map<?, ?>) registro.getBody()).get("genero"))
+                .isEqualTo("FEMININO");
+
+        String token = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(email, "senhaSegura123"), TokenResponseDTO.class)
+                .getBody().token();
+
+        var me = troca("/api/auth/me", HttpMethod.GET, comBearer(token), null);
+        assertThat((String) ((Map<?, ?>) me.getBody()).get("genero")).isEqualTo("FEMININO");
+    }
+
+    @Test
+    @Order(15)
+    void minhaContaDeveAtualizarGenero() {
+        String email = "conta-genero" + System.nanoTime() + "@x.com";
+        troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
+                new RegistroRequestDTO("Conta Gênero", email, "senhaSegura123"));
+        String token = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(email, "senhaSegura123"), TokenResponseDTO.class)
+                .getBody().token();
+
+        var alteracao = troca("/api/auth/minha-conta", HttpMethod.PUT, comBearer(token),
+                Map.of("nome", "Conta Atualizada", "genero", "MASCULINO"));
+
+        assertThat(alteracao.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((String) ((Map<?, ?>) alteracao.getBody()).get("nome"))
+                .isEqualTo("Conta Atualizada");
+        assertThat((String) ((Map<?, ?>) alteracao.getBody()).get("genero"))
+                .isEqualTo("MASCULINO");
+    }
+
+    @Test
+    @Order(16)
+    void esqueciSenhaDeveResponder200MesmoParaEmailInexistente() {
+        var solicitacao = troca("/api/auth/esqueci-senha", HttpMethod.POST, new HttpHeaders(),
+                Map.of("email", "nao-existe" + System.nanoTime() + "@x.com"));
+
+        assertThat(solicitacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @Order(17)
+    void redefinirSenhaComCodigoInvalidoDeveRetornar400() {
+        String email = "redefinir" + System.nanoTime() + "@x.com";
+        troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
+                new RegistroRequestDTO("Redefinir", email, "senhaSegura123"));
+        troca("/api/auth/esqueci-senha", HttpMethod.POST, new HttpHeaders(),
+                Map.of("email", email));
+
+        var redefinir = troca("/api/auth/redefinir-senha", HttpMethod.POST, new HttpHeaders(),
+                Map.of("email", email, "codigo", "000000", "novaSenha", "novaSenhaSegura456"));
+
+        assertThat(redefinir.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
 }

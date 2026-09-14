@@ -15,6 +15,8 @@ public interface ConviteOrganizacaoRepository
 
     Optional<ConviteOrganizacao> findByCodigoAndUsadoEmIsNull(String codigo);
 
+    boolean existsByCodigo(String codigo);
+
     List<ConviteOrganizacao> findByOrganizacaoIdAndUsadoEmIsNull(Long organizacaoId);
 
     List<ConviteOrganizacao> findAllByEmailAndUsadoEmIsNull(String email);

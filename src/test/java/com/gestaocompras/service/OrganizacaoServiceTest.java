@@ -288,6 +288,54 @@ class OrganizacaoServiceTest {
         assertThat(resposta.get(1).nome()).isEqualTo("Usuário 3");
     }
 
+    @Test
+    void sairDaOrganizacaoPorNaoMembroDeveLancar403() {
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> organizacaoService.sairDaOrganizacao(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN))).isInstanceOf(NaoMembroException.class);
+    }
+
+    @Test
+    void sairDoGrupoSendoOperadorDeveDeletarMembresia() {
+        MembroOrganizacao membro = membro(organizacao, admin, PapelOrganizacao.OPERADOR);
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
+                .thenReturn(Optional.of(membro));
+
+        organizacaoService.sairDaOrganizacao(ORGANIZACAO_ID, principal(EMAIL_ADMIN));
+
+        verify(membroRepository).delete(membro);
+    }
+
+    @Test
+    void sairSendoUnicoAdminDeveLancar409() {
+        MembroOrganizacao membro = membro(organizacao, admin, PapelOrganizacao.ADMIN);
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
+                .thenReturn(Optional.of(membro));
+        when(membroRepository.findByIdOrganizacaoId(ORGANIZACAO_ID))
+                .thenReturn(List.of(membro));
+
+        assertThatThrownBy(() -> organizacaoService.sairDaOrganizacao(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN)))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+        verify(membroRepository, never()).delete(any(MembroOrganizacao.class));
+    }
+
+    @Test
+    void sairSendoAdminComOutroAdminDeveDeletarMembresia() {
+        MembroOrganizacao membro = membro(organizacao, admin, PapelOrganizacao.ADMIN);
+        Usuario outro = usuario(2L, "outro@org.com");
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
+                .thenReturn(Optional.of(membro));
+        when(membroRepository.findByIdOrganizacaoId(ORGANIZACAO_ID))
+                .thenReturn(List.of(membro, membro(organizacao, outro, PapelOrganizacao.ADMIN)));
+
+        organizacaoService.sairDaOrganizacao(ORGANIZACAO_ID, principal(EMAIL_ADMIN));
+
+        verify(membroRepository).delete(membro);
+    }
+
     private void stubsAdmin() {
         when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
                 .thenReturn(Optional.of(membro(organizacao, admin, PapelOrganizacao.ADMIN)));

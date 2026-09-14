@@ -1,6 +1,6 @@
 package com.gestaocompras.service;
 
-import com.gestaocompras.dto.AlterarNomeRequestDTO;
+import com.gestaocompras.dto.AtualizarContaRequestDTO;
 import com.gestaocompras.dto.AlterarSenhaRequestDTO;
 import com.gestaocompras.dto.LoginRequestDTO;
 import com.gestaocompras.dto.OrganizacaoResponseDTO;
@@ -8,6 +8,7 @@ import com.gestaocompras.dto.RegistroRequestDTO;
 import com.gestaocompras.dto.TokenResponseDTO;
 import com.gestaocompras.dto.UsuarioResponseDTO;
 import com.gestaocompras.exception.RegistroDuplicadoException;
+import com.gestaocompras.model.Genero;
 import com.gestaocompras.model.Perfil;
 import com.gestaocompras.model.Usuario;
 import com.gestaocompras.repository.MembroOrganizacaoRepository;
@@ -68,15 +69,27 @@ public class AuthService {
                 .email(request.email())
                 .senha(passwordEncoder.encode(request.senha()))
                 .perfil(Perfil.USUARIO)
+                .genero(request.genero() == null ? Genero.NAO_INFORMADO : request.genero())
                 .versaoToken(0)
                 .build()), List.of());
     }
 
     @Transactional
-    public UsuarioResponseDTO atualizarNome(String email, AlterarNomeRequestDTO request) {
+    public UsuarioResponseDTO atualizarConta(String email, AtualizarContaRequestDTO request) {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Sessão inválida."));
-        usuario.setNome(request.nome());
+        if (request.nome() == null && request.genero() == null) {
+            throw new IllegalArgumentException("Informe ao menos um campo para atualizar.");
+        }
+        if (request.nome() != null) {
+            if (request.nome().isBlank()) {
+                throw new IllegalArgumentException("O nome não pode ser vazio.");
+            }
+            usuario.setNome(request.nome().trim());
+        }
+        if (request.genero() != null) {
+            usuario.setGenero(request.genero());
+        }
         return UsuarioResponseDTO.from(usuarioRepository.save(usuario),
                 organizacoesDoUsuario(usuario.getId()));
     }

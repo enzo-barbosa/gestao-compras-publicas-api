@@ -153,15 +153,31 @@ class ConviteServiceTest {
 
     @Test
     void criarPorCodigoDeveSalvarConvitePendente() {
-        when(conviteRepository.findByCodigoAndUsadoEmIsNull("ABC")).thenReturn(Optional.empty());
         when(conviteRepository.save(any(ConviteOrganizacao.class))).thenAnswer(invocacao ->
                 invocacao.getArgument(0));
 
         var resposta = conviteService.criar(ORGANIZACAO_ID, principalAdmin(),
-                new ConviteRequestDTO(null, "ABC", PapelOrganizacao.VISITANTE));
+                new ConviteRequestDTO(null, "ABCD", PapelOrganizacao.VISITANTE));
 
-        assertThat(resposta.codigo()).isEqualTo("ABC");
+        assertThat(resposta.codigo()).isEqualTo("ABCD");
         assertThat(resposta.papel()).isEqualTo("VISITANTE");
+        assertThat(resposta.expiraEm()).isNotNull();
+    }
+
+    @Test
+    void criarPorCodigoComEmailComoCodigoDeveLancar400() {
+        assertThatThrownBy(() -> conviteService.criar(ORGANIZACAO_ID, principalAdmin(),
+                new ConviteRequestDTO(null, "enzo@gmail.coom", PapelOrganizacao.OPERADOR)))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(conviteRepository, never()).save(any(ConviteOrganizacao.class));
+    }
+
+    @Test
+    void criarPorCodigoCurtoDemaisDeveLancar400() {
+        assertThatThrownBy(() -> conviteService.criar(ORGANIZACAO_ID, principalAdmin(),
+                new ConviteRequestDTO(null, "ABC", PapelOrganizacao.OPERADOR)))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(conviteRepository, never()).save(any(ConviteOrganizacao.class));
     }
 
     @Test
@@ -189,13 +205,11 @@ class ConviteServiceTest {
     }
 
     @Test
-    void criarPorCodigoJaPendenteDeveLancar409() {
-        when(conviteRepository.findByCodigoAndUsadoEmIsNull("ABC"))
-                .thenReturn(Optional.of(convite(organizacao, null, "ABC",
-                        PapelOrganizacao.OPERADOR)));
+    void criarPorCodigoJaUtilizadoDeveLancar409() {
+        when(conviteRepository.existsByCodigo("ABCD")).thenReturn(true);
 
         assertThatThrownBy(() -> conviteService.criar(ORGANIZACAO_ID, principalAdmin(),
-                new ConviteRequestDTO(null, "ABC", PapelOrganizacao.OPERADOR)))
+                new ConviteRequestDTO(null, "ABCD", PapelOrganizacao.OPERADOR)))
                 .isInstanceOf(RegistroDuplicadoException.class);
     }
 
@@ -303,6 +317,19 @@ class ConviteServiceTest {
 
         assertThatThrownBy(() -> conviteService.aceitarPorCodigo(principalConvidado(),
                 new AceitarCodigoRequestDTO("XYZ"))).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void aceitarPorCodigoExpiradoDeveLancar404() {
+        var convite = convite(organizacao, null, "ABCD", PapelOrganizacao.OPERADOR);
+        convite.setExpiraEm(LocalDateTime.now().minusMinutes(1));
+        when(conviteRepository.findByCodigoAndUsadoEmIsNull("ABCD"))
+                .thenReturn(Optional.of(convite));
+
+        assertThatThrownBy(() -> conviteService.aceitarPorCodigo(principalConvidado(),
+                new AceitarCodigoRequestDTO("ABCD"))).isInstanceOf(NotFoundException.class);
+
+        verify(membroRepository, never()).save(any(MembroOrganizacao.class));
     }
 
     @Test
