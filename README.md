@@ -39,7 +39,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 - **Licitações** nas 9 modalidades das Leis 8.666/93 e 14.133/21, com fluxo de definição de vencedor
 - **Contratos** vinculados a dotação + fornecedor (+ licitação opcional), com valor mensal calculado (HALF_UP) e data de término prevista derivada
 - **Empenhos mensais** transacionais: competência única por contrato, débito duplo atômico (dotação + contrato), **emitidos apenas na competência corrente ou pendente** e anulação com estorno completo
-- **Autenticação JWT** (HS256, 8h) com papéis globais (`SUPER_ADMIN`) e papéis **por grupo/organização** (`ADMIN`/`OPERADOR`/`VISITANTE`) selecionada pelo header `X-Org-Id`
+- **Autenticação JWT** (JJWT 0.12.x, TTL 8h) com papéis globais (`SUPER_ADMIN`) e papéis **por grupo/organização** (`ADMIN`/`OPERADOR`/`VISITANTE`) selecionada pelo header `X-Org-Id`, versão de token para revogação de sessões e **conta de usuário** (editar nome, trocar senha e sair em todos os dispositivos)
 - **Multitenancy por grupos**: cada organização tem seus próprios dotações/fornecedores/licitações/contratos/empenhos — isolamento total entre grupos, com convites por e-mail ou código
 - **Frontend React** (Vite + TypeScript) com dashboard de saldos, CRUDs e formulário de empenho com feedback visual
 
@@ -48,10 +48,10 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Camada | Tecnologias |
 |---|---|
 | Backend | Java 21, Spring Boot 4.1.1, Spring Security, JPA/Hibernate 6, Bean Validation |
-| Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V5) + seed controlado |
+| Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V6) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 147 testes backend (JUnit 5 + Mockito + integração) + 34 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
+| Qualidade | 152 testes backend (JUnit 5 + Mockito + integração) + 42 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
 
 ## Como rodar
 
@@ -77,7 +77,7 @@ Com a API rodando, acesse `http://localhost:8080/swagger-ui.html`. A especifica�
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 147 testes
+./mvnw test                          # 152 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
@@ -139,6 +139,9 @@ erDiagram
 | POST | `/api/auth/login` | Autenticação, retorna JWT | público |
 | POST | `/api/auth/register` | Cadastro aberto (perfil `USUARIO`) | público |
 | GET | `/api/auth/me` | Usuário + lista de organizações com o papel em cada uma | autenticado |
+| PUT | `/api/auth/minha-conta` | Edita o nome do usuário logado | autenticado |
+| PUT | `/api/auth/alterar-senha` | Troca a senha (valida senha atual; **re-emite token** e invalida as demais sessões) | autenticado |
+| POST | `/api/auth/logout-todos` | Revoga todas as sessões do usuário (bump em `versao_token`) | autenticado |
 | POST/GET/PUT | `/api/organizacoes` | Criar grupo (quem cria vira ADMIN), listar os meus, renomear | criador: qualquer autenticado; renomear: ADMIN |
 | GET | `/api/organizacoes/{id}` | Detalhes do grupo | membro |
 | GET/POST/PUT/DELETE | `/api/organizacoes/{id}/membros` | Listar/adicionar/alterar papel/remover membros | leitura: membro; gestão: ADMIN |
@@ -187,7 +190,8 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 - [x] Fase 10: frontend React completo
 - [x] Fase 11: cobertura de testes, diagramas, smoke script e README
 - [x] Fase 12a: CI com GitHub Actions (testes, cobertura, lint) e imagens Docker publicadas no GHCR
-- [ ] Fase 12b: deploy em nuvem gerenciada (candidatos avaliados: Oracle Always Free, DigitalOcean via GitHub Student Pack, Render + Neon)
+- [x] Fase 12b: deploy em produção (API em [Render](https://render.com) + Neon PostgreSQL; front em [Vercel](https://vercel.com)) — runbook em [`docs/deploy.md`](docs/deploy.md)
+- [x] Melhorias de conta e UX: revogação real de sessões (`versao_token`), página "Minha conta", campo de senha com mostrar/ocultar e redesigned da landing
 
 ### Programa multitenancy por grupos (5 fases)
 
