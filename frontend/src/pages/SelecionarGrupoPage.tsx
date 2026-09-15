@@ -51,7 +51,7 @@ export default function SelecionarGrupoPage() {
             </ul>
           )}
 
-          <button className="btn secundario" type="button" onClick={() => navegar('/onboarding')}>
+          <button className="btn secundario" type="button" onClick={() => navegar('/app/grupos')}>
             Criar novo grupo ou aceitar convite
           </button>
         </div>

@@ -109,6 +109,7 @@ h3 {
   gap: 10px;
   font-size: 14px;
   margin-left: auto;
+  position: relative;
 }
 
 /* ===== Navbar: em larguras médias a navegação vira linha própria ===== */
@@ -118,6 +119,17 @@ h3 {
     order: 3;
     flex-basis: 100%;
     width: 100%;
+  }
+}
+
+@media (max-width: 1300px) {
+  .navbar nav {
+    gap: 4px;
+  }
+
+  .navbar nav a {
+    padding: 7px 9px;
+    font-size: 13.5px;
   }
 }
 
@@ -1028,45 +1040,103 @@ a:focus-visible {
   color: #fff;
 }
 
-.usuario-box a.btn {
-  text-decoration: none;
-  color: #fff;
-}
-
-.usuario-box a.btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-/* ===== Cadastro: gênero ===== */
-
-.grupo-radio {
-  border: 1px solid var(--cinza-300);
-  border-radius: 8px;
-  padding: 8px 12px 12px;
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-}
-
-.grupo-radio legend {
-  font-size: 12px;
-  color: #66788a;
-  padding: 0 4px;
-}
-
-.radio-linha {
+.menu-usuario {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  padding: 4px 6px;
+  font-family: inherit;
   font-size: 14px;
   cursor: pointer;
 }
 
-.radio-linha input[type="radio"] {
-  accent-color: var(--azul-500);
-  width: 15px;
-  height: 15px;
+.menu-usuario:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--azul-500);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.seta-menu {
+  font-size: 11px;
+  color: #b9cede;
+}
+
+.menu-drop {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 50;
+  width: max-content;
+  min-width: 230px;
+  max-width: 320px;
+  background: #fff;
+  color: var(--azul-900);
+  border: 1px solid #e7edf4;
+  border-radius: var(--raio);
+  box-shadow: 0 14px 30px rgba(15, 42, 67, 0.18);
+  padding: 8px;
+}
+
+.menu-cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid #eef3f8;
+  margin-bottom: 6px;
+}
+
+.menu-nome {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--azul-900);
+}
+
+.menu-email {
+  font-size: 12px;
+  color: #66788a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-cabecalho .badge {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--azul-900);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 9px 10px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.menu-item:hover {
+  background: var(--cinza-100);
 }
 
 /* ===== Convites: input + botão gerar ===== */

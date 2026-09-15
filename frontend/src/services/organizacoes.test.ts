@@ -33,8 +33,8 @@ describe('organizacaoAtiva', () => {
 })
 
 describe('destinoPosLogin', () => {
-  it('vai ao onboarding sem nenhum grupo', () => {
-    expect(destinoPosLogin([], 1)).toEqual({ rota: '/onboarding' })
+  it('vai para a página de grupos sem nenhum grupo', () => {
+    expect(destinoPosLogin([], 1)).toEqual({ rota: '/app/grupos' })
   })
 
   it('vai ao app com grupo ativo válido', () => {

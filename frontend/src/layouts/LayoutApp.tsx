@@ -7,6 +7,8 @@ import LicitacoesPage from '../pages/LicitacoesPage'
 import ContratosPage from '../pages/ContratosPage'
 import EmpenhosPage from '../pages/EmpenhosPage'
 import MembrosPage from '../pages/MembrosPage'
+import GruposPage from '../pages/GruposPage'
+import CreditosPage from '../pages/CreditosPage'
 import MinhaContaPage from '../pages/MinhaContaPage'
 import SuperPainelPage from '../pages/SuperPainelPage'
 
@@ -23,6 +25,8 @@ export default function LayoutApp() {
           <Route path="contratos" element={<ContratosPage />} />
           <Route path="empenhos" element={<EmpenhosPage />} />
           <Route path="membros" element={<MembrosPage />} />
+          <Route path="grupos" element={<GruposPage />} />
+          <Route path="creditos" element={<CreditosPage />} />
           <Route path="conta" element={<MinhaContaPage />} />
           <Route path="superpainel" element={<SuperPainelPage />} />
           <Route path="*" element={<Navigate to="/app" replace />} />

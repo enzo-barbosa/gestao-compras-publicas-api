@@ -1,4 +1,5 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import {
   definirOrgAtiva,
@@ -14,10 +15,22 @@ function linkClass({ isActive }: { isActive: boolean }) {
 export default function Navbar() {
   const { usuario, logout } = useAuth()
   const navegar = useNavigate()
+  const [menuAberto, setMenuAberto] = useState(false)
+  const caixaRef = useRef<HTMLDivElement>(null)
 
   const organizacoes = usuario?.organizacoes ?? []
   const orgAtiva = organizacaoAtiva(organizacoes, orgIdAtiva())
   const temGrupo = organizacoes.length > 0
+
+  useEffect(() => {
+    function fechar(evento: MouseEvent) {
+      if (caixaRef.current && !caixaRef.current.contains(evento.target as Node)) {
+        setMenuAberto(false)
+      }
+    }
+    document.addEventListener('mousedown', fechar)
+    return () => document.removeEventListener('mousedown', fechar)
+  }, [])
 
   function sair() {
     logout()
@@ -29,6 +42,13 @@ export default function Navbar() {
     navegar('/app')
   }
 
+  const iniciais = (usuario?.nome ?? '?')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0]?.toUpperCase() ?? '')
+    .join('')
+
   return (
     <header className="navbar">
       <div className="marca">
@@ -38,20 +58,20 @@ export default function Navbar() {
 
       <nav aria-label="Navegação principal">
         <NavLink to="/app" end className={linkClass}>Dashboard</NavLink>
+        <NavLink to="/app/grupos" className={linkClass}>Grupos</NavLink>
         {temGrupo && (
           <>
             <NavLink to="/app/dotacoes" className={linkClass}>Dotações</NavLink>
             <NavLink to="/app/fornecedores" className={linkClass}>Fornecedores</NavLink>
             <NavLink to="/app/licitacoes" className={linkClass}>Licitações</NavLink>
             <NavLink to="/app/contratos" className={linkClass}>Contratos</NavLink>
+            <NavLink to="/app/creditos" className={linkClass}>Créditos</NavLink>
           </>
         )}
         {podeEmitirEmpenho(usuario?.perfil ?? '', orgAtiva?.papel) && (
           <NavLink to="/app/empenhos" className={linkClass}>Empenhos</NavLink>
         )}
-        {temGrupo && (
-          <NavLink to="/app/membros" className={linkClass}>Integrantes</NavLink>
-        )}
+        <NavLink to="/app/membros" className={linkClass}>Integrantes</NavLink>
         {usuario?.perfil === 'SUPER_ADMIN' && (
           <NavLink to="/app/superpainel" className={linkClass}>Super admin</NavLink>
         )}
@@ -74,17 +94,43 @@ export default function Navbar() {
         </label>
       )}
 
-      <div className={`usuario-box${temGrupo ? '' : ' sem-org'}`}>
-        <span className="nome">{usuario?.nome}</span>
-        {orgAtiva && (
-          <span className={`badge papel-${orgAtiva.papel.toLowerCase()}`}>{orgAtiva.papel}</span>
-        )}
-        <NavLink to="/app/conta" className="btn fantasma" title="Minha conta">
-          Minha conta
-        </NavLink>
-        <button className="btn fantasma" type="button" onClick={sair}>
-          Sair
+      <div className={`usuario-box${temGrupo ? '' : ' sem-org'}`} ref={caixaRef}>
+        <button
+          type="button"
+          className="menu-usuario"
+          aria-haspopup="menu"
+          aria-expanded={menuAberto}
+          onClick={() => setMenuAberto((aberto) => !aberto)}
+        >
+          <span className="avatar" aria-hidden="true">{iniciais}</span>
+          <span className="nome">{usuario?.nome}</span>
+          <span className="seta-menu" aria-hidden="true">▾</span>
         </button>
+
+        {menuAberto && (
+          <div className="menu-drop" role="menu" aria-label="Menu do usuário">
+            <div className="menu-cabecalho">
+              <span className="menu-nome">{usuario?.nome}</span>
+              <span className="menu-email">{usuario?.email}</span>
+              {orgAtiva && (
+                <span className={`badge papel-${orgAtiva.papel.toLowerCase()}`}>
+                  {orgAtiva.nome} · {orgAtiva.papel}
+                </span>
+              )}
+            </div>
+            <Link
+              to="/app/conta"
+              className="menu-item"
+              role="menuitem"
+              onClick={() => setMenuAberto(false)}
+            >
+              Minha conta
+            </Link>
+            <button type="button" className="menu-item" role="menuitem" onClick={sair}>
+              Sair
+            </button>
+          </div>
+        )}
       </div>
     </header>
   )

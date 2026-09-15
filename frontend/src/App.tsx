@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthProvider'
 import { SessaoExpiradaListener } from './context/SessaoExpirada'
 import { ToastProvider } from './components/Toasts'
@@ -8,7 +8,6 @@ import LayoutApp from './layouts/LayoutApp'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import CadastroPage from './pages/CadastroPage'
-import OnboardingPage from './pages/OnboardingPage'
 import SelecionarGrupoPage from './pages/SelecionarGrupoPage'
 import EsqueciSenhaPage from './pages/EsqueciSenhaPage'
 
@@ -23,7 +22,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cadastro" element={<CadastroPage />} />
             <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
-            <Route path="/onboarding" element={<RotaProtegida><OnboardingPage /></RotaProtegida>} />
+            <Route path="/onboarding" element={<Navigate to="/app/grupos" replace />} />
             <Route
               path="/selecionar-grupo"
               element={<RotaProtegida><SelecionarGrupoPage /></RotaProtegida>}

@@ -8,10 +8,7 @@ export default function GuardiaOrganizacao({ children }: { children: ReactNode }
   if (!usuario) {
     return <Navigate to="/login" replace />
   }
-  if (usuario.organizacoes.length === 0) {
-    return <Navigate to="/onboarding" replace />
-  }
-  if (!organizacaoAtiva(usuario.organizacoes, orgIdAtiva())) {
+  if (usuario.organizacoes.length > 0 && !organizacaoAtiva(usuario.organizacoes, orgIdAtiva())) {
     return <Navigate to="/selecionar-grupo" replace />
   }
   return <>{children}</>

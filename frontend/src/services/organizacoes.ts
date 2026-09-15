@@ -7,7 +7,7 @@ export interface OrganizacaoInfo {
 }
 
 export interface Destino {
-  rota: '/onboarding' | '/selecionar-grupo' | '/app'
+  rota: '/app/grupos' | '/selecionar-grupo' | '/app'
   orgAuto?: number
 }
 
@@ -46,7 +46,7 @@ export function destinoPosLogin(
   organizacoes: OrganizacaoInfo[],
   id: number | null,
 ): Destino {
-  if (organizacoes.length === 0) return { rota: '/onboarding' }
+  if (organizacoes.length === 0) return { rota: '/app/grupos' }
   const ativa = organizacaoAtiva(organizacoes, id)
   if (ativa) return { rota: '/app' }
   if (organizacoes.length === 1) {
