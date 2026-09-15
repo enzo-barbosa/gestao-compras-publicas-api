@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from '../services/api'
 import type { Pagina } from '../services/api'
 import { useAuth } from '../context/useAuth'
@@ -57,7 +57,14 @@ const FORM_VAZIO: LicitacaoForm = {
   valorEstimado: '',
 }
 
-const PARAMS = { size: 100, sort: 'dataAbertura,desc' } as const
+const STATUS_LICITACAO = [
+  ['ABERTA', 'Aberta'],
+  ['ENCERRADA', 'Encerrada'],
+  ['HOMOLOGADA', 'Homologada'],
+  ['CANCELADA', 'Cancelada'],
+] as const
+
+const PARAMS_BASE = { size: 100, sort: 'dataAbertura,desc' } as const
 
 export default function LicitacoesPage() {
   const { podeOperar } = useAuth()
@@ -65,10 +72,21 @@ export default function LicitacoesPage() {
   const [fornecedores, setFornecedores] = useState<FornecedorOpcao[]>([])
   const [vencedorEm, setVencedorEm] = useState<number | null>(null)
   const [vencedorSelecionado, setVencedorSelecionado] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroModalidade, setFiltroModalidade] = useState('')
+
+  const params = useMemo(
+    () => ({
+      ...PARAMS_BASE,
+      ...(filtroStatus ? { status: filtroStatus } : {}),
+      ...(filtroModalidade ? { modalidade: filtroModalidade } : {}),
+    }),
+    [filtroStatus, filtroModalidade],
+  )
 
   const crud = useCrudPage<Licitacao, LicitacaoForm>({
     rota: '/licitacoes',
-    params: PARAMS,
+    params,
     formVazio: FORM_VAZIO,
     paraForm: (l) => ({
       numeroEdital: l.numeroEdital,
@@ -147,6 +165,21 @@ export default function LicitacoesPage() {
     <section>
       <h2>Licitações</h2>
       {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
+
+      <div className="barra-filtros">
+        <select aria-label="Filtrar licitações por status" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
+          <option value="">Todos os status</option>
+          {STATUS_LICITACAO.map(([valor, rotulo]) => (
+            <option key={valor} value={valor}>{rotulo}</option>
+          ))}
+        </select>
+        <select aria-label="Filtrar licitações por modalidade" value={filtroModalidade} onChange={(e) => setFiltroModalidade(e.target.value)}>
+          <option value="">Todas as modalidades</option>
+          {MODALIDADES.map(([valor, rotulo]) => (
+            <option key={valor} value={valor}>{rotulo}</option>
+          ))}
+        </select>
+      </div>
 
       {podeOperar && (
         <>

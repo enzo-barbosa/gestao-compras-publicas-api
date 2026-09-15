@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import api from '../services/api'
 import type { Pagina } from '../services/api'
@@ -22,7 +22,7 @@ interface DotacaoOpcao {
   codigo: string
 }
 
-const PARAMS = { size: 100, sort: 'data,desc,id,desc' }
+const PARAMS_BASE = { size: 100, sort: 'data,desc' } as const
 
 export default function CreditosPage() {
   const { podeOperar } = useAuth()
@@ -31,6 +31,9 @@ export default function CreditosPage() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [dotacoes, setDotacoes] = useState<DotacaoOpcao[]>([])
+  const [filtroDotacaoId, setFiltroDotacaoId] = useState('')
+  const [filtroDataInicio, setFiltroDataInicio] = useState('')
+  const [filtroDataFim, setFiltroDataFim] = useState('')
   const [origemId, setOrigemId] = useState('')
   const [destinoId, setDestinoId] = useState('')
   const [valor, setValor] = useState('')
@@ -42,10 +45,20 @@ export default function CreditosPage() {
   })
   const [registrando, setRegistrando] = useState(false)
 
+  const params = useMemo(
+    () => ({
+      ...PARAMS_BASE,
+      ...(filtroDotacaoId ? { dotacaoId: Number(filtroDotacaoId) } : {}),
+      ...(filtroDataInicio ? { dataInicio: filtroDataInicio } : {}),
+      ...(filtroDataFim ? { dataFim: filtroDataFim } : {}),
+    }),
+    [filtroDotacaoId, filtroDataInicio, filtroDataFim],
+  )
+
   const buscar = useCallback(async (): Promise<Credito[]> => {
-    const resposta = await api.get<Pagina<Credito>>('/creditos-suplementares', { params: PARAMS })
+    const resposta = await api.get<Pagina<Credito>>('/creditos-suplementares', { params })
     return resposta.data.content ?? []
-  }, [])
+  }, [params])
 
   const carregar = useCallback(async () => {
     try {
@@ -146,6 +159,23 @@ export default function CreditosPage() {
       <p className="dica">
         Transfere saldo entre dotações: a origem é debitada e o destino é creditado no mesmo valor.
       </p>
+
+      <div className="barra-filtros">
+        <select aria-label="Filtrar créditos por dotação" value={filtroDotacaoId} onChange={(e) => setFiltroDotacaoId(e.target.value)}>
+          <option value="">Todas as dotações</option>
+          {dotacoes.map((d) => (
+            <option key={d.id} value={d.id}>{d.codigo}</option>
+          ))}
+        </select>
+        <label className="filtro-data">
+          De
+          <input type="date" aria-label="Data inicial" value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} />
+        </label>
+        <label className="filtro-data">
+          Até
+          <input type="date" aria-label="Data final" value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} />
+        </label>
+      </div>
 
       {podeOperar && (
         <div className="card form-card">

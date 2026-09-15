@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from '../services/api'
 import type { Pagina } from '../services/api'
 import { useAuth } from '../context/useAuth'
@@ -67,7 +67,13 @@ const FORM_VAZIO: ContratoForm = {
   fornecedorId: '',
 }
 
-const PARAMS = { size: 100, sort: 'dataInicio,desc' } as const
+const STATUS_CONTRATO = [
+  ['VIGENTE', 'Vigente'],
+  ['ENCERRADO', 'Encerrado'],
+  ['RESCINDIDO', 'Rescindido'],
+] as const
+
+const PARAMS_BASE = { size: 100, sort: 'dataInicio,desc' } as const
 
 export default function ContratosPage() {
   const { podeOperar } = useAuth()
@@ -75,10 +81,23 @@ export default function ContratosPage() {
   const [dotacoes, setDotacoes] = useState<DotacaoOpcao[]>([])
   const [fornecedores, setFornecedores] = useState<FornecedorOpcao[]>([])
   const [licitacoes, setLicitacoes] = useState<LicitacaoOpcao[]>([])
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroDotacaoId, setFiltroDotacaoId] = useState('')
+  const [filtroFornecedorId, setFiltroFornecedorId] = useState('')
+
+  const params = useMemo(
+    () => ({
+      ...PARAMS_BASE,
+      ...(filtroStatus ? { status: filtroStatus } : {}),
+      ...(filtroDotacaoId ? { dotacaoId: Number(filtroDotacaoId) } : {}),
+      ...(filtroFornecedorId ? { fornecedorId: Number(filtroFornecedorId) } : {}),
+    }),
+    [filtroStatus, filtroDotacaoId, filtroFornecedorId],
+  )
 
   const crud = useCrudPage<Contrato, ContratoForm>({
     rota: '/contratos',
-    params: PARAMS,
+    params,
     formVazio: FORM_VAZIO,
     paraForm: (c) => ({
       numero: c.numero,
@@ -135,16 +154,17 @@ export default function ContratosPage() {
   })
 
   useEffect(() => {
-    if (!podeOperar) return
     api.get<Pagina<DotacaoOpcao>>('/dotacoes', { params: { size: 200 } })
       .then((r) => setDotacoes(r.data.content))
       .catch(() => undefined)
     api.get<Pagina<FornecedorOpcao>>('/fornecedores', { params: { size: 200 } })
       .then((r) => setFornecedores(r.data.content))
       .catch(() => undefined)
-    api.get<Pagina<LicitacaoOpcao>>('/licitacoes', { params: { size: 200 } })
-      .then((r) => setLicitacoes(r.data.content))
-      .catch(() => undefined)
+    if (podeOperar) {
+      api.get<Pagina<LicitacaoOpcao>>('/licitacoes', { params: { size: 200 } })
+        .then((r) => setLicitacoes(r.data.content))
+        .catch(() => undefined)
+    }
   }, [podeOperar])
 
   const colunas: Coluna<Contrato>[] = [
@@ -177,6 +197,27 @@ export default function ContratosPage() {
     <section>
       <h2>Contratos</h2>
       {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
+
+      <div className="barra-filtros">
+        <select aria-label="Filtrar contratos por status" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
+          <option value="">Todos os status</option>
+          {STATUS_CONTRATO.map(([valor, rotulo]) => (
+            <option key={valor} value={valor}>{rotulo}</option>
+          ))}
+        </select>
+        <select aria-label="Filtrar contratos por dotação" value={filtroDotacaoId} onChange={(e) => setFiltroDotacaoId(e.target.value)}>
+          <option value="">Todas as dotações</option>
+          {dotacoes.map((d) => (
+            <option key={d.id} value={d.id}>{d.codigo}</option>
+          ))}
+        </select>
+        <select aria-label="Filtrar contratos por fornecedor" value={filtroFornecedorId} onChange={(e) => setFiltroFornecedorId(e.target.value)}>
+          <option value="">Todos os fornecedores</option>
+          {fornecedores.map((f) => (
+            <option key={f.id} value={f.id}>{f.nome}</option>
+          ))}
+        </select>
+      </div>
 
       {podeOperar && (
         <div className="card form-card">

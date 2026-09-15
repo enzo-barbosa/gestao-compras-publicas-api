@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
@@ -27,13 +28,23 @@ function formVazio(): DotacaoForm {
   return { codigo: '', descricao: '', saldoInicial: '', anoExercicio: String(ANO_ATUAL) }
 }
 
-const PARAMS = { size: 100 }
+const PARAMS_BASE = { size: 100 } as const
 
 export default function DotacoesPage() {
   const { podeOperar } = useAuth()
+  const [filtroAnoExercicio, setFiltroAnoExercicio] = useState('')
+
+  const params = useMemo(
+    () => ({
+      ...PARAMS_BASE,
+      ...(filtroAnoExercicio ? { anoExercicio: Number(filtroAnoExercicio) } : {}),
+    }),
+    [filtroAnoExercicio],
+  )
+
   const crud = useCrudPage<Dotacao, DotacaoForm>({
     rota: '/dotacoes',
-    params: PARAMS,
+    params,
     formVazio: formVazio(),
     paraForm: (d) => ({
       codigo: d.codigo,
@@ -76,6 +87,15 @@ export default function DotacoesPage() {
     <section>
       <h2>Dotações</h2>
       {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
+
+      <div className="barra-filtros">
+        <select aria-label="Filtrar dotações por ano de exercício" value={filtroAnoExercicio} onChange={(e) => setFiltroAnoExercicio(e.target.value)}>
+          <option value="">Todos os exercícios</option>
+          {Array.from({ length: 6 }, (_, i) => ANO_ATUAL + 1 - i).map((ano) => (
+            <option key={ano} value={ano}>{ano}</option>
+          ))}
+        </select>
+      </div>
 
       {podeOperar && (
         <div className="card form-card">

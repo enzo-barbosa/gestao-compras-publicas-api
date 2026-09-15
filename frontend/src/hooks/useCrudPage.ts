@@ -30,10 +30,7 @@ export function useCrudPage<T extends { id: number }, F>(config: ConfiguracaoCru
   const [excluindo, setExcluindo] = useState(false)
 
   const paramEtros = useRef(config.params)
-
-  useEffect(() => {
-    paramEtros.current = config.params
-  }, [config.params])
+  const prevParamsJson = useRef(JSON.stringify(config.params))
 
   const carregar = useCallback(async () => {
     try {
@@ -46,6 +43,15 @@ export function useCrudPage<T extends { id: number }, F>(config: ConfiguracaoCru
       setCarregando(false)
     }
   }, [rota])
+
+  useEffect(() => {
+    const serialized = JSON.stringify(config.params)
+    paramEtros.current = config.params
+    if (prevParamsJson.current !== serialized) {
+      prevParamsJson.current = serialized
+      void carregar()
+    }
+  }, [config.params, carregar])
 
   useEffect(() => {
     void carregar()

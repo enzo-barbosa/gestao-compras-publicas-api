@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../services/api'
 import type { Pagina } from '../services/api'
 import TabelaGenerica from '../components/TabelaGenerica'
@@ -26,7 +26,25 @@ const FILTROS = [
   ['ANULADO', 'Anulados'],
 ] as const
 
-const PARAMS = { size: 100, sort: 'dataEmissao,desc' } as const
+const ANO_ATUAL = new Date().getFullYear()
+
+const ANOS = Array.from({ length: 6 }, (_, i) => ANO_ATUAL + 1 - i)
+
+const MESES = [
+  ['', 'Todos os meses'],
+  ['1', 'Janeiro'],
+  ['2', 'Fevereiro'],
+  ['3', 'Março'],
+  ['4', 'Abril'],
+  ['5', 'Maio'],
+  ['6', 'Junho'],
+  ['7', 'Julho'],
+  ['8', 'Agosto'],
+  ['9', 'Setembro'],
+  ['10', 'Outubro'],
+  ['11', 'Novembro'],
+  ['12', 'Dezembro'],
+] as const
 
 export default function EmpenhosPage() {
   const { exibir } = useToast()
@@ -34,13 +52,22 @@ export default function EmpenhosPage() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroMes, setFiltroMes] = useState('')
+  const [filtroAno, setFiltroAno] = useState('')
   const [anulando, setAnulando] = useState<Empenho | null>(null)
   const [confirmandoAnulacao, setConfirmandoAnulacao] = useState(false)
 
+  const params = useMemo(() => ({
+    size: 100,
+    sort: 'dataEmissao,desc',
+    ...(filtroMes ? { mes: Number(filtroMes) } : {}),
+    ...(filtroAno ? { ano: Number(filtroAno) } : {}),
+  }), [filtroMes, filtroAno])
+
   const buscar = useCallback(async (): Promise<Empenho[]> => {
-    const resposta = await api.get<Pagina<Empenho>>('/empenhos', { params: PARAMS })
+    const resposta = await api.get<Pagina<Empenho>>('/empenhos', { params })
     return resposta.data.content ?? []
-  }, [])
+  }, [params])
 
   const carregar = useCallback(async () => {
     try {
@@ -120,6 +147,20 @@ export default function EmpenhosPage() {
       {erro && <div className="alerta erro" role="alert">{erro}</div>}
 
       <EmpenhoForm onGerado={carregar} />
+
+      <div className="barra-filtros">
+        <select aria-label="Filtrar por mês" value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)}>
+          {MESES.map(([valor, rotulo]) => (
+            <option key={valor} value={valor}>{rotulo}</option>
+          ))}
+        </select>
+        <select aria-label="Filtrar por ano" value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)}>
+          <option value="">Todos os anos</option>
+          {ANOS.map((ano) => (
+            <option key={ano} value={ano}>{ano}</option>
+          ))}
+        </select>
+      </div>
 
       <div className="barra-filtros">
         {FILTROS.map(([valor, rotulo]) => (

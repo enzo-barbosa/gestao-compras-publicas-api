@@ -700,6 +700,25 @@ a:focus-visible {
   margin-bottom: 12px;
 }
 
+.barra-filtros select,
+.barra-filtros input[type='date'],
+.barra-filtros input[type='search'] {
+  padding: 8px 10px;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+  background: var(--cinza-100);
+  font-size: 14px;
+  color: var(--texto);
+}
+
+.filtro-data {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--texto);
+}
+
 .abas {
   display: flex;
   gap: 4px;

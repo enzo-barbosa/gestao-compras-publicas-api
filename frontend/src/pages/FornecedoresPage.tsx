@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
@@ -24,13 +25,29 @@ interface FornecedorForm {
 
 const FORM_VAZIO: FornecedorForm = { nome: '', cnpj: '', email: '', telefone: '', endereco: '' }
 
-const PARAMS = { size: 100 }
+const PARAMS_BASE = { size: 100 } as const
 
 export default function FornecedoresPage() {
   const { podeOperar } = useAuth()
+  const [filtroNome, setFiltroNome] = useState('')
+  const [filtroNomeAplicado, setFiltroNomeAplicado] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setFiltroNomeAplicado(filtroNome.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [filtroNome])
+
+  const params = useMemo(
+    () => ({
+      ...PARAMS_BASE,
+      ...(filtroNomeAplicado ? { nome: filtroNomeAplicado } : {}),
+    }),
+    [filtroNomeAplicado],
+  )
+
   const crud = useCrudPage<Fornecedor, FornecedorForm>({
     rota: '/fornecedores',
-    params: PARAMS,
+    params,
     formVazio: FORM_VAZIO,
     paraForm: (f) => ({
       nome: f.nome,
@@ -77,6 +94,17 @@ export default function FornecedoresPage() {
     <section>
       <h2>Fornecedores</h2>
       {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
+
+      <div className="barra-filtros">
+        <input
+          type="search"
+          aria-label="Buscar fornecedor por nome"
+          placeholder="Buscar por nome…"
+          value={filtroNome}
+          onChange={(e) => setFiltroNome(e.target.value)}
+          style={{ flex: 1, minWidth: 200 }}
+        />
+      </div>
 
       {podeOperar && (
         <div className="card form-card">
