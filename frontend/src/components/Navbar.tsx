@@ -51,10 +51,10 @@ export default function Navbar() {
 
   return (
     <header className="navbar">
-      <div className="marca">
+      <Link to="/app" className="marca" aria-label="Ir para o dashboard">
         <span className="logo">GCP</span>
         <span>Compras Públicas</span>
-      </div>
+      </Link>
 
       <nav aria-label="Navegação principal">
         <NavLink to="/app" end className={linkClass}>Dashboard</NavLink>
