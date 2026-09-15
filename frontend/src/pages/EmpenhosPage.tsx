@@ -3,6 +3,7 @@ import api from '../services/api'
 import type { Pagina } from '../services/api'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import EmpenhoForm from '../components/EmpenhoForm'
 import { useToast } from '../context/useToast'
 import { extrairMensagemErro, formatarCompetencia, formatarData, formatarMoeda, formatarStatusEmpenho } from '../utils/format'
@@ -33,6 +34,8 @@ export default function EmpenhosPage() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [filtroStatus, setFiltroStatus] = useState('')
+  const [anulando, setAnulando] = useState<Empenho | null>(null)
+  const [confirmandoAnulacao, setConfirmandoAnulacao] = useState(false)
 
   const buscar = useCallback(async (): Promise<Empenho[]> => {
     const resposta = await api.get<Pagina<Empenho>>('/empenhos', { params: PARAMS })
@@ -70,15 +73,20 @@ export default function EmpenhosPage() {
     }
   }, [buscar])
 
-  async function anular(id: number) {
-    if (!window.confirm('Confirma a anulação deste empenho? Os valores serão estornados ao contrato e à dotação.')) return
+  async function confirmarAnulacao() {
+    if (!anulando) return
     setErro(null)
+    setConfirmandoAnulacao(true)
     try {
-      await api.delete(`/empenhos/${id}`)
+      await api.delete(`/empenhos/${anulando.id}`)
       exibir('sucesso', 'Empenho anulado e saldos estornados.')
+      setAnulando(null)
       await carregar()
     } catch (e) {
       setErro(extrairMensagemErro(e))
+      setAnulando(null)
+    } finally {
+      setConfirmandoAnulacao(false)
     }
   }
 
@@ -133,11 +141,26 @@ export default function EmpenhosPage() {
         ariaLabel="Tabela de empenhos"
         acoes={(e) =>
           e.status === 'EMPENHADO' ? (
-            <button className="btn perigo" onClick={() => anular(e.id)} aria-label={`Anular empenho ${e.contratoNumero}/${e.mesReferencia}/${e.anoReferencia}`}>Anular</button>
+            <button className="btn perigo" onClick={() => setAnulando(e)} aria-label={`Anular empenho ${e.contratoNumero}/${e.mesReferencia}/${e.anoReferencia}`}>Anular</button>
           ) : (
             <span className="dica">—</span>
           )
         }
+      />
+
+      <ModalConfirmacao
+        aberto={anulando !== null}
+        titulo="Anular empenho"
+        mensagem={
+          anulando
+            ? `Confirma a anulação do empenho ${anulando.contratoNumero}/${anulando.mesReferencia}/${anulando.anoReferencia}? Os valores serão estornados ao contrato e à dotação.`
+            : ''
+        }
+        rotuloConfirmar="Anular"
+        rotuloCancelar="Cancelar"
+        confirmando={confirmandoAnulacao}
+        aoConfirmar={confirmarAnulacao}
+        aoCancelar={() => setAnulando(null)}
       />
     </section>
   )

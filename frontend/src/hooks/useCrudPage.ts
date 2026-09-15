@@ -26,6 +26,8 @@ export function useCrudPage<T extends { id: number }, F>(config: ConfiguracaoCru
   const [erro, setErro] = useState<string | null>(null)
   const [form, setForm] = useState<F>(config.formVazio)
   const [editandoId, setEditandoId] = useState<number | null>(null)
+  const [exclusao, setExclusao] = useState<{ item: T; mensagem: string } | null>(null)
+  const [excluindo, setExcluindo] = useState(false)
 
   const paramEtros = useRef(config.params)
 
@@ -80,17 +82,47 @@ export function useCrudPage<T extends { id: number }, F>(config: ConfiguracaoCru
     }
   }
 
-  async function excluir(item: T) {
-    if (!window.confirm(config.confirmarExclusao(item))) return
+  function excluir(item: T) {
+    setExclusao({ item, mensagem: config.confirmarExclusao(item) })
+  }
+
+  function cancelarExclusao() {
+    setExclusao(null)
+  }
+
+  async function confirmarExclusao() {
+    if (!exclusao) return
     setErro(null)
+    setExcluindo(true)
     try {
-      await api.delete(`${rota}/${item.id}`)
+      await api.delete(`${rota}/${exclusao.item.id}`)
       exibir('sucesso', config.mensagemExclusao)
+      setExclusao(null)
       await carregar()
     } catch (e) {
       setErro(extrairMensagemErro(e))
+      setExclusao(null)
+    } finally {
+      setExcluindo(false)
     }
   }
 
-  return { itens, carregando, erro, setErro, form, setForm, editandoId, carregar, iniciarEdicao, cancelar, salvar, excluir }
+  return {
+    itens,
+    carregando,
+    erro,
+    setErro,
+    form,
+    setForm,
+    editandoId,
+    carregar,
+    iniciarEdicao,
+    cancelar,
+    salvar,
+    excluir,
+    exclusao,
+    cancelarExclusao,
+    confirmarExclusao,
+    excluindo,
+  }
 }

@@ -1,6 +1,7 @@
 import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { cnpjValido } from '../utils/validacao'
 
@@ -127,6 +128,16 @@ export default function FornecedoresPage() {
               )
             : undefined
         }
+      />
+      <ModalConfirmacao
+        aberto={crud.exclusao !== null}
+        titulo="Excluir fornecedor"
+        mensagem={crud.exclusao?.mensagem ?? ''}
+        rotuloConfirmar="Excluir"
+        rotuloCancelar="Cancelar"
+        confirmando={crud.excluindo}
+        aoConfirmar={crud.confirmarExclusao}
+        aoCancelar={crud.cancelarExclusao}
       />
     </section>
   )

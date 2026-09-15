@@ -4,6 +4,7 @@ import type { Pagina } from '../services/api'
 import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { useToast } from '../context/useToast'
 import { formatarData, formatarMoeda } from '../utils/format'
@@ -269,6 +270,16 @@ export default function ContratosPage() {
               )
             : undefined
         }
+      />
+      <ModalConfirmacao
+        aberto={crud.exclusao !== null}
+        titulo="Excluir contrato"
+        mensagem={crud.exclusao?.mensagem ?? ''}
+        rotuloConfirmar="Excluir"
+        rotuloCancelar="Cancelar"
+        confirmando={crud.excluindo}
+        aoConfirmar={crud.confirmarExclusao}
+        aoCancelar={crud.cancelarExclusao}
       />
     </section>
   )

@@ -4,6 +4,7 @@ import type { Pagina } from '../services/api'
 import { useAuth } from '../context/useAuth'
 import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { useToast } from '../context/useToast'
 import { dataEncerramentoValida } from '../utils/validacao'
@@ -239,6 +240,16 @@ export default function LicitacoesPage() {
               )
             : undefined
         }
+      />
+      <ModalConfirmacao
+        aberto={crud.exclusao !== null}
+        titulo="Excluir licitação"
+        mensagem={crud.exclusao?.mensagem ?? ''}
+        rotuloConfirmar="Excluir"
+        rotuloCancelar="Cancelar"
+        confirmando={crud.excluindo}
+        aoConfirmar={crud.confirmarExclusao}
+        aoCancelar={crud.cancelarExclusao}
       />
     </section>
   )

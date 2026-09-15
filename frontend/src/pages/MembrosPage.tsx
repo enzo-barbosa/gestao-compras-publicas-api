@@ -5,6 +5,7 @@ import api from '../services/api'
 import { destinoPosLogin, orgIdAtiva, podeGerir } from '../services/organizacoes'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
+import ModalConfirmacao from '../components/ModalConfirmacao'
 import { codigoConviteValido, gerarCodigoConvite } from '../utils/validacao'
 import { extrairMensagemErro, formatarData } from '../utils/format'
 
@@ -55,6 +56,11 @@ export default function MembrosPage() {
 
   const [confirmandoSaida, setConfirmandoSaida] = useState(false)
   const [saindo, setSaindo] = useState(false)
+
+  const [membroExclusao, setMembroExclusao] = useState<Membro | null>(null)
+  const [conviteExclusao, setConviteExclusao] = useState<Convite | null>(null)
+  const [removendo, setRemovendo] = useState(false)
+  const [revogando, setRevogando] = useState(false)
 
   const buscarMembros = useCallback(async (): Promise<Membro[]> => {
     if (organizacaoId === null) return []
@@ -135,16 +141,25 @@ export default function MembrosPage() {
     }
   }
 
-  async function removerMembro(membro: Membro) {
-    if (organizacaoId === null) return
-    if (!window.confirm(`Remover ${membro.nome} deste grupo?`)) return
+  function removerMembro(membro: Membro) {
+    setMembroExclusao(membro)
+  }
+
+  async function confirmarRemocao() {
+    if (organizacaoId === null || membroExclusao === null) return
+    const nomeRemovido = membroExclusao
     setErro(null)
+    setRemovendo(true)
     try {
-      await api.delete(`/organizacoes/${organizacaoId}/membros/${membro.usuarioId}`)
-      exibir('sucesso', `${membro.nome} removido do grupo.`)
-      setMembros((atuais) => atuais.filter((m) => m.usuarioId !== membro.usuarioId))
+      await api.delete(`/organizacoes/${organizacaoId}/membros/${nomeRemovido.usuarioId}`)
+      exibir('sucesso', `${nomeRemovido.nome} removido do grupo.`)
+      setMembros((atuais) => atuais.filter((m) => m.usuarioId !== nomeRemovido.usuarioId))
+      setMembroExclusao(null)
     } catch (e) {
       setErro(extrairMensagemErro(e))
+      setMembroExclusao(null)
+    } finally {
+      setRemovendo(false)
     }
   }
 
@@ -175,16 +190,25 @@ export default function MembrosPage() {
     }
   }
 
-  async function revogarConvite(convite: Convite) {
-    if (organizacaoId === null) return
-    if (!window.confirm('Revogar este convite?')) return
+  function revogarConvite(convite: Convite) {
+    setConviteExclusao(convite)
+  }
+
+  async function confirmarRevogacao() {
+    if (organizacaoId === null || conviteExclusao === null) return
+    const conviteRevogado = conviteExclusao
     setErro(null)
+    setRevogando(true)
     try {
-      await api.delete(`/organizacoes/${organizacaoId}/convites/${convite.id}`)
+      await api.delete(`/organizacoes/${organizacaoId}/convites/${conviteRevogado.id}`)
       exibir('sucesso', 'Convite revogado.')
-      setConvites((atuais) => atuais.filter((c) => c.id !== convite.id))
+      setConvites((atuais) => atuais.filter((c) => c.id !== conviteRevogado.id))
+      setConviteExclusao(null)
     } catch (e) {
       setErro(extrairMensagemErro(e))
+      setConviteExclusao(null)
+    } finally {
+      setRevogando(false)
     }
   }
 
@@ -471,6 +495,36 @@ export default function MembrosPage() {
           )}
         </>
       )}
+
+      <ModalConfirmacao
+        aberto={membroExclusao !== null}
+        titulo="Remover integrante"
+        mensagem={
+          membroExclusao
+            ? `Remover ${membroExclusao.nome} deste grupo? Ele deixará de acessar os dados associados à organização.`
+            : ''
+        }
+        rotuloConfirmar="Remover"
+        rotuloCancelar="Cancelar"
+        confirmando={removendo}
+        aoConfirmar={confirmarRemocao}
+        aoCancelar={() => setMembroExclusao(null)}
+      />
+
+      <ModalConfirmacao
+        aberto={conviteExclusao !== null}
+        titulo="Revogar convite"
+        mensagem={
+          conviteExclusao
+            ? `Revogar o convite para "${destinoConvite(conviteExclusao)}"? Quem ainda não usou o convite perderá o acesso.`
+            : ''
+        }
+        rotuloConfirmar="Revogar"
+        rotuloCancelar="Cancelar"
+        confirmando={revogando}
+        aoConfirmar={confirmarRevogacao}
+        aoCancelar={() => setConviteExclusao(null)}
+      />
     </section>
   )
 }
