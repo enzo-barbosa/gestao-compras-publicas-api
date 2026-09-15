@@ -131,10 +131,13 @@ class OrganizacoesIntegrationTest {
 
         var me = troca("/api/auth/me", HttpMethod.GET, comBearer(token), null);
         assertThat(me.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(((java.util.List<?>) ((Map<?, ?>) me.getBody()).get("organizacoes")))
-                .hasSize(1);
-        assertThat((String) ((Map<?, ?>) ((java.util.List<?>) ((Map<?, ?>) me.getBody())
-                .get("organizacoes")).get(0)).get("papel")).isEqualTo("ADMIN");
+        var organizacoes = (java.util.List<?>) ((Map<?, ?>) me.getBody()).get("organizacoes");
+        assertThat(organizacoes).hasSize(2);
+        assertThat(organizacoes.stream()
+                .anyMatch(g -> ((Number) ((Map<?, ?>) g).get("id")).longValue() == organizacaoId
+                        && "ADMIN".equals(((Map<?, ?>) g).get("papel")))).isTrue();
+        assertThat(organizacoes).allSatisfy(g ->
+                assertThat(((Map<?, ?>) g).get("papel")).isEqualTo("ADMIN"));
     }
 
     @Test

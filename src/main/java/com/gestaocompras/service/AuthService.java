@@ -9,11 +9,16 @@ import com.gestaocompras.dto.TokenResponseDTO;
 import com.gestaocompras.dto.UsuarioResponseDTO;
 import com.gestaocompras.exception.RegistroDuplicadoException;
 import com.gestaocompras.model.Genero;
+import com.gestaocompras.model.MembroOrganizacao;
+import com.gestaocompras.model.Organizacao;
+import com.gestaocompras.model.PapelOrganizacao;
 import com.gestaocompras.model.Perfil;
 import com.gestaocompras.model.Usuario;
 import com.gestaocompras.repository.MembroOrganizacaoRepository;
+import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import com.gestaocompras.security.JwtService;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -26,15 +31,18 @@ public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
     private final MembroOrganizacaoRepository membroRepository;
+    private final OrganizacaoRepository organizacaoRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     public AuthService(UsuarioRepository usuarioRepository,
             MembroOrganizacaoRepository membroRepository,
+            OrganizacaoRepository organizacaoRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService) {
         this.usuarioRepository = usuarioRepository;
         this.membroRepository = membroRepository;
+        this.organizacaoRepository = organizacaoRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
@@ -64,14 +72,41 @@ public class AuthService {
             throw new RegistroDuplicadoException(
                     "Já existe um usuário com o e-mail %s.".formatted(request.email()));
         }
-        return UsuarioResponseDTO.from(usuarioRepository.save(Usuario.builder()
+        Usuario usuario = usuarioRepository.save(Usuario.builder()
                 .nome(request.nome())
                 .email(request.email())
                 .senha(passwordEncoder.encode(request.senha()))
                 .perfil(Perfil.USUARIO)
                 .genero(request.genero() == null ? Genero.NAO_INFORMADO : request.genero())
                 .versaoToken(0)
-                .build()), List.of());
+                .build());
+        Organizacao espacoPessoal = organizacaoRepository.save(Organizacao.builder()
+                .nome(nomePessoalDisponivel(usuario.getNome()))
+                .criadoEm(LocalDateTime.now())
+                .criadoPor(usuario)
+                .build());
+        membroRepository.save(MembroOrganizacao.builder()
+                .id(new MembroOrganizacao.Id(espacoPessoal, usuario))
+                .papel(PapelOrganizacao.ADMIN)
+                .desde(LocalDateTime.now())
+                .build());
+        return UsuarioResponseDTO.from(usuario, organizacoesDoUsuario(usuario.getId()));
+    }
+
+    private String nomePessoalDisponivel(String nome) {
+        String base = "Espaço de " + nome.trim();
+        int sufixo = 1;
+        String candidato;
+        do {
+            candidato = sufixo == 1 ? base : base + " (" + sufixo + ")";
+            sufixo++;
+        } while (nomeJaUsado(candidato));
+        return candidato;
+    }
+
+    private boolean nomeJaUsado(String nome) {
+        return organizacaoRepository.findAll().stream()
+                .anyMatch(existente -> existente.getNome().equalsIgnoreCase(nome));
     }
 
     @Transactional

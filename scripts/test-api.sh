@@ -246,9 +246,16 @@ codigo_tmp="$(python3 -c "
 import sys, json
 d = json.load(open('$ARQ_RESPOSTA'))
 print(len(d['organizacoes']))" 2>/dev/null)"
-[[ "$codigo_tmp" == "0" ]] \
-    && assert_status "novo usuário começa sem grupos" 0 0 \
-    || assert_status "novo usuário começa sem grupos" 0 "$codigo_tmp"
+[[ "$codigo_tmp" == "1" ]] \
+    && assert_status "novo usuário já nasce com seu espaço pessoal" 1 1 \
+    || assert_status "novo usuário já nasce com seu espaço pessoal" 1 "$codigo_tmp"
+PAPEL_ESPACO="$(python3 -c "
+import json
+d = json.load(open('$ARQ_RESPOSTA'))
+print(d['organizacoes'][0]['papel'])" 2>/dev/null)"
+[[ "$PAPEL_ESPACO" == "ADMIN" ]] \
+    && assert_status "papel no espaço pessoal é ADMIN" ADMIN ADMIN \
+    || assert_status "papel no espaço pessoal é ADMIN" ADMIN "$PAPEL_ESPACO"
 
 NOME_GRUPO="Grupo Smoke $SUFIXO"
 codigo="$(requisicao POST /api/organizacoes "{\"nome\":\"$NOME_GRUPO\"}" "$TOKEN_U1")"
