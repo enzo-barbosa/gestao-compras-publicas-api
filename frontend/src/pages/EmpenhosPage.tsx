@@ -17,7 +17,6 @@ interface Empenho {
   valor: string | number
   status: string
   dataEmissao: string
-  usuarioId: number
 }
 
 const FILTROS = [
@@ -105,7 +104,6 @@ export default function EmpenhosPage() {
         </span>
       ),
     },
-    { key: 'usuarioId', label: 'Usuário', render: (e) => `#${e.usuarioId}` },
   ]
 
   return (

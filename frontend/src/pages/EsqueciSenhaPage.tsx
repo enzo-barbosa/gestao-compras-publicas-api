@@ -3,6 +3,8 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import CampoSenha from '../components/CampoSenha'
+import TopoPublico from '../components/TopoPublico'
+import PainelMarca from '../components/PainelMarca'
 import { confirmaSenhaValida, senhaValidaMinima } from '../utils/validacao'
 import { extrairMensagemErro } from '../utils/format'
 
@@ -53,87 +55,99 @@ export default function EsqueciSenhaPage() {
   }
 
   return (
-    <div className="tela-auxiliar">
-      <div className="card card-login">
-        <h1>Recuperar senha</h1>
+    <div className="tela-split">
+      <TopoPublico />
+      <div className="tela-split-corpo">
+        <PainelMarca
+          titulo="Perdeu o acesso? Recupere a senha em minutos."
+          bullets={[
+            { titulo: 'Código por e-mail', texto: 'Enviamos um código de 6 dígitos, válido por 15 minutos.' },
+            { titulo: 'Seguro e simples', texto: 'O código chega na caixa de entrada — pode aparecer no lixo eletrônico.' },
+          ]}
+        />
+        <main className="painel-form">
+          <div className="card card-login">
+            <h1>Recuperar senha</h1>
 
-        {!codigoEnviado ? (
-          <form onSubmit={solicitarCodigo}>
-            <p className="subtitulo">
-              Informe o seu e-mail para receber um código de recuperação de 6 dígitos
-              (válido por 15 minutos).
+            {!codigoEnviado ? (
+              <form onSubmit={solicitarCodigo}>
+                <p className="subtitulo">
+                  Informe o seu e-mail para receber um código de recuperação de 6 dígitos
+                  (válido por 15 minutos).
+                </p>
+
+                <label htmlFor="email-recuperacao">E-mail</label>
+                <input
+                  id="email-recuperacao"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="voce@prefeitura.gov.br"
+                  autoComplete="email"
+                  required
+                />
+
+                {erro && <div className="alerta erro" role="alert">{erro}</div>}
+
+                <button className="btn primario" type="submit" disabled={aguardando}>
+                  {aguardando ? 'Enviando…' : 'Enviar código'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={redefinir}>
+                <p className="subtitulo">
+                  Um código foi enviado para <strong>{email}</strong>.
+                  Se não encontrar na caixa de entrada, confira o lixo eletrônico.
+                </p>
+
+                <label htmlFor="codigo-recuperacao">Código</label>
+                <input
+                  id="codigo-recuperacao"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  required
+                />
+
+                <CampoSenha
+                  id="nova-senha-recuperacao"
+                  label="Nova senha"
+                  value={novaSenha}
+                  onChange={setNovaSenha}
+                  placeholder="Mínimo de 8 caracteres"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                />
+
+                <CampoSenha
+                  id="confirmar-nova-senha-recuperacao"
+                  label="Confirmar nova senha"
+                  value={confirmacao}
+                  onChange={setConfirmacao}
+                  placeholder="Repita a nova senha"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                />
+
+                {erro && <div className="alerta erro" role="alert">{erro}</div>}
+
+                <button className="btn primario" type="submit" disabled={aguardando}>
+                  {aguardando ? 'Redefinindo…' : 'Redefinir senha'}
+                </button>
+              </form>
+            )}
+
+            <p className="link-alternativo">
+              <Link to="/login">Voltar para o login</Link>
             </p>
-
-            <label htmlFor="email-recuperacao">E-mail</label>
-            <input
-              id="email-recuperacao"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="voce@prefeitura.gov.br"
-              autoComplete="email"
-              required
-            />
-
-            {erro && <div className="alerta erro" role="alert">{erro}</div>}
-
-            <button className="btn primario" type="submit" disabled={aguardando}>
-              {aguardando ? 'Enviando…' : 'Enviar código'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={redefinir}>
-            <p className="subtitulo">
-              Um código foi enviado para <strong>{email}</strong>.
-              Se não encontrar na caixa de entrada, confira o lixo eletrônico.
-            </p>
-
-            <label htmlFor="codigo-recuperacao">Código</label>
-            <input
-              id="codigo-recuperacao"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
-              placeholder="000000"
-              required
-            />
-
-            <CampoSenha
-              id="nova-senha-recuperacao"
-              label="Nova senha"
-              value={novaSenha}
-              onChange={setNovaSenha}
-              placeholder="Mínimo de 8 caracteres"
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
-
-            <CampoSenha
-              id="confirmar-nova-senha-recuperacao"
-              label="Confirmar nova senha"
-              value={confirmacao}
-              onChange={setConfirmacao}
-              placeholder="Repita a nova senha"
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
-
-            {erro && <div className="alerta erro" role="alert">{erro}</div>}
-
-            <button className="btn primario" type="submit" disabled={aguardando}>
-              {aguardando ? 'Redefinindo…' : 'Redefinir senha'}
-            </button>
-          </form>
-        )}
-
-        <p className="link-alternativo">
-          <Link to="/login">Voltar para o login</Link>
-        </p>
+          </div>
+        </main>
       </div>
     </div>
   )

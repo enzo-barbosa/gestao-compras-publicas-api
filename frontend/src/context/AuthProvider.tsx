@@ -16,7 +16,6 @@ function carregarUsuario(): UsuarioLogado | null {
       nome: dados.nome,
       email: dados.email ?? '',
       perfil: dados.perfil ?? 'USUARIO',
-      genero: dados.genero ?? 'NAO_INFORMADO',
       organizacoes: dados.organizacoes ?? [],
     }
   } catch {
@@ -49,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       nome: dados.nome,
       email: dados.email,
       perfil: dados.perfil,
-      genero: dados.genero ?? 'NAO_INFORMADO',
       organizacoes: dados.organizacoes ?? [],
     }
     localStorage.setItem(USUARIO_KEY, JSON.stringify(normalizado))

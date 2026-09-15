@@ -14,7 +14,6 @@ export default function MinhaContaPage() {
   const navegar = useNavigate()
 
   const [nome, setNome] = useState(usuario?.nome ?? '')
-  const [genero, setGenero] = useState(usuario?.genero ?? 'NAO_INFORMADO')
   const [salvandoNome, setSalvandoNome] = useState(false)
   const [erroNome, setErroNome] = useState<string | null>(null)
 
@@ -37,7 +36,7 @@ export default function MinhaContaPage() {
     }
     setSalvandoNome(true)
     try {
-      await api.put('/auth/minha-conta', { nome: nome.trim(), genero })
+      await api.put('/auth/minha-conta', { nome: nome.trim() })
       await recarregarOrganizacoes()
       exibir('sucesso', 'Dados atualizados.')
     } catch (e) {
@@ -117,18 +116,6 @@ export default function MinhaContaPage() {
           <div>
             <label htmlFor="email-conta">E-mail</label>
             <input id="email-conta" type="email" value={usuario?.email ?? ''} disabled />
-          </div>
-          <div>
-            <label htmlFor="genero-conta">Como você quer ser tratado(a)?</label>
-            <select
-              id="genero-conta"
-              value={genero}
-              onChange={(e) => setGenero(e.target.value)}
-            >
-              <option value="MASCULINO">Masculino</option>
-              <option value="FEMININO">Feminino</option>
-              <option value="NAO_INFORMADO">Prefiro não informar</option>
-            </select>
           </div>
           <div className="acoes-form">
             <button className="btn primario" type="submit" disabled={salvandoNome}>

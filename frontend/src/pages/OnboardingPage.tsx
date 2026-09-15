@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
+import TopoPublico from '../components/TopoPublico'
 import { definirOrgAtiva } from '../services/organizacoes'
 import { extrairMensagemErro, saudacaoBemVindo } from '../utils/format'
 
@@ -74,11 +75,13 @@ export default function OnboardingPage() {
 
   return (
     <div className="tela-auxiliar">
-      <div className="card card-onboarding">
-        <h1>{saudacaoBemVindo(usuario?.nome, usuario?.genero)}</h1>
-        <p className="subtitulo">
-          Você ainda não participa de nenhum grupo. Crie um ou aceite um convite para começar.
-        </p>
+      <TopoPublico />
+      <div className="centro">
+        <div className="card card-onboarding">
+          <h1>{saudacaoBemVindo(usuario?.nome)}</h1>
+          <p className="subtitulo">
+            Você ainda não participa de nenhum grupo. Crie um ou aceite um convite para começar.
+          </p>
 
         {erro && <div className="alerta erro" role="alert">{erro}</div>}
 
@@ -131,6 +134,7 @@ export default function OnboardingPage() {
           >
             {aguardando === 'email' ? 'Verificando…' : 'Verificar convites'}
           </button>
+        </div>
         </div>
       </div>
     </div>

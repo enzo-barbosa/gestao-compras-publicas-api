@@ -5,7 +5,6 @@ import {
   formatarData,
   formatarMoeda,
   formatarStatusEmpenho,
-  generoRotulo,
   saudacaoBemVindo,
 } from './format'
 
@@ -86,28 +85,13 @@ describe('extrairMensagemErro', () => {
   })
 })
 
-describe('generoRotulo', () => {
-  it('traduz os gêneros suportados', () => {
-    expect(generoRotulo('MASCULINO')).toBe('Masculino')
-    expect(generoRotulo('FEMININO')).toBe('Feminino')
-    expect(generoRotulo('NAO_INFORMADO')).toBe('Prefiro não informar')
-    expect(generoRotulo(null)).toBe('Prefiro não informar')
-    expect(generoRotulo(undefined)).toBe('Prefiro não informar')
-  })
-})
-
 describe('saudacaoBemVindo', () => {
-  it('intercala o gênero quando informado', () => {
-    expect(saudacaoBemVindo('Rita', 'FEMININO')).toBe('Bem-vindo(a), Rita!')
-    expect(saudacaoBemVindo('João', 'MASCULINO')).toBe('Bem-vindo(a), João!')
-  })
-
-  it('fica neutra quando não informado', () => {
-    expect(saudacaoBemVindo('Ana', 'NAO_INFORMADO')).toBe('Bem-vindo, Ana!')
-    expect(saudacaoBemVindo('Ana', undefined)).toBe('Bem-vindo, Ana!')
+  it('usa o nome informado', () => {
+    expect(saudacaoBemVindo('Rita')).toBe('Bem-vindo(a), Rita!')
+    expect(saudacaoBemVindo('João')).toBe('Bem-vindo(a), João!')
   })
 
   it('cobre nome ausente', () => {
-    expect(saudacaoBemVindo(undefined, 'FEMININO')).toBe('Bem-vindo(a), você!')
+    expect(saudacaoBemVindo(undefined)).toBe('Bem-vindo(a), você!')
   })
 })

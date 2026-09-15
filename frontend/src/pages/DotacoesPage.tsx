@@ -73,7 +73,7 @@ export default function DotacoesPage() {
 
   return (
     <section>
-      <h2>Dotações orçamentárias</h2>
+      <h2>Dotações</h2>
       {crud.erro && <div className="alerta erro" role="alert">{crud.erro}</div>}
 
       {podeOperar && (
@@ -82,19 +82,19 @@ export default function DotacoesPage() {
           <form onSubmit={crud.salvar} className="grade-form" noValidate>
             <div>
               <label htmlFor="codigo">Código</label>
-              <input id="codigo" value={crud.form.codigo} onChange={(e) => crud.setForm({ ...crud.form, codigo: e.target.value })} required maxLength={30} />
+              <input id="codigo" placeholder="Ex.: 2026.10.001" value={crud.form.codigo} onChange={(e) => crud.setForm({ ...crud.form, codigo: e.target.value })} required maxLength={30} />
             </div>
             <div>
               <label htmlFor="descricao">Descrição</label>
-              <input id="descricao" value={crud.form.descricao} onChange={(e) => crud.setForm({ ...crud.form, descricao: e.target.value })} required maxLength={200} />
+              <input id="descricao" placeholder="Ex.: Manutenção de vias urbanas" value={crud.form.descricao} onChange={(e) => crud.setForm({ ...crud.form, descricao: e.target.value })} required maxLength={200} />
             </div>
             <div>
               <label htmlFor="saldoInicial">Saldo inicial (R$)</label>
-              <input id="saldoInicial" type="number" min="0" step="0.01" value={crud.form.saldoInicial} onChange={(e) => crud.setForm({ ...crud.form, saldoInicial: e.target.value })} required />
+              <input id="saldoInicial" type="number" min="0" step="0.01" placeholder="0,00" value={crud.form.saldoInicial} onChange={(e) => crud.setForm({ ...crud.form, saldoInicial: e.target.value })} required />
             </div>
             <div>
               <label htmlFor="anoExercicio">Ano exercício</label>
-              <input id="anoExercicio" type="number" min="2000" max="2100" value={crud.form.anoExercicio} onChange={(e) => crud.setForm({ ...crud.form, anoExercicio: e.target.value })} required />
+              <input id="anoExercicio" type="number" min="2000" max="2100" placeholder="2026" value={crud.form.anoExercicio} onChange={(e) => crud.setForm({ ...crud.form, anoExercicio: e.target.value })} required />
             </div>
             <div className="acoes-form">
               <button className="btn primario" type="submit">{crud.editandoId === null ? 'Criar' : 'Salvar'}</button>
@@ -111,7 +111,7 @@ export default function DotacoesPage() {
         itens={crud.itens}
         carregando={crud.carregando}
         mensagemVazio="Nenhuma dotação cadastrada."
-        ariaLabel="Tabela de dotações orçamentárias"
+        ariaLabel="Tabela de dotações"
         acoes={
           podeOperar
             ? (d) => (

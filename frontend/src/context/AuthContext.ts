@@ -6,7 +6,6 @@ export interface UsuarioLogado {
   nome: string
   email: string
   perfil: string
-  genero: string
   organizacoes: OrganizacaoInfo[]
 }
 

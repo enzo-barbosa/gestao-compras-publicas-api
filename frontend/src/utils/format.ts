@@ -34,13 +34,6 @@ export function extrairMensagemErro(erro: unknown): string {
   return 'Erro inesperado. Tente novamente.'
 }
 
-export function generoRotulo(genero: string | undefined | null): string {
-  if (genero === 'MASCULINO') return 'Masculino'
-  if (genero === 'FEMININO') return 'Feminino'
-  return 'Prefiro não informar'
-}
-
-export function saudacaoBemVindo(nome: string | undefined, genero: string | undefined): string {
-  const intercada = genero === 'MASCULINO' || genero === 'FEMININO'
-  return `${intercada ? 'Bem-vindo(a)' : 'Bem-vindo'}, ${nome ?? 'você'}!`
+export function saudacaoBemVindo(nome: string | undefined): string {
+  return `Bem-vindo(a), ${nome ?? 'você'}!`
 }

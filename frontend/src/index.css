@@ -22,9 +22,10 @@
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   color: var(--texto);
   background: var(--cinza-100);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ---------- layout ---------- */
@@ -53,8 +54,9 @@ h3 {
 /* ---------- navbar ---------- */
 .navbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 28px;
+  gap: 12px 28px;
   padding: 12px 26px;
   background: var(--azul-900);
   color: #fff;
@@ -106,6 +108,17 @@ h3 {
   align-items: center;
   gap: 10px;
   font-size: 14px;
+  margin-left: auto;
+}
+
+/* ===== Navbar: em larguras médias a navegação vira linha própria ===== */
+
+@media (max-width: 1650px) {
+  .navbar nav {
+    order: 3;
+    flex-basis: 100%;
+    width: 100%;
+  }
 }
 
 .nome {
@@ -136,16 +149,110 @@ h3 {
 /* ---------- cards ---------- */
 .card {
   background: #fff;
-  border-radius: var(--raio);
+  border: 1px solid #e7edf4;
+  border-radius: 14px;
   padding: 20px;
-  box-shadow: 0 1px 4px rgba(15, 42, 67, 0.12);
+  box-shadow: 0 1px 2px rgba(15, 42, 67, 0.06), 0 8px 24px rgba(15, 42, 67, 0.05);
 }
 
-.tela-login {
+.tela-split {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, var(--azul-900), var(--azul-500));
+  color: #fff;
+}
+
+.tela-split .topo-publico {
+  padding: 18px 32px;
+}
+
+.tela-split-corpo {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+}
+
+.painel-marca {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 40px clamp(28px, 5vw, 72px);
+}
+
+.painel-marca h1 {
+  margin: 0;
+  font-size: clamp(26px, 3.4vw, 38px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.bullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: #d7e3f0;
+}
+
+.bullet strong {
+  display: block;
+  color: #fff;
+}
+
+.bullet-icone {
+  flex: none;
+  margin-top: 2px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--azul-900), var(--azul-500));
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.painel-form {
+  background: #fff;
+  display: grid;
+  place-items: center;
+  padding: 40px 28px;
+  border-radius: 24px 0 0 24px;
+}
+
+.painel-form .card {
+  width: min(420px, 100%);
+  border: none;
+  box-shadow: none;
+  padding-top: 8px;
+}
+
+@media (max-width: 880px) {
+  .tela-split-corpo {
+    grid-template-columns: 1fr;
+  }
+
+  .painel-marca {
+    padding: 28px 24px 14px;
+  }
+
+  .painel-form {
+    border-radius: 24px 24px 0 0;
+    padding: 28px 20px;
+  }
 }
 
 .card-login {
@@ -257,19 +364,21 @@ label {
 input,
 select,
 textarea {
-  padding: 9px 11px;
+  padding: 10px 12px;
   border: 1px solid var(--cinza-300);
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   font-family: inherit;
   background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 2px solid var(--azul-500);
-  border-color: transparent;
+  outline: none;
+  border-color: var(--azul-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .btn {
@@ -279,7 +388,15 @@ textarea:focus {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn:focus-visible,
@@ -323,8 +440,17 @@ a:focus-visible {
   background: transparent;
   color: inherit;
   border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.navbar .btn.fantasma {
   font-size: 13px;
   padding: 6px 12px;
+}
+
+.abas .btn.fantasma,
+.barra-filtros .btn.fantasma {
+  border-color: var(--cinza-borda);
+  color: var(--azul-900);
 }
 
 .btn.secundario {
@@ -566,6 +692,7 @@ a:focus-visible {
 .btn.fantasma.ativo {
   background: var(--azul-100, #dbeafe);
   color: var(--azul-600, #2563eb);
+  border-color: var(--azul-100, #dbeafe);
   font-weight: 600;
 }
 
@@ -686,19 +813,19 @@ a:focus-visible {
   font-size: 15px;
 }
 
-.btn.secundario {
+.tela-landing .btn.secundario {
   background: rgba(255, 255, 255, 0.14);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-.btn.secundario:hover:not(:disabled) {
+.tela-landing .btn.secundario:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.22);
 }
 
 .grade-recursos {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
 }
 
@@ -724,21 +851,25 @@ a:focus-visible {
   line-height: 1.5;
 }
 
-.rodape-publico {
-  padding: 16px;
-  text-align: center;
-  font-size: 12px;
-  color: #b9cede60;
-}
-
 /* ===== Telas auxiliares (cadastro, onboarding, seletor) ===== */
 
 .tela-auxiliar {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, var(--azul-900), var(--azul-500));
+  color: #fff;
+}
+
+.tela-auxiliar .topo-publico {
+  padding: 18px 32px;
+}
+
+.tela-auxiliar .centro {
+  flex: 1;
   display: grid;
   place-items: center;
   padding: 28px 0;
-  background: linear-gradient(135deg, var(--azul-900), var(--azul-500));
 }
 
 .link-alternativo {

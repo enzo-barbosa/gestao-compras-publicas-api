@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import api from '../services/api'
 import type { Pagina } from '../services/api'
+import { useAuth } from '../context/useAuth'
+import { organizacaoAtiva, orgIdAtiva } from '../services/organizacoes'
 import { formatarCompetencia, formatarMoeda, formatarStatusEmpenho, extrairMensagemErro } from '../utils/format'
 
 interface DotacaoResumo {
@@ -20,6 +22,8 @@ interface EmpenhoRecente {
 }
 
 export default function DashboardPage() {
+  const { usuario } = useAuth()
+  const orgAtiva = organizacaoAtiva(usuario?.organizacoes ?? [], orgIdAtiva())
   const [dotacoes, setDotacoes] = useState<DotacaoResumo[]>([])
   const [empenhos, setEmpenhos] = useState<EmpenhoRecente[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -49,7 +53,12 @@ export default function DashboardPage() {
 
   return (
     <section>
-      <h2>Dashboard</h2>
+      <h2>Bem-vindo(a), {usuario?.nome ?? 'você'}!</h2>
+      {orgAtiva && (
+        <p className="dica">
+          Você está trabalhando em <strong>{orgAtiva.nome}</strong>.
+        </p>
+      )}
       {erro && <div className="alerta erro" role="alert">{erro}</div>}
 
       <h3>Saldos por dotação orçamentária</h3>

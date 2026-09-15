@@ -1,27 +1,18 @@
 import { Link } from 'react-router-dom'
+import TopoPublico from '../components/TopoPublico'
 
 export default function LandingPage() {
   return (
     <div className="tela-landing">
-      <header className="topo-publico">
-        <div className="marca">
-          <span className="logo">GCP</span>
-          <span>Compras Públicas</span>
-        </div>
-        <nav className="acoes-topo">
-          <Link className="btn fantasma" to="/login">Entrar</Link>
-          <Link className="btn primario" to="/cadastro">Criar conta</Link>
-        </nav>
-      </header>
+      <TopoPublico />
 
       <main className="landing-conteudo">
         <section className="hero">
-          <p className="eyebrow">Gestão orçamentária para órgãos públicos</p>
-          <h1>Cadastre, licite, contrate e empenhe com controle e rastreabilidade.</h1>
+          <p className="eyebrow">Gestão orçamentária para o setor público</p>
+          <h1>Compras públicas sem planilha, sem susto no fim do ano.</h1>
           <p className="hero-sub">
-            Dotações orçamentárias, fornecedores, licitações, contratos e empenhos em um só
-            lugar — organizados por grupo, com papéis de acesso por equipe e lançamentos que
-            comprometem o orçamento apenas na competência do desembolso.
+            Cadastre dotações e fornecedores, conduza licitações, feche contratos e empenhe
+            por competência — com papéis por equipe e o saldo sempre em dia.
           </p>
           <div className="hero-acoes">
             <Link className="btn primario grande" to="/cadastro">Começar agora</Link>
@@ -34,8 +25,8 @@ export default function LandingPage() {
           <div className="grade-passos">
             <div className="passo">
               <span className="numero-passo">1</span>
-              <h3>Crie ou entre no grupo</h3>
-              <p>Crie a organização do seu órgão e convide colegas por e-mail ou código.</p>
+              <h3>Organize o grupo</h3>
+              <p>Crie o grupo do seu órgão e convide colegas por e-mail ou pelo código de acesso.</p>
             </div>
             <div className="passo">
               <span className="numero-passo">2</span>
@@ -51,51 +42,47 @@ export default function LandingPage() {
         </section>
 
         <section className="secao recursos">
-          <h2 className="titulo-secao">Por que o GCP</h2>
+          <h2 className="titulo-secao">Feito para quem cuida do orçamento</h2>
           <div className="grade-recursos">
             <div className="card recurso">
               <span className="recurso-icone">🏢</span>
               <h3>Múltiplos grupos</h3>
-              <p>Participe de quantas organizações precisar, trocando o grupo ativo com um clique.</p>
+              <p>Participe de quantos órgãos precisar e troque o grupo ativo com um clique.</p>
             </div>
             <div className="card recurso">
               <span className="recurso-icone">🛡️</span>
               <h3>Papéis por equipe</h3>
-              <p>Administradores, operadores e visitantes com permissões distintas em cada grupo.</p>
+              <p>Administradores, operadores e visitantes com permissões próprias em cada grupo.</p>
             </div>
             <div className="card recurso">
               <span className="recurso-icone">🧾</span>
               <h3>Orçamento rastreável</h3>
-              <p>Empenhos atrelados a contrato e dotação, com saldo e estorno automáticos.</p>
+              <p>Empenhos ligados a contrato e dotação, com saldo e estorno automáticos.</p>
             </div>
             <div className="card recurso">
               <span className="recurso-icone">📅</span>
               <h3>Só na competência certa</h3>
-              <p>Não trava o orçamento do ano inteiro: cada empenho compromete o valor do mês.</p>
+              <p>O empenho compromete o mês do desembolso, sem travar o orçamento do ano.</p>
             </div>
             <div className="card recurso">
               <span className="recurso-icone">🔒</span>
               <h3>Isolamento por organização</h3>
-              <p>Cada grupo enxerga somente os próprios dados — com papéis controlados por membro.</p>
+              <p>Cada grupo enxerga apenas os próprios dados, com acesso controlado por papel.</p>
             </div>
             <div className="card recurso">
-              <span className="recurso-icone">✓</span>
+              <span className="recurso-icone">✅</span>
               <h3>Auditoria pronta</h3>
-              <p>Histórico de movimentações por dotação e estornos rastreáveis em cada lançamento.</p>
+              <p>Movimentações e estornos registrados, prontos para o controle interno e o TCE.</p>
             </div>
           </div>
         </section>
 
         <section className="cta-final">
-          <h2>Pronto para organizar as compras do seu órgão?</h2>
-          <p>Leva menos de um minuto para criar a conta e o primeiro grupo.</p>
+          <h2>Organize as compras do seu órgão.</h2>
+          <p>Leva menos de um minuto para criar a conta e começar.</p>
           <Link className="btn primario grande" to="/cadastro">Criar conta gratuita</Link>
         </section>
       </main>
-
-      <footer className="rodape-publico">
-        Gestão de Compras Públicas · Israel Mota · estudo técnico
-      </footer>
     </div>
   )
 }
