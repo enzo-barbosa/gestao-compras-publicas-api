@@ -16,7 +16,7 @@ public record EmpenhoResponseDTO(
         BigDecimal valor,
         String status,
         LocalDate dataEmissao,
-        Long usuarioId
+        String usuarioNome
 ) {
 
     public static EmpenhoResponseDTO from(Empenho empenho) {
@@ -34,6 +34,6 @@ public record EmpenhoResponseDTO(
                 empenho.getValor(),
                 empenho.getStatus().name(),
                 empenho.getDataEmissao(),
-                empenho.getUsuario() == null ? null : empenho.getUsuario().getId());
+                empenho.getUsuario() == null ? null : empenho.getUsuario().getNome());
     }
 }

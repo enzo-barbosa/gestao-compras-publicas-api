@@ -232,8 +232,7 @@ class AuthIntegrationTest {
                 "anoReferencia", vigencia.getYear()));
 
         assertThat(empenho.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(((Number) ((Map<?, ?>) empenho.getBody()).get("usuarioId")).longValue())
-                .isNotNull();
+        assertThat((String) ((Map<?, ?>) empenho.getBody()).get("usuarioNome")).isNotBlank();
     }
 
     @Test

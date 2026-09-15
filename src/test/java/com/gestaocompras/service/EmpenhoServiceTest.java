@@ -488,7 +488,7 @@ class EmpenhoServiceTest {
             var resposta = empenhoService.gerar(ORGANIZACAO_ID, request(
                     MES_CORRENTE.getMonthValue(), ANO));
 
-            assertThat(resposta.usuarioId()).isEqualTo(5L);
+            assertThat(resposta.usuarioNome()).isEqualTo("João");
             verify(empenhoRepository).save(argThat((Empenho salvo) ->
                     salvo.getUsuario() != null && salvo.getUsuario().getId().equals(5L)));
         } finally {
