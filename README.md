@@ -15,7 +15,7 @@ Plataforma full-stack para gestão de despesas públicas municipais com um difer
 
 ## Demonstração
 
-![Demo — login, dashboard e empenhos com anulação](docs/img/demo.gif)
+![Demo — login, dashboard, anulação de empenho com confirmação e módulos como créditos e grupos](docs/img/demo.gif)
 
 ## O problema que este projeto resolve
 
@@ -176,9 +176,10 @@ Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` �
 ![Landing pública](docs/img/landing.jpeg)
 ![Cadastro aberto](docs/img/cadastro.jpeg)
 ![Login](docs/img/login.jpeg)
-![Onboarding: criar grupo ou aceitar convite](docs/img/onboarding.jpeg)
 ![Seletor de grupo](docs/img/selecionar-grupo.jpeg)
 ![Dashboard com saldos por dotação](docs/img/dashboard.jpeg)
+![Grupos do usuário](docs/img/grupos.jpeg)
+![Créditos suplementares](docs/img/creditos.jpeg)
 ![Empenhos com badges de saldo](docs/img/empenhos.jpeg)
 ![Gestão de membros do grupo](docs/img/membros.jpeg)
 ![Convites do grupo](docs/img/membros-convites.jpeg)
