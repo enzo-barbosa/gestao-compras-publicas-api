@@ -5,6 +5,7 @@ import { useAuth } from '../context/useAuth'
 import CampoSenha from '../components/CampoSenha'
 import TopoPublico from '../components/TopoPublico'
 import PainelMarca from '../components/PainelMarca'
+import { definirOrgAtiva, destinoPosLogin, orgIdAtiva } from '../services/organizacoes'
 import { extrairMensagemErro } from '../utils/format'
 
 export default function LoginPage() {
@@ -43,8 +44,12 @@ export default function LoginPage() {
     setErro(null)
     setAguardando(true)
     try {
-      await login(email, senha)
-      navegar('/app')
+      const logado = await login(email, senha)
+      const destino = destinoPosLogin(logado.organizacoes ?? [], orgIdAtiva())
+      if (destino.orgAuto !== undefined) {
+        definirOrgAtiva(destino.orgAuto)
+      }
+      navegar(destino.rota)
     } catch (e) {
       setErro(extrairMensagemErro(e))
       setCadastrado(false)

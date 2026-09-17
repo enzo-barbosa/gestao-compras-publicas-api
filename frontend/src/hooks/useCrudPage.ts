@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import api from '../services/api'
 import type { Pagina } from '../services/api'
+import { EVENTO_ORG } from '../services/organizacoes'
 import { useToast } from '../context/useToast'
 import { extrairMensagemErro } from '../utils/format'
 
@@ -55,6 +56,12 @@ export function useCrudPage<T extends { id: number }, F>(config: ConfiguracaoCru
 
   useEffect(() => {
     void carregar()
+  }, [carregar])
+
+  useEffect(() => {
+    const atualizar = () => void carregar()
+    window.addEventListener(EVENTO_ORG, atualizar)
+    return () => window.removeEventListener(EVENTO_ORG, atualizar)
   }, [carregar])
 
   function iniciarEdicao(item: T) {

@@ -131,12 +131,12 @@ export default function ContratosPage() {
     },
     aoSalvar: async (form, editandoId, corpo) => {
       if (editandoId === null) {
+        await api.post('/contratos', corpo)
         exibir('sucesso', 'Contrato criado — saldo restante igual ao valor total.')
-        return api.post('/contratos', corpo)
+        return
       }
       const existente = (await api.get<Contrato>(`/contratos/${editandoId}`)).data
-      exibir('sucesso', 'Contrato atualizado.')
-      return api.put(`/contratos/${editandoId}`, {
+      await api.put(`/contratos/${editandoId}`, {
         numero: form.numero,
         objeto: form.objeto,
         valorTotal: existente.valorTotal,
@@ -146,6 +146,7 @@ export default function ContratosPage() {
         licitacaoId: existente.licitacaoId,
         fornecedorId: existente.fornecedorId,
       })
+      exibir('sucesso', 'Contrato atualizado.')
     },
     confirmarExclusao: (c) => `Confirma a exclusão do contrato ${c.numero}?`,
     mensagemCriacao: 'Contrato criado.',

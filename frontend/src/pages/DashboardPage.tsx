@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '../services/api'
 import type { Pagina } from '../services/api'
 import { useAuth } from '../context/useAuth'
-import { organizacaoAtiva, orgIdAtiva } from '../services/organizacoes'
+import { organizacaoAtiva, orgIdAtiva, EVENTO_ORG } from '../services/organizacoes'
 import { formatarCompetencia, formatarMoeda, formatarStatusEmpenho, extrairMensagemErro } from '../utils/format'
 
 interface DotacaoResumo {
@@ -44,7 +44,13 @@ export default function DashboardPage() {
         setCarregando(false)
       }
     }
+
+    function aoTrocarGrupo() {
+      void carregar()
+    }
     void carregar()
+    window.addEventListener(EVENTO_ORG, aoTrocarGrupo)
+    return () => window.removeEventListener(EVENTO_ORG, aoTrocarGrupo)
   }, [])
 
   if (carregando) {
