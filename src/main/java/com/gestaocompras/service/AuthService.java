@@ -105,8 +105,7 @@ public class AuthService {
     }
 
     private boolean nomeJaUsado(String nome) {
-        return organizacaoRepository.findAll().stream()
-                .anyMatch(existente -> existente.getNome().equalsIgnoreCase(nome));
+        return organizacaoRepository.existsByNomeIgnoreCase(nome);
     }
 
     @Transactional

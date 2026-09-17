@@ -176,9 +176,7 @@ public class OrganizacaoService {
     }
 
     private void validarNomeDisponivel(String nome) {
-        boolean duplicado = organizacaoRepository.findAll().stream()
-                .anyMatch(existente -> existente.getNome().equalsIgnoreCase(nome.trim()));
-        if (duplicado) {
+        if (organizacaoRepository.existsByNomeIgnoreCase(nome.trim())) {
             throw new RegistroDuplicadoException(
                     "Já existe um grupo com o nome %s.".formatted(nome.trim()));
         }

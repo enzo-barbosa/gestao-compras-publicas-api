@@ -3,6 +3,7 @@ package com.gestaocompras.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -65,7 +66,8 @@ class OrganizacaoServiceTest {
         lenient().when(usuarioRepository.findByEmail(EMAIL_ADMIN)).thenReturn(Optional.of(admin));
         lenient().when(organizacaoRepository.findById(ORGANIZACAO_ID))
                 .thenReturn(Optional.of(organizacao));
-        lenient().when(organizacaoRepository.findAll()).thenReturn(List.of(organizacao));
+        lenient().when(organizacaoRepository.existsByNomeIgnoreCase(anyString()))
+                .thenReturn(false);
         lenient().when(organizacaoRepository.getReferenceById(ORGANIZACAO_ID))
                 .thenReturn(organizacao);
     }
@@ -115,6 +117,8 @@ class OrganizacaoServiceTest {
 
     @Test
     void criarComNomeDuplicadoDeveLancar409() {
+        when(organizacaoRepository.existsByNomeIgnoreCase("prefeitura")).thenReturn(true);
+
         assertThatThrownBy(() -> organizacaoService.criar(principal(EMAIL_ADMIN),
                 new OrganizacaoRequestDTO("prefeitura")))
                 .isInstanceOf(RegistroDuplicadoException.class);
@@ -146,7 +150,6 @@ class OrganizacaoServiceTest {
     void renomearPorAdminDeveAlterarNome() {
         when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
                 .thenReturn(Optional.of(membro(organizacao, admin, PapelOrganizacao.ADMIN)));
-        when(organizacaoRepository.findAll()).thenReturn(List.of(organizacao(999L, "Outra", criador)));
 
         var resposta = organizacaoService.renomear(ORGANIZACAO_ID, principal(EMAIL_ADMIN),
                 new OrganizacaoRequestDTO("Prefeitura Nova"));

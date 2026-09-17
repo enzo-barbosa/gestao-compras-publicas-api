@@ -34,7 +34,7 @@ public class DotacaoOrcamentaria {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 30)
+    @Column(nullable = false, length = 30)
     private String codigo;
 
     @Column(nullable = false, length = 200)
