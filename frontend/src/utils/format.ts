@@ -31,6 +31,7 @@ export function extrairMensagemErro(erro: unknown): string {
     }
     if (e.response.data.mensagem) return e.response.data.mensagem
   }
+  if (erro instanceof Error && erro.message) return erro.message
   return 'Erro inesperado. Tente novamente.'
 }
 

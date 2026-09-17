@@ -6,6 +6,7 @@ import type { Coluna } from '../components/TabelaGenerica'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import EmpenhoForm from '../components/EmpenhoForm'
 import { useToast } from '../context/useToast'
+import { useAuth } from '../context/useAuth'
 import { extrairMensagemErro, formatarCompetencia, formatarData, formatarMoeda, formatarStatusEmpenho } from '../utils/format'
 
 interface Empenho {
@@ -48,6 +49,7 @@ const MESES = [
 
 export default function EmpenhosPage() {
   const { exibir } = useToast()
+  const { podeOperar } = useAuth()
   const [itens, setItens] = useState<Empenho[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -146,7 +148,7 @@ export default function EmpenhosPage() {
       <h2>Empenhos</h2>
       {erro && <div className="alerta erro" role="alert">{erro}</div>}
 
-      <EmpenhoForm onGerado={carregar} />
+      {podeOperar && <EmpenhoForm onGerado={carregar} />}
 
       <div className="barra-filtros">
         <select aria-label="Filtrar por mês" value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)}>
@@ -180,12 +182,15 @@ export default function EmpenhosPage() {
         carregando={carregando}
         mensagemVazio="Nenhum empenho registrado."
         ariaLabel="Tabela de empenhos"
-        acoes={(e) =>
-          e.status === 'EMPENHADO' ? (
-            <button className="btn perigo" onClick={() => setAnulando(e)} aria-label={`Anular empenho ${e.contratoNumero}/${e.mesReferencia}/${e.anoReferencia}`}>Anular</button>
-          ) : (
-            <span className="dica">—</span>
-          )
+        acoes={
+          podeOperar
+            ? (e) =>
+                e.status === 'EMPENHADO' ? (
+                  <button className="btn perigo" onClick={() => setAnulando(e)} aria-label={`Anular empenho ${e.contratoNumero}/${e.mesReferencia}/${e.anoReferencia}`}>Anular</button>
+                ) : (
+                  <span className="dica">—</span>
+                )
+            : undefined
         }
       />
 

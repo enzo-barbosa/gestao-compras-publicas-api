@@ -79,9 +79,16 @@ describe('extrairMensagemErro', () => {
     expect(extrairMensagemErro(erro)).toBe('Resposta sem detalhes desses')
   })
 
-  it('retorna mensagem padrão para erros sem resposta estruturada', () => {
-    expect(extrairMensagemErro(new Error('sem response'))).toBe('Erro inesperado. Tente novamente.')
+  it('usa a mensagem de validações customizadas (Error sem response)', () => {
+    expect(extrairMensagemErro(new Error('CNPJ inválido: informe os 14 dígitos.')))
+      .toBe('CNPJ inválido: informe os 14 dígitos.')
+    expect(extrairMensagemErro(new Error('Informe o número do contrato.')))
+      .toBe('Informe o número do contrato.')
+  })
+
+  it('retorna mensagem padrão apenas para valores não estruturados', () => {
     expect(extrairMensagemErro(undefined)).toBe('Erro inesperado. Tente novamente.')
+    expect(extrairMensagemErro(null)).toBe('Erro inesperado. Tente novamente.')
   })
 })
 

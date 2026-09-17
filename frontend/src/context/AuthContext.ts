@@ -12,6 +12,7 @@ export interface UsuarioLogado {
 export interface AuthContexto {
   usuario: UsuarioLogado | null
   autenticado: boolean
+  validando: boolean
   ehAdmin: boolean
   podeOperar: boolean
   login: (email: string, senha: string) => Promise<UsuarioLogado>

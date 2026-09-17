@@ -25,21 +25,25 @@ function carregarUsuario(): UsuarioLogado | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioLogado | null>(carregarUsuario)
-  const [orgPapel, setOrgPapel] = useState<string | undefined>(() =>
-    papelAtivo(usuario?.organizacoes ?? [], orgIdAtiva()),
+  const [orgId, setOrgId] = useState<number | null>(() => orgIdAtiva())
+  const [validando, setValidando] = useState(
+    () => Boolean(localStorage.getItem(TOKEN_KEY)) && !carregarUsuario(),
   )
 
   useEffect(() => {
-    const atualizar = () => {
-      setOrgPapel(papelAtivo(usuario?.organizacoes ?? [], orgIdAtiva()))
-    }
+    const atualizar = () => setOrgId(orgIdAtiva())
     window.addEventListener(EVENTO_ORG, atualizar)
     window.addEventListener('storage', atualizar)
     return () => {
       window.removeEventListener(EVENTO_ORG, atualizar)
       window.removeEventListener('storage', atualizar)
     }
-  }, [usuario])
+  }, [])
+
+  const orgPapel = useMemo(
+    () => papelAtivo(usuario?.organizacoes ?? [], orgId),
+    [usuario, orgId],
+  )
 
   const buscarUsuario = useCallback(async (): Promise<UsuarioLogado> => {
     const dados = await api.get<UsuarioLogado>('/auth/me').then((r) => r.data)
@@ -58,7 +62,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!localStorage.getItem(TOKEN_KEY)) return
     buscarUsuario()
       .then(setUsuario)
-      .catch(() => {})
+      .catch(() => {
+        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(USUARIO_KEY)
+        localStorage.removeItem(ORGAO_KEY)
+        setUsuario(null)
+      })
+      .finally(() => setValidando(false))
   }, [buscarUsuario])
 
   const login = useCallback(
@@ -69,10 +79,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const logado = await buscarUsuario()
         setUsuario(logado)
+        setValidando(false)
         return logado
       } catch (e) {
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(USUARIO_KEY)
+        setValidando(false)
         throw e
       }
     },
@@ -90,19 +102,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(USUARIO_KEY)
     localStorage.removeItem(ORGAO_KEY)
     setUsuario(null)
+    setValidando(false)
   }, [])
 
   const valor = useMemo(
     () => ({
       usuario,
       autenticado: !!usuario,
+      validando,
       ehAdmin: podeGerir(usuario?.perfil ?? '', orgPapel),
       podeOperar: podeOperar(usuario?.perfil ?? '', orgPapel),
       login,
       logout,
       recarregarOrganizacoes,
     }),
-    [usuario, orgPapel, login, logout, recarregarOrganizacoes],
+    [usuario, orgPapel, validando, login, logout, recarregarOrganizacoes],
   )
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>
