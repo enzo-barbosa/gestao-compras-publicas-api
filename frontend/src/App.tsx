@@ -9,7 +9,7 @@ import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import CadastroPage from './pages/CadastroPage'
 import SelecionarGrupoPage from './pages/SelecionarGrupoPage'
-import EsqueciSenhaPage from './pages/EsqueciSenhaPage'
+import RedefinirSenhaPage from './pages/RedefinirSenhaPage'
 
 export default function App() {
   return (
@@ -21,7 +21,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cadastro" element={<CadastroPage />} />
-            <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
+            <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
             <Route path="/onboarding" element={<Navigate to="/app/grupos" replace />} />
             <Route
               path="/selecionar-grupo"

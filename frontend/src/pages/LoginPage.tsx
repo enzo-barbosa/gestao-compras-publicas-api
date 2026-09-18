@@ -127,7 +127,7 @@ export default function LoginPage() {
             </button>
 
             <p className="link-alternativo">
-              Esqueceu a senha? <Link to="/esqueci-senha">Recuperar acesso</Link>
+              Quer trocar a senha? <Link to="/redefinir-senha">Redefinir senha</Link>
             </p>
 
             <p className="link-alternativo">
