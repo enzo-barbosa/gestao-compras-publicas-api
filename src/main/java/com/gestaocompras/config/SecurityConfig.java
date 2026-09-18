@@ -110,6 +110,7 @@ public class SecurityConfig {
         configuracao.setAllowedOrigins(List.of(allowedOrigins.split(",")));
         configuracao.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
         configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Org-Id"));
+        configuracao.setExposedHeaders(List.of("Retry-After"));
         UrlBasedCorsConfigurationSource origem = new UrlBasedCorsConfigurationSource();
         origem.registerCorsConfiguration("/**", configuracao);
         return origem;
