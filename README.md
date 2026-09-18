@@ -7,7 +7,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791)
 ![Docker](https://img.shields.io/badge/Docker-2496ED)
-![Cobertura](https://img.shields.io/badge/cobertura-83.9%25-brightgreen)
+![Cobertura](https://img.shields.io/badge/cobertura-84.8%25-brightgreen)
 
 **Em uma frase:** plataforma web que ajuda prefeituras e órgãos públicos a controlar dotação orçamentária, fornecedores, licitações, contratos e empenhos em um só lugar — com rateio mensal automático dos contratos e dados isolados por organização.
 
@@ -42,6 +42,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 - **Autenticação JWT** (JJWT 0.12.x, TTL 8h) com papéis globais (`SUPER_ADMIN`) e papéis **por grupo/organização** (`ADMIN`/`OPERADOR`/`VISITANTE`) selecionada pelo header `X-Org-Id`, versão de token para revogação de sessões e **conta de usuário** (editar nome, trocar senha e sair em todos os dispositivos)
 - **Multitenancy por grupos**: cada organização tem seus próprios dotações/fornecedores/licitações/contratos/empenhos — isolamento total entre grupos, com convites por e-mail ou código
 - **Proteção contra força bruta** nas rotas públicas de autenticação: rate limiting em memória por IP + rota, com resposta `429` e header `Retry-After`
+- **Recuperação de senha** por código de 6 dígitos enviado por e-mail (Resend, expira em 15 min) — sem `RESEND_API_KEY` o código é registrado no log do backend (modo dev)
 - **Frontend React** (Vite + TypeScript) com dashboard de saldos, CRUDs e formulário de empenho com feedback visual
 
 ## Stack
@@ -71,6 +72,8 @@ Usuário administrador semeado automaticamente:
 email: admin@admin.com
 senha: admin
 ```
+
+> **Recuperação de senha em dev:** sem `RESEND_API_KEY`, o `EmailService` registra o código de 6 dígitos no log do backend — o fluxo "Esqueci minha senha" funciona localmente sem configurar e-mail.
 
 ### Documentação interativa da API (Swagger/OpenAPI)
 
@@ -139,13 +142,17 @@ erDiagram
 |---|---|---|---|
 | POST | `/api/auth/login` | Autenticação, retorna JWT | público |
 | POST | `/api/auth/register` | Cadastro aberto (perfil `USUARIO`) | público |
+| POST | `/api/auth/esqueci-senha` | Envia código de recuperação (6 dígitos, expira em 15 min) por e-mail | público |
+| POST | `/api/auth/redefinir-senha` | Redefine a senha usando o código recebido | público |
 | GET | `/api/auth/me` | Usuário + lista de organizações com o papel em cada uma | autenticado |
 | PUT | `/api/auth/minha-conta` | Edita o nome do usuário logado | autenticado |
 | PUT | `/api/auth/alterar-senha` | Troca a senha (valida senha atual; **re-emite token** e invalida as demais sessões) | autenticado |
 | POST | `/api/auth/logout-todos` | Revoga todas as sessões do usuário (bump em `versao_token`) | autenticado |
-| POST/GET/PUT | `/api/organizacoes` | Criar grupo (quem cria vira ADMIN), listar os meus, renomear | criador: qualquer autenticado; renomear: ADMIN |
+| POST/GET | `/api/organizacoes` | Criar grupo (quem cria vira ADMIN), listar os meus | qualquer autenticado |
+| PUT | `/api/organizacoes/{id}` | Renomear grupo | ADMIN |
 | GET | `/api/organizacoes/{id}` | Detalhes do grupo | membro |
 | GET/POST/PUT/DELETE | `/api/organizacoes/{id}/membros` | Listar/adicionar/alterar papel/remover membros | leitura: membro; gestão: ADMIN |
+| DELETE | `/api/organizacoes/{id}/membros/eu` | Sair do grupo (remove o próprio vínculo) | membro |
 | POST/GET/DELETE | `/api/organizacoes/{id}/convites` | Criar convite (por e-mail **ou** código), listar pendentes, revogar | ADMIN |
 | POST | `/api/convites/aceitar` | Aceitar convite por código | autenticado |
 | POST | `/api/convites/aceitar-email` | Aceitar convites pendentes do meu e-mail | autenticado |
@@ -153,11 +160,13 @@ erDiagram
 | PUT | `/api/admin/usuarios/{id}/perfil` | Promover/rebaixar perfil (proíbe rebaixar-se ou derrubar o último super admin) | SUPER_ADMIN |
 | GET | `/api/admin/organizacoes` | Listar organizações com total de membros | SUPER_ADMIN |
 | GET/POST/PUT/DELETE | `/api/dotacoes/**` | Dotações, saldo e movimentações | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
+| GET/POST | `/api/creditos-suplementares/**` | Créditos suplementares (validam ano/exercício) | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
 | GET/POST/PUT/DELETE | `/api/fornecedores/**` | Fornecedores (busca por nome) | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
 | GET/POST/PUT/DELETE | `/api/licitacoes/**` | Licitações + filtro status/modalidade | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
 | PUT | `/api/licitacoes/{id}/vencedor` | Define vencedor e encerra | ADMIN/OPERADOR |
 | GET/POST/PUT/DELETE | `/api/contratos/**` | Contratos + filtros | leitura: todos os papéis; escrita: ADMIN/OPERADOR |
-| POST | `/api/empenhos` | Gera empenho da competência | ADMIN/OPERADOR |
+| GET/POST | `/api/empenhos` | Lista com filtros (contrato/dotação/mês/ano/período) e gera empenho da competência | GET: todos os papéis; POST: ADMIN/OPERADOR |
+| GET | `/api/empenhos/{id}` | Detalhe do empenho | todos os papéis |
 | DELETE | `/api/empenhos/{id}` | Anula com estorno atômico | ADMIN/OPERADOR |
 
 Erros seguem envelope único `{ timestamp, status, erro, mensagem, detalhes }` — as mensagens de negócio ("Saldo insuficiente na dotação…", "Já existe empenho do contrato… para a competência…") chegam prontas para exibição. Acesso indevido a um grupo retorna `403` "Você não é membro desta organização."; o criador do grupo não pode ser rebaixado nem removido.

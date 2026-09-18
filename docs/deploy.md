@@ -69,6 +69,8 @@ Endpoints de produção:
 | `RATE_LIMIT_REGISTRO` | não | cadastros por IP/5min (default 5) |
 | `RATE_LIMIT_ESQUECI` | não | pedidos de recuperação por IP/5min (default 3) |
 | `RATE_LIMIT_REDEFINIR` | não | redefinições de senha por IP/15min (default 10) |
+| `RESEND_API_KEY` | não | chave da API Resend para enviar o código de recuperação de senha; **sem ela o e-mail não é enviado** e o código só aparece no log da API |
+| `RESEND_EMAIL_FROM` | não | remetente verificado no Resend (default `onboarding@resend.dev`) |
 
 **Vercel — front:**
 
