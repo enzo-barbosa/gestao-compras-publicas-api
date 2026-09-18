@@ -7,6 +7,7 @@ import type { Coluna } from '../components/TabelaGenerica'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
 import { extrairMensagemErro, formatarData, formatarMoeda } from '../utils/format'
+import { paramsListagem } from '../utils/listagem'
 
 interface Credito {
   id: number
@@ -21,8 +22,6 @@ interface DotacaoOpcao {
   id: number
   codigo: string
 }
-
-const PARAMS_BASE = { size: 100, sort: 'data,desc' } as const
 
 export default function CreditosPage() {
   const { podeOperar } = useAuth()
@@ -47,7 +46,7 @@ export default function CreditosPage() {
 
   const params = useMemo(
     () => ({
-      ...PARAMS_BASE,
+      ...paramsListagem('data,desc'),
       ...(filtroDotacaoId ? { dotacaoId: Number(filtroDotacaoId) } : {}),
       ...(filtroDataInicio ? { dataInicio: filtroDataInicio } : {}),
       ...(filtroDataFim ? { dataFim: filtroDataFim } : {}),

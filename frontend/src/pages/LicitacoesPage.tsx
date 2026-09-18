@@ -9,6 +9,7 @@ import { useCrudPage } from '../hooks/useCrudPage'
 import { useToast } from '../context/useToast'
 import { dataEncerramentoValida } from '../utils/validacao'
 import { extrairMensagemErro, formatarData, formatarMoeda } from '../utils/format'
+import { paramsListagem } from '../utils/listagem'
 
 interface Licitacao {
   id: number
@@ -64,8 +65,6 @@ const STATUS_LICITACAO = [
   ['CANCELADA', 'Cancelada'],
 ] as const
 
-const PARAMS_BASE = { size: 100, sort: 'dataAbertura,desc' } as const
-
 export default function LicitacoesPage() {
   const { podeOperar } = useAuth()
   const { exibir } = useToast()
@@ -77,7 +76,7 @@ export default function LicitacoesPage() {
 
   const params = useMemo(
     () => ({
-      ...PARAMS_BASE,
+      ...paramsListagem('dataAbertura,desc'),
       ...(filtroStatus ? { status: filtroStatus } : {}),
       ...(filtroModalidade ? { modalidade: filtroModalidade } : {}),
     }),

@@ -8,6 +8,7 @@ import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { useToast } from '../context/useToast'
 import { formatarData, formatarMoeda } from '../utils/format'
+import { paramsListagem } from '../utils/listagem'
 
 interface Contrato {
   id: number
@@ -73,8 +74,6 @@ const STATUS_CONTRATO = [
   ['RESCINDIDO', 'Rescindido'],
 ] as const
 
-const PARAMS_BASE = { size: 100, sort: 'dataInicio,desc' } as const
-
 export default function ContratosPage() {
   const { podeOperar } = useAuth()
   const { exibir } = useToast()
@@ -87,7 +86,7 @@ export default function ContratosPage() {
 
   const params = useMemo(
     () => ({
-      ...PARAMS_BASE,
+      ...paramsListagem('dataInicio,desc'),
       ...(filtroStatus ? { status: filtroStatus } : {}),
       ...(filtroDotacaoId ? { dotacaoId: Number(filtroDotacaoId) } : {}),
       ...(filtroFornecedorId ? { fornecedorId: Number(filtroFornecedorId) } : {}),

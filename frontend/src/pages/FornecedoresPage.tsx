@@ -5,6 +5,7 @@ import type { Coluna } from '../components/TabelaGenerica'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { cnpjValido } from '../utils/validacao'
+import { paramsListagem } from '../utils/listagem'
 
 interface Fornecedor {
   id: number
@@ -25,8 +26,6 @@ interface FornecedorForm {
 
 const FORM_VAZIO: FornecedorForm = { nome: '', cnpj: '', email: '', telefone: '', endereco: '' }
 
-const PARAMS_BASE = { size: 100 } as const
-
 export default function FornecedoresPage() {
   const { podeOperar } = useAuth()
   const [filtroNome, setFiltroNome] = useState('')
@@ -39,7 +38,7 @@ export default function FornecedoresPage() {
 
   const params = useMemo(
     () => ({
-      ...PARAMS_BASE,
+      ...paramsListagem(),
       ...(filtroNomeAplicado ? { nome: filtroNomeAplicado } : {}),
     }),
     [filtroNomeAplicado],

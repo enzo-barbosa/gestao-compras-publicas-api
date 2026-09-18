@@ -5,6 +5,7 @@ import type { Coluna } from '../components/TabelaGenerica'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { formatarMoeda } from '../utils/format'
+import { paramsListagem } from '../utils/listagem'
 
 interface Dotacao {
   id: number
@@ -28,15 +29,13 @@ function formVazio(): DotacaoForm {
   return { codigo: '', descricao: '', saldoInicial: '', anoExercicio: String(ANO_ATUAL) }
 }
 
-const PARAMS_BASE = { size: 100 } as const
-
 export default function DotacoesPage() {
   const { podeOperar } = useAuth()
   const [filtroAnoExercicio, setFiltroAnoExercicio] = useState('')
 
   const params = useMemo(
     () => ({
-      ...PARAMS_BASE,
+      ...paramsListagem(),
       ...(filtroAnoExercicio ? { anoExercicio: Number(filtroAnoExercicio) } : {}),
     }),
     [filtroAnoExercicio],
