@@ -247,4 +247,66 @@ class OrganizacoesIntegrationTest {
 
         assertThat(tentativa.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
+
+    @Test
+    @Order(9)
+    void adminRedefineSenhaDeMembroERevogaSessoes() {
+        String tokenAdmin = tokenDe(EMAIL_A);
+        Long usuarioOperador = membroIdPorEmail(tokenAdmin, EMAIL_C);
+        String tokenAntigo = tokenDe(EMAIL_C);
+        String novaSenha = "novaSenha456";
+
+        var reset = troca("/api/organizacoes/" + organizacaoId + "/membros/" + usuarioOperador
+                + "/senha", HttpMethod.PUT, adminComOrga(tokenAdmin, organizacaoId),
+                Map.of("novaSenha", novaSenha));
+
+        assertThat(reset.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        var loginNovo = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(EMAIL_C, novaSenha), TokenResponseDTO.class);
+        assertThat(loginNovo.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        var loginAntigo = http.postForEntity(url("/api/auth/login"),
+                new LoginRequestDTO(EMAIL_C, SENHA), Map.class);
+        assertThat(loginAntigo.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        var meAntigo = troca("/api/auth/me", HttpMethod.GET, comBearer(tokenAntigo), null);
+        assertThat(meAntigo.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @Order(10)
+    void operadorNaoPodeRedefinirSenhaDeOutroMembro() {
+        String tokenOperador = tokenDe(EMAIL_D);
+
+        var tentativa = troca("/api/organizacoes/" + organizacaoId + "/membros/"
+                + usuarioAdminId + "/senha", HttpMethod.PUT,
+                adminComOrga(tokenOperador, organizacaoId), Map.of("novaSenha", "outraSenha456"));
+
+        assertThat(tentativa.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @Order(11)
+    void criadorNaoPodeTerSenhaRedefinidaPorAdmin() {
+        var tentativa = troca("/api/organizacoes/" + organizacaoId + "/membros/"
+                + usuarioAdminId + "/senha", HttpMethod.PUT,
+                adminComOrga(tokenDe(EMAIL_A), organizacaoId), Map.of("novaSenha", "outraSenha456"));
+
+        assertThat(tentativa.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Long membroIdPorEmail(String tokenAdmin, String email) {
+        var membros = trocaLista("/api/organizacoes/" + organizacaoId + "/membros",
+                HttpMethod.GET, adminComOrga(tokenAdmin, organizacaoId), null);
+        assertThat(membros.getStatusCode()).isEqualTo(HttpStatus.OK);
+        java.util.List<Map<String, Object>> lista =
+                (java.util.List<Map<String, Object>>) membros.getBody();
+        return lista.stream()
+                .filter(membro -> email.equals(membro.get("email")))
+                .map(membro -> ((Number) membro.get("usuarioId")).longValue())
+                .findFirst()
+                .orElseThrow();
+    }
 }

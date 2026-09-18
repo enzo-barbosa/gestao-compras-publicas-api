@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.gestaocompras.dto.MembroPapelRequestDTO;
 import com.gestaocompras.dto.MembroRequestDTO;
+import com.gestaocompras.dto.MembroSenhaRequestDTO;
 import com.gestaocompras.dto.OrganizacaoRequestDTO;
 import com.gestaocompras.exception.NaoMembroException;
 import com.gestaocompras.exception.NotFoundException;
@@ -35,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class OrganizacaoServiceTest {
@@ -50,6 +52,9 @@ class OrganizacaoServiceTest {
 
     @Mock
     private UsuarioRepository usuarioRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private OrganizacaoService organizacaoService;
@@ -337,6 +342,90 @@ class OrganizacaoServiceTest {
         organizacaoService.sairDaOrganizacao(ORGANIZACAO_ID, principal(EMAIL_ADMIN));
 
         verify(membroRepository).delete(membro);
+    }
+
+    @Test
+    void redefinirSenhaDeMembroPorAdminDeveCodificarEAvancarVersao() {
+        stubsAdmin();
+        Usuario alvo = usuario(2L, "alvo@org.com");
+        alvo.setVersaoToken(4);
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, 2L))
+                .thenReturn(Optional.of(membro(organizacao, alvo, PapelOrganizacao.OPERADOR)));
+        when(passwordEncoder.matches("novaSenha123", alvo.getSenha())).thenReturn(false);
+        when(passwordEncoder.encode("novaSenha123")).thenReturn("$2a$10$novo");
+
+        organizacaoService.redefinirSenhaMembro(ORGANIZACAO_ID, principal(EMAIL_ADMIN), 2L,
+                new MembroSenhaRequestDTO("novaSenha123"));
+
+        assertThat(alvo.getSenha()).isEqualTo("$2a$10$novo");
+        assertThat(alvo.getVersaoToken()).isEqualTo(5);
+        verify(usuarioRepository).save(alvo);
+    }
+
+    @Test
+    void redefinirSenhaDeMembroNaoAdminDeveLancar409() {
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
+                .thenReturn(Optional.of(membro(organizacao, admin, PapelOrganizacao.OPERADOR)));
+
+        assertThatThrownBy(() -> organizacaoService.redefinirSenhaMembro(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN), 2L, new MembroSenhaRequestDTO("novaSenha123")))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+    }
+
+    @Test
+    void redefinirSenhaDeNaoMembroDeveLancar403() {
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> organizacaoService.redefinirSenhaMembro(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN), 2L, new MembroSenhaRequestDTO("novaSenha123")))
+                .isInstanceOf(NaoMembroException.class);
+    }
+
+    @Test
+    void redefinirSenhaDeAlvoNaoMembroDeveLancar404() {
+        stubsAdmin();
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, 2L))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> organizacaoService.redefinirSenhaMembro(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN), 2L, new MembroSenhaRequestDTO("novaSenha123")))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void redefinirSenhaDoCriadorDeveLancar409() {
+        stubsAdmin();
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, criador.getId()))
+                .thenReturn(Optional.of(membro(organizacao, criador, PapelOrganizacao.ADMIN)));
+
+        assertThatThrownBy(() -> organizacaoService.redefinirSenhaMembro(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN), criador.getId(),
+                new MembroSenhaRequestDTO("novaSenha123")))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+    }
+
+    @Test
+    void redefinirSenhaDeSiMesmoDeveLancar409() {
+        stubsAdmin();
+
+        assertThatThrownBy(() -> organizacaoService.redefinirSenhaMembro(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN), admin.getId(), new MembroSenhaRequestDTO("novaSenha123")))
+                .isInstanceOf(OperacaoNaoPermitidaException.class);
+    }
+
+    @Test
+    void redefinirSenhaIgualADeAtualDeveLancar400() {
+        stubsAdmin();
+        Usuario alvo = usuario(2L, "alvo@org.com");
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, 2L))
+                .thenReturn(Optional.of(membro(organizacao, alvo, PapelOrganizacao.OPERADOR)));
+        when(passwordEncoder.matches("senhaAtual123", alvo.getSenha())).thenReturn(true);
+
+        assertThatThrownBy(() -> organizacaoService.redefinirSenhaMembro(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN), 2L, new MembroSenhaRequestDTO("senhaAtual123")))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(usuarioRepository, never()).save(any(Usuario.class));
     }
 
     private void stubsAdmin() {

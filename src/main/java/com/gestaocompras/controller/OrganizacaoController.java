@@ -5,6 +5,7 @@ import com.gestaocompras.dto.ConviteResponseDTO;
 import com.gestaocompras.dto.MembroPapelRequestDTO;
 import com.gestaocompras.dto.MembroRequestDTO;
 import com.gestaocompras.dto.MembroResponseDTO;
+import com.gestaocompras.dto.MembroSenhaRequestDTO;
 import com.gestaocompras.dto.OrganizacaoRequestDTO;
 import com.gestaocompras.dto.OrganizacaoResponseDTO;
 import com.gestaocompras.security.UsuarioLogado;
@@ -84,6 +85,14 @@ public class OrganizacaoController {
             @PathVariable Long usuarioId, @Valid @RequestBody MembroPapelRequestDTO request) {
         return ResponseEntity.ok(
                 organizacaoService.alterarPapel(id, usuarioLogado, usuarioId, request));
+    }
+
+    @PutMapping("/{id}/membros/{usuarioId}/senha")
+    public ResponseEntity<Void> redefinirSenhaMembro(
+            @AuthenticationPrincipal UsuarioLogado usuarioLogado, @PathVariable Long id,
+            @PathVariable Long usuarioId, @Valid @RequestBody MembroSenhaRequestDTO request) {
+        organizacaoService.redefinirSenhaMembro(id, usuarioLogado, usuarioId, request);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}/membros/eu")

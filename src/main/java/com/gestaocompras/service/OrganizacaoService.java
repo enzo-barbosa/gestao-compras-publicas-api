@@ -3,6 +3,7 @@ package com.gestaocompras.service;
 import com.gestaocompras.dto.MembroPapelRequestDTO;
 import com.gestaocompras.dto.MembroRequestDTO;
 import com.gestaocompras.dto.MembroResponseDTO;
+import com.gestaocompras.dto.MembroSenhaRequestDTO;
 import com.gestaocompras.dto.OrganizacaoRequestDTO;
 import com.gestaocompras.dto.OrganizacaoResponseDTO;
 import com.gestaocompras.exception.NaoMembroException;
@@ -20,6 +21,7 @@ import com.gestaocompras.security.UsuarioLogado;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,13 +31,16 @@ public class OrganizacaoService {
     private final OrganizacaoRepository organizacaoRepository;
     private final MembroOrganizacaoRepository membroRepository;
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public OrganizacaoService(OrganizacaoRepository organizacaoRepository,
             MembroOrganizacaoRepository membroRepository,
-            UsuarioRepository usuarioRepository) {
+            UsuarioRepository usuarioRepository,
+            PasswordEncoder passwordEncoder) {
         this.organizacaoRepository = organizacaoRepository;
         this.membroRepository = membroRepository;
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -157,6 +162,36 @@ public class OrganizacaoService {
         membroRepository.delete(membro);
     }
 
+    @Transactional
+    public void redefinirSenhaMembro(Long organizacaoId, UsuarioLogado principal, Long usuarioId,
+            MembroSenhaRequestDTO request) {
+        Organizacao organizacao = org(organizacaoId);
+        MembroOrganizacao solicitante = exigirAdmin(organizacaoId, principal,
+                buscarAutenticado(principal));
+        MembroOrganizacao membro = membro(organizacaoId, usuarioId);
+        protegerResetDeSenha(organizacao, solicitante, usuarioId);
+        Usuario alvo = membro.getId().getUsuario();
+        if (passwordEncoder.matches(request.novaSenha(), alvo.getSenha())) {
+            throw new IllegalArgumentException(
+                    "A nova senha deve ser diferente da senha atual.");
+        }
+        alvo.setSenha(passwordEncoder.encode(request.novaSenha()));
+        alvo.setVersaoToken(incrementarVersao(alvo.getVersaoToken()));
+        usuarioRepository.save(alvo);
+    }
+
+    private void protegerResetDeSenha(Organizacao organizacao, MembroOrganizacao solicitante,
+            Long usuarioAlvo) {
+        if (organizacao.getCriadoPor().getId().equals(usuarioAlvo)) {
+            throw new OperacaoNaoPermitidaException(
+                    "A senha do criador do grupo não pode ser redefinida por outro administrador.");
+        }
+        if (solicitante != null && solicitante.getId().getUsuario().getId().equals(usuarioAlvo)) {
+            throw new OperacaoNaoPermitidaException(
+                    "Use \"Minha conta\" para trocar a sua própria senha.");
+        }
+    }
+
     private void protegerCriadorESolicitante(Organizacao organizacao,
             MembroOrganizacao solicitante, Long usuarioAlvo) {
         if (organizacao.getCriadoPor().getId().equals(usuarioAlvo)) {
@@ -180,6 +215,10 @@ public class OrganizacaoService {
             throw new RegistroDuplicadoException(
                     "Já existe um grupo com o nome %s.".formatted(nome.trim()));
         }
+    }
+
+    private int incrementarVersao(Integer atual) {
+        return atual == null ? 1 : atual + 1;
     }
 
     private Organizacao org(Long id) {
