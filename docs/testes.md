@@ -1,13 +1,13 @@
 # Estratégia e documentação de testes
 
-> Camada de qualidade do projeto: 182 testes backend (JUnit 5 + Mockito + Spring Boot Test), 51 testes de frontend (Vitest), smoke E2E com 52 verificações e relatório de cobertura JaCoCo.
+> Camada de qualidade do projeto: 182 testes backend (JUnit 5 + Mockito + Spring Boot Test), 51 testes de frontend (Vitest), smoke E2E com 59 verificações e relatório de cobertura JaCoCo.
 
 ## Pirâmide de testes
 
 O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e isolados), **alguns testes de integração** (fluxos reais com banco de verdade) e **um smoke E2E** (o sistema de ponta a ponta via API).
 
 ```
-        /e2e\        scripts/test-api.sh — 52 verificações curl
+        /e2e\        scripts/test-api.sh — 59 verificações curl
        /integração\  Spring Boot Test + PostgreSQL real — 37 testes (+1 de contexto)
       /__unitários__\  JUnit 5 + Mockito — 144 testes (services + handler global)
 ```
@@ -43,7 +43,7 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 
 ### 3. Smoke E2E — `scripts/test-api.sh`
 
-52 verificações end-to-end via `curl` contra a API rodando: fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos → anulação → saldos), ciclo multitenancy (cadastro público, grupos, membros, convites por código/e-mail, papéis por grupo e isolamento por `X-Org-Id`), painel do super admin e caminhos negativos (401/400/403/409).
+59 verificações end-to-end via `curl` contra a API rodando: fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos → anulação → saldos), ciclo multitenancy (cadastro público, grupos, membros, convites por código/e-mail, papéis por grupo e isolamento por `X-Org-Id`), painel do super admin, redefinição de senha (pública, confirmando a senha atual, e pelo ADMIN do grupo) e caminhos negativos (401/400/403/404/409).
 
 ### 4. Frontend — `frontend/src`
 
@@ -60,7 +60,7 @@ docker compose up -d
 ./mvnw -Dtest=AnulacaoConcorrenteIntegrationTest test   # só o teste de concorrência
 
 # Smoke E2E
-./scripts/test-api.sh                    # 52 verificações
+./scripts/test-api.sh                    # 59 verificações
 
 # Frontend
 cd frontend && npm install
