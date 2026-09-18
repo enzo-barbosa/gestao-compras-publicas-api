@@ -7,7 +7,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791)
 ![Docker](https://img.shields.io/badge/Docker-2496ED)
-![Cobertura](https://img.shields.io/badge/cobertura-84.8%25-brightgreen)
+![Cobertura](https://img.shields.io/badge/cobertura-84.2%25-brightgreen)
 
 **Em uma frase:** plataforma web que ajuda prefeituras e órgãos públicos a controlar dotação orçamentária, fornecedores, licitações, contratos e empenhos em um só lugar — com rateio mensal automático dos contratos e dados isolados por organização.
 
@@ -42,7 +42,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 - **Autenticação JWT** (JJWT 0.12.x, TTL 8h) com papéis globais (`SUPER_ADMIN`) e papéis **por grupo/organização** (`ADMIN`/`OPERADOR`/`VISITANTE`) selecionada pelo header `X-Org-Id`, versão de token para revogação de sessões e **conta de usuário** (editar nome, trocar senha e sair em todos os dispositivos)
 - **Multitenancy por grupos**: cada organização tem seus próprios dotações/fornecedores/licitações/contratos/empenhos — isolamento total entre grupos, com convites por e-mail ou código
 - **Proteção contra força bruta** nas rotas públicas de autenticação: rate limiting em memória por IP + rota, com resposta `429` e header `Retry-After`
-- **Recuperação de senha** por código de 6 dígitos enviado por e-mail (Resend, expira em 15 min) — sem `RESEND_API_KEY` o código é registrado no log do backend (modo dev)
+- **Redefinição de senha sem e-mail**: confirma o e-mail + a senha atual no banco e exige uma nova senha diferente; ao trocar, revoga todas as sessões (bump em `versao_token`)
 - **Frontend React** (Vite + TypeScript) com dashboard de saldos, CRUDs e formulário de empenho com feedback visual
 
 ## Stack
@@ -53,7 +53,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V8) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 180 testes backend (JUnit 5 + Mockito + integração) + 51 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
+| Qualidade | 172 testes backend (JUnit 5 + Mockito + integração) + 51 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
 
 ## Como rodar
 
@@ -73,15 +73,13 @@ email: admin@admin.com
 senha: admin
 ```
 
-> **Recuperação de senha em dev:** sem `RESEND_API_KEY`, o `EmailService` registra o código de 6 dígitos no log do backend — o fluxo "Esqueci minha senha" funciona localmente sem configurar e-mail.
-
 ### Documentação interativa da API (Swagger/OpenAPI)
 
 Com a API rodando, acesse `http://localhost:8080/swagger-ui.html`. A especificação OpenAPI (`/v3/api-docs`) documenta todos os endpoints com **autenticação Bearer (JWT)** e o **header `X-Org-Id`** (requerido em todos os endpoints de negócio) — permitindo testar as chamadas diretamente pelo navegador. Em produção o Swagger fica **desabilitado** (`swagger.ativo=false`, `springdoc.api-docs.enabled=false`).
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 180 testes
+./mvnw test                          # 172 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
@@ -142,8 +140,7 @@ erDiagram
 |---|---|---|---|
 | POST | `/api/auth/login` | Autenticação, retorna JWT | público |
 | POST | `/api/auth/register` | Cadastro aberto (perfil `USUARIO`) | público |
-| POST | `/api/auth/esqueci-senha` | Envia código de recuperação (6 dígitos, expira em 15 min) por e-mail | público |
-| POST | `/api/auth/redefinir-senha` | Redefine a senha usando o código recebido | público |
+| POST | `/api/auth/redefinir-senha` | Redefine a senha confirmando e-mail + senha atual | público |
 | GET | `/api/auth/me` | Usuário + lista de organizações com o papel em cada uma | autenticado |
 | PUT | `/api/auth/minha-conta` | Edita o nome do usuário logado | autenticado |
 | PUT | `/api/auth/alterar-senha` | Troca a senha (valida senha atual; **re-emite token** e invalida as demais sessões) | autenticado |

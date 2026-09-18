@@ -67,10 +67,7 @@ Endpoints de produção:
 | `RATE_LIMIT_HABILITADO` | não | `true` (default) liga o rate limiting nas rotas públicas de auth; `false` desliga |
 | `RATE_LIMIT_LOGIN` | não | tentativas de login por IP/60s (default 10) |
 | `RATE_LIMIT_REGISTRO` | não | cadastros por IP/5min (default 5) |
-| `RATE_LIMIT_ESQUECI` | não | pedidos de recuperação por IP/5min (default 3) |
-| `RATE_LIMIT_REDEFINIR` | não | redefinições de senha por IP/15min (default 10) |
-| `RESEND_API_KEY` | não | chave da API Resend para enviar o código de recuperação de senha; **sem ela o e-mail não é enviado** e o código só aparece no log da API |
-| `RESEND_EMAIL_FROM` | não | remetente verificado no Resend (default `onboarding@resend.dev`) |
+| `RATE_LIMIT_REDEFINIR` | não | redefinições de senha por IP/15min (default 5) |
 
 **Vercel — front:**
 
@@ -134,7 +131,7 @@ Notas de config:
   fixo `USUARIO`) e o primeiro ADMIN da organização é quem a cria.
 - CORS `allowedHeaders` restrito a `Authorization, Content-Type, X-Org-Id` e `Retry-After` exposto.
 - **Rate limiting** em memória (sem dependência externa) nas rotas públicas de auth: `login`,
-  `register`, `esqueci-senha` e `redefinir-senha`, com chave IP + rota e resposta `429` +
+  `register` e `redefinir-senha`, com chave IP + rota e resposta `429` +
   `Retry-After`. O estado é por instância — num cenário com múltiplas réplicas, migrar para um
   backend compartilhado (ex.: Redis).
 
