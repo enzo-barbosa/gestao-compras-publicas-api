@@ -410,24 +410,44 @@ class AuthIntegrationTest {
 
     @Test
     @Order(16)
-    void esqueciSenhaDeveResponder200MesmoParaEmailInexistente() {
-        var solicitacao = troca("/api/auth/esqueci-senha", HttpMethod.POST, new HttpHeaders(),
-                Map.of("email", "nao-existe" + System.nanoTime() + "@x.com"));
+    void redefinirSenhaComSenhaAtualCorretaDeveTrocar() {
+        String email = "redefinir" + System.nanoTime() + "@x.com";
+        troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
+                new RegistroRequestDTO("Redefinir", email, "senhaSegura123"));
 
-        assertThat(solicitacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var redefinir = troca("/api/auth/redefinir-senha", HttpMethod.POST, new HttpHeaders(),
+                Map.of("email", email, "senhaAtual", "senhaSegura123",
+                        "novaSenha", "novaSenhaSegura456"));
+
+        assertThat(redefinir.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(troca("/api/auth/login", HttpMethod.POST, new HttpHeaders(),
+                new LoginRequestDTO(email, "novaSenhaSegura456")).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(troca("/api/auth/login", HttpMethod.POST, new HttpHeaders(),
+                new LoginRequestDTO(email, "senhaSegura123")).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     @Order(17)
-    void redefinirSenhaComCodigoInvalidoDeveRetornar400() {
-        String email = "redefinir" + System.nanoTime() + "@x.com";
+    void redefinirSenhaComSenhaAtualInvalidaDeveRetornar400() {
+        String email = "redefinir-invalida" + System.nanoTime() + "@x.com";
         troca("/api/auth/register", HttpMethod.POST, new HttpHeaders(),
-                new RegistroRequestDTO("Redefinir", email, "senhaSegura123"));
-        troca("/api/auth/esqueci-senha", HttpMethod.POST, new HttpHeaders(),
-                Map.of("email", email));
+                new RegistroRequestDTO("Redefinir Inválida", email, "senhaSegura123"));
 
         var redefinir = troca("/api/auth/redefinir-senha", HttpMethod.POST, new HttpHeaders(),
-                Map.of("email", email, "codigo", "000000", "novaSenha", "novaSenhaSegura456"));
+                Map.of("email", email, "senhaAtual", "senhaErrada999",
+                        "novaSenha", "novaSenhaSegura456"));
+
+        assertThat(redefinir.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(18)
+    void redefinirSenhaParaEmailInexistenteDeveRetornar400() {
+        var redefinir = troca("/api/auth/redefinir-senha", HttpMethod.POST, new HttpHeaders(),
+                Map.of("email", "nao-existe" + System.nanoTime() + "@x.com",
+                        "senhaAtual", "senhaSegura123", "novaSenha", "novaSenhaSegura456"));
 
         assertThat(redefinir.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }

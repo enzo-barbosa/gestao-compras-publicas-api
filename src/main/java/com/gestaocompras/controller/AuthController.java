@@ -2,14 +2,12 @@ package com.gestaocompras.controller;
 
 import com.gestaocompras.dto.AlterarSenhaRequestDTO;
 import com.gestaocompras.dto.AtualizarContaRequestDTO;
-import com.gestaocompras.dto.EsqueciSenhaRequestDTO;
 import com.gestaocompras.dto.LoginRequestDTO;
 import com.gestaocompras.dto.RedefinirSenhaRequestDTO;
 import com.gestaocompras.dto.RegistroRequestDTO;
 import com.gestaocompras.dto.TokenResponseDTO;
 import com.gestaocompras.dto.UsuarioResponseDTO;
 import com.gestaocompras.service.AuthService;
-import com.gestaocompras.service.RecuperacaoSenhaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,12 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
-    private final RecuperacaoSenhaService recuperacaoSenhaService;
 
-    public AuthController(AuthService authService,
-            RecuperacaoSenhaService recuperacaoSenhaService) {
+    public AuthController(AuthService authService) {
         this.authService = authService;
-        this.recuperacaoSenhaService = recuperacaoSenhaService;
     }
 
     @PostMapping("/login")
@@ -72,17 +67,10 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/esqueci-senha")
-    public ResponseEntity<Void> esqueciSenha(
-            @Valid @RequestBody EsqueciSenhaRequestDTO request) {
-        recuperacaoSenhaService.solicitar(request.email());
-        return ResponseEntity.ok().build();
-    }
-
     @PostMapping("/redefinir-senha")
     public ResponseEntity<Void> redefinirSenha(
             @Valid @RequestBody RedefinirSenhaRequestDTO request) {
-        recuperacaoSenhaService.redefinir(request);
+        authService.redefinirSenha(request);
         return ResponseEntity.ok().build();
     }
 }

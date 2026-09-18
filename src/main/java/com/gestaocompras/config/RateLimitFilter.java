@@ -22,7 +22,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final Map<String, String> ROTAS = Map.of(
             "/api/auth/login", "login",
             "/api/auth/register", "registro",
-            "/api/auth/esqueci-senha", "esqueci-senha",
             "/api/auth/redefinir-senha", "redefinir-senha");
 
     private final RateLimitService rateLimitService;

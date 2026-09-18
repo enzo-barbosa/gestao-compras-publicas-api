@@ -4,6 +4,7 @@ import com.gestaocompras.dto.AtualizarContaRequestDTO;
 import com.gestaocompras.dto.AlterarSenhaRequestDTO;
 import com.gestaocompras.dto.LoginRequestDTO;
 import com.gestaocompras.dto.OrganizacaoResponseDTO;
+import com.gestaocompras.dto.RedefinirSenhaRequestDTO;
 import com.gestaocompras.dto.RegistroRequestDTO;
 import com.gestaocompras.dto.TokenResponseDTO;
 import com.gestaocompras.dto.UsuarioResponseDTO;
@@ -145,6 +146,23 @@ public class AuthService {
         return TokenResponseDTO.of(
                 jwtService.gerarToken(usuario.getEmail(), usuario.getPerfil().name(),
                         usuario.getVersaoToken()), usuario);
+    }
+
+    @Transactional
+    public void redefinirSenha(RedefinirSenhaRequestDTO request) {
+        Usuario usuario = usuarioRepository.findByEmail(request.email())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "E-mail ou senha atual inválidos."));
+        if (!passwordEncoder.matches(request.senhaAtual(), usuario.getSenha())) {
+            throw new IllegalArgumentException("E-mail ou senha atual inválidos.");
+        }
+        if (passwordEncoder.matches(request.novaSenha(), usuario.getSenha())) {
+            throw new IllegalArgumentException(
+                    "A nova senha deve ser diferente da senha atual.");
+        }
+        usuario.setSenha(passwordEncoder.encode(request.novaSenha()));
+        usuario.setVersaoToken(incrementarVersao(usuario.getVersaoToken()));
+        usuarioRepository.save(usuario);
     }
 
     @Transactional
