@@ -6,6 +6,7 @@ import { destinoPosLogin, orgIdAtiva, podeGerir } from '../services/organizacoes
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
 import ModalConfirmacao from '../components/ModalConfirmacao'
+import ModalRedefinirSenha from '../components/ModalRedefinirSenha'
 import { codigoConviteValido, gerarCodigoConvite } from '../utils/validacao'
 import { extrairMensagemErro, formatarData } from '../utils/format'
 
@@ -61,6 +62,10 @@ export default function MembrosPage() {
   const [conviteExclusao, setConviteExclusao] = useState<Convite | null>(null)
   const [removendo, setRemovendo] = useState(false)
   const [revogando, setRevogando] = useState(false)
+
+  const [membroSenha, setMembroSenha] = useState<Membro | null>(null)
+  const [redefinindoSenha, setRedefinindoSenha] = useState(false)
+  const [erroSenha, setErroSenha] = useState<string | null>(null)
 
   const buscarMembros = useCallback(async (): Promise<Membro[]> => {
     if (organizacaoId === null) return []
@@ -160,6 +165,29 @@ export default function MembrosPage() {
       setMembroExclusao(null)
     } finally {
       setRemovendo(false)
+    }
+  }
+
+  function redefinirSenhaDe(membro: Membro) {
+    setErroSenha(null)
+    setMembroSenha(membro)
+  }
+
+  async function confirmarRedefinicaoSenha(novaSenha: string) {
+    if (organizacaoId === null || membroSenha === null) return
+    const nomeAlvo = membroSenha.nome
+    setErroSenha(null)
+    setRedefinindoSenha(true)
+    try {
+      await api.put(`/organizacoes/${organizacaoId}/membros/${membroSenha.usuarioId}/senha`, {
+        novaSenha,
+      })
+      exibir('sucesso', `Senha de ${nomeAlvo} redefinida. As sessões dele foram encerradas.`)
+      setMembroSenha(null)
+    } catch (e) {
+      setErroSenha(extrairMensagemErro(e))
+    } finally {
+      setRedefinindoSenha(false)
     }
   }
 
@@ -348,13 +376,24 @@ export default function MembrosPage() {
                       <td>{formatarData(membro.desde)}</td>
                       {gerencia && (
                         <td>
-                          <button
-                            className="btn perigo"
-                            onClick={() => removerMembro(membro)}
-                            aria-label={`Remover ${membro.nome}`}
-                          >
-                            Remover
-                          </button>
+                          <div className="acoes-linha">
+                            {membro.usuarioId !== usuario?.id && (
+                              <button
+                                className="btn secundario"
+                                onClick={() => redefinirSenhaDe(membro)}
+                                aria-label={`Redefinir senha de ${membro.nome}`}
+                              >
+                                Redefinir senha
+                              </button>
+                            )}
+                            <button
+                              className="btn perigo"
+                              onClick={() => removerMembro(membro)}
+                              aria-label={`Remover ${membro.nome}`}
+                            >
+                              Remover
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -525,6 +564,19 @@ export default function MembrosPage() {
         aoConfirmar={confirmarRevogacao}
         aoCancelar={() => setConviteExclusao(null)}
       />
+
+      {membroSenha && (
+        <ModalRedefinirSenha
+          nomeMembro={membroSenha.nome}
+          salvando={redefinindoSenha}
+          erro={erroSenha}
+          aoSalvar={confirmarRedefinicaoSenha}
+          aoCancelar={() => {
+            setMembroSenha(null)
+            setErroSenha(null)
+          }}
+        />
+      )}
     </section>
   )
 }
