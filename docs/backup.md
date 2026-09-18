@@ -2,7 +2,7 @@
 
 O banco de dados é um **PostgreSQL 15** executado em container Docker (`postgres:15-alpine`),
 com o volume nomeado `pgdata` (dev) ou `pgdata_prod` (produção). O schema é versionado pelo
-Flyway (`V1_*`, `V2_*`, `V3_*`), então **nunca** restaure com `ddl-auto=create` — o Flyway valida
+Flyway (`V1_*`–`V8_*`), então **nunca** restaure com `ddl-auto=create` — o Flyway valida
 e reconcilia o schema automaticamente.
 
 ## Visão geral da estratégia
@@ -56,7 +56,7 @@ docker compose exec db pg_restore -U postgres -d gestao_compras_restore \
 ```
 
 > O Flyway usa `baseline-on-migrate=true, baseline-version=1` no `application.properties`: ao
-> restaurar, as migrations já existentes (V1–V3) serão detectadas via schema history e nada será
+> restaurar, as migrations já existentes (V1–V8) serão detectadas via schema history e nada será
 > reaplicado. Para fins de teste, você pode também rodar
 > `./mvnw flyway:validate` após o restore.
 

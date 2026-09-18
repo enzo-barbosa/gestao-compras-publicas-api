@@ -1,15 +1,15 @@
 # Estratégia e documentação de testes
 
-> Camada de qualidade do projeto: 147 testes backend (JUnit 5 + Mockito + Spring Boot Test), 34 testes de frontend (Vitest), smoke E2E com 46 verificações e relatório de cobertura JaCoCo.
+> Camada de qualidade do projeto: 180 testes backend (JUnit 5 + Mockito + Spring Boot Test), 51 testes de frontend (Vitest), smoke E2E com 52 verificações e relatório de cobertura JaCoCo.
 
 ## Pirâmide de testes
 
 O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e isolados), **alguns testes de integração** (fluxos reais com banco de verdade) e **um smoke E2E** (o sistema de ponta a ponta via API).
 
 ```
-        /e2e\        scripts/test-api.sh — 46 verificações curl
-       /integração\  Spring Boot Test + PostgreSQL real — 22 testes
-      /__unitários__\  JUnit 5 + Mockito — 121 testes (services + handler global)
+        /e2e\        scripts/test-api.sh — 52 verificações curl
+       /integração\  Spring Boot Test + PostgreSQL real — 34 testes
+      /__unitários__\  JUnit 5 + Mockito — 146 testes (services + handler global)
 ```
 
 ### 1. Testes unitários — `src/test/java/com/gestaocompras/service` e `.../exception`
@@ -17,7 +17,8 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 **Tecnologia**: JUnit 5 + Mockito, sem Spring context.
 
 **Cobrem**:
-- Regras de negócio de cada módulo: `DotacaoServiceTest`, `ContratoServiceTest`, `EmpenhoServiceTest`, `LicitacaoServiceTest`, `FornecedorServiceTest`, `OrganizacaoServiceTest`, `CreditoSuplementarServiceTest`, `ConviteServiceTest`, `AdminServiceTest`.
+- Regras de negócio de cada módulo: `DotacaoServiceTest`, `ContratoServiceTest`, `EmpenhoServiceTest`, `LicitacaoServiceTest`, `FornecedorServiceTest`, `OrganizacaoServiceTest`, `CreditoSuplementarServiceTest`, `ConviteServiceTest`, `RecuperacaoSenhaServiceTest`, `AdminServiceTest`.
+- Rate limiting: `RateLimitServiceTest` (6 casos) cobre a janela fixa por chave, o bloqueio ao exceder o limite, o `Retry-After` decrescente, a expiração da janela, o isolamento entre chaves e a poda de entradas expiradas (clock injetado).
 - Rateio do contrato (parcelas com HALF_UP e a **última competência absorvendo o resíduo**), **elegibilidade da competência (apenas corrente ou imediatamente anterior pendente)**, sequencialidade de competências, unicidade, vigência, saldo insuficiente (dotação e contrato), anulação com estorno completo.
 - Validações cross-cutting e o envelope de erro: `GlobalExceptionHandlerTest` (13 casos, MockMvc standalone).
 
@@ -27,8 +28,9 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 
 **Tecnologia**: `@SpringBootTest(webEnvironment = RANDOM_PORT)` com **PostgreSQL real** (docker compose), chamadas HTTP via `RestTemplate` (error handler no-op para assertar status) e autenticação real (JWT).
 
-**Cobrem** (22 testes em 5 classes + o teste de contexto):
-- `AuthIntegrationTest` (8): login, token adulterado, registro, autorização por papel e o fluxo completo dotação → fornecedor → licitação → vencedor → contrato → empenho.
+**Cobrem** (33 testes em 6 classes + o teste de contexto):
+- `AuthIntegrationTest` (17): login, token adulterado, registro, autorização por papel e o fluxo completo dotação → fornecedor → licitação → vencedor → contrato → empenho.
+- `RateLimitFilterTest` (2): com o limiter ligado por `@TestPropertySource` e limite reduzido, o 3º login do mesmo IP recebe `429` com `Retry-After`; rotas fora da autenticação não são afetadas.
 - `IsolamentoOrganizacaoIntegrationTest` (2): multitenancy — `X-Org-Id` define a organização de contexto e isola dados entre grupos.
 - `OrganizacoesIntegrationTest` (8): ciclo de grupos, membros e convites.
 - `ActuatorSecurityTest` (3): endpoints do Actuator públicos vs. protegidos, incluindo o profile `prod`.
@@ -41,11 +43,11 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 
 ### 3. Smoke E2E — `scripts/test-api.sh`
 
-45 verificações end-to-end via `curl` contra a API rodando: fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos → anulação → saldos), ciclo multitenancy (cadastro público, grupos, membros, convites por código/e-mail, papéis por grupo e isolamento por `X-Org-Id`), painel do super admin e caminhos negativos (401/400/403/409).
+52 verificações end-to-end via `curl` contra a API rodando: fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos → anulação → saldos), ciclo multitenancy (cadastro público, grupos, membros, convites por código/e-mail, papéis por grupo e isolamento por `X-Org-Id`), painel do super admin e caminhos negativos (401/400/403/409).
 
 ### 4. Frontend — `frontend/src`
 
-- **Vitest** (34 testes) para utilidades e serviços (validação de CNPJ/CPF, formatação e clientes de API).
+- **Vitest** (51 testes) para utilidades e serviços (validação de CNPJ/CPF, formatação e clientes de API).
 - **oxlint** com 0 warnings e **`tsc -b && vite build`** para tipo seguro e build limpo (executados no CI).
 
 ## Como rodar
@@ -53,27 +55,27 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 ```bash
 # Backend — requer PostgreSQL de pé
 docker compose up -d
-./mvnw test                              # 147 testes
+./mvnw test                              # 180 testes
 ./mvnw verify                            # testes + relatório JaCoCo em target/site/jacoco/
 ./mvnw -Dtest=AnulacaoConcorrenteIntegrationTest test   # só o teste de concorrência
 
 # Smoke E2E
-./scripts/test-api.sh                    # 46 verificações
+./scripts/test-api.sh                    # 52 verificações
 
 # Frontend
 cd frontend && npm install
 npm run lint                             # oxlint, 0 warnings
-npm test                                 # 34 testes Vitest
+npm test                                 # 51 testes Vitest
 npm run build                            # tsc + vite
 ```
 
 ## Cobertura (JaCoCo)
 
-Medida em `./mvnw verify` (JaCoCo 0.8.13, 2026-09-11):
+Medida em `./mvnw verify` (JaCoCo 0.8.13, 2026-09-17):
 
 | Métrica | Cobertura |
 |---|---|
-| Instruções | 84,0% |
-| Ramos (branches) | 69,9% |
+| Instruções | 84,8% |
+| Ramos (branches) | 71,5% |
 
 Relatório interativo gerado em `target/site/jacoco/` (abrir `index.html`). O CI publica o relatório como artefato em cada run.

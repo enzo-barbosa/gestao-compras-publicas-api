@@ -41,6 +41,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 - **Empenhos mensais** transacionais: competência única por contrato, débito duplo atômico (dotação + contrato), **emitidos apenas na competência corrente ou pendente** e anulação com estorno completo
 - **Autenticação JWT** (JJWT 0.12.x, TTL 8h) com papéis globais (`SUPER_ADMIN`) e papéis **por grupo/organização** (`ADMIN`/`OPERADOR`/`VISITANTE`) selecionada pelo header `X-Org-Id`, versão de token para revogação de sessões e **conta de usuário** (editar nome, trocar senha e sair em todos os dispositivos)
 - **Multitenancy por grupos**: cada organização tem seus próprios dotações/fornecedores/licitações/contratos/empenhos — isolamento total entre grupos, com convites por e-mail ou código
+- **Proteção contra força bruta** nas rotas públicas de autenticação: rate limiting em memória por IP + rota, com resposta `429` e header `Retry-After`
 - **Frontend React** (Vite + TypeScript) com dashboard de saldos, CRUDs e formulário de empenho com feedback visual
 
 ## Stack
@@ -48,10 +49,10 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Camada | Tecnologias |
 |---|---|
 | Backend | Java 21, Spring Boot 4.1.1, Spring Security, JPA/Hibernate 6, Bean Validation |
-| Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V6) + seed controlado |
+| Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V8) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 152 testes backend (JUnit 5 + Mockito + integração) + 42 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
+| Qualidade | 180 testes backend (JUnit 5 + Mockito + integração) + 51 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
 
 ## Como rodar
 
@@ -77,15 +78,15 @@ Com a API rodando, acesse `http://localhost:8080/swagger-ui.html`. A especifica�
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 152 testes
+./mvnw test                          # 180 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
-A estratégia de testes (pirâmide unitário → integração → E2E), o caso de regressão de concorrência e os números de cobertura estão em [`docs/testes.md`](docs/testes.md). Os cenários de aceitação (Gherkin) estão em [`docs/cenarios.feature`](docs/cenarios.feature) — 10 cenários.
+A estratégia de testes (pirâmide unitário → integração → E2E), o caso de regressão de concorrência e os números de cobertura estão em [`docs/testes.md`](docs/testes.md). Os cenários de aceitação (Gherkin) estão em [`docs/cenarios.feature`](docs/cenarios.feature) — 11 cenários.
 
 ### Smoke test da API
 ```bash
-./scripts/test-api.sh                # 46 verificações end-to-end via curl
+./scripts/test-api.sh                # 52 verificações end-to-end via curl
 ```
 
 O script cria registros próprios (sufixo único por execução) e exercita, além do fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos → anulação → saldos), o ciclo multitenancy: cadastro público, criação de grupo com vínculo de ADMIN, membros por e-mail, convites por código/e-mail, papéis por grupo (`VISITANTE` lê mas não escreve, `OPERADOR` escreve), isolamento por `X-Org-Id` e painel do super admin. Inclui caminhos negativos (401/400/403/409) e imprime o resumo.

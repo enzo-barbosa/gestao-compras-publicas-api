@@ -27,7 +27,7 @@ Endpoints de produção:
    - **Pooled** → usar em `SPRING_DATASOURCE_URL` (aplicação).
    - **Direct** → usar no `psql`/`pg_dump` (operações manuais).
 3. Schema e migrations: o **Flyway** gerencia o schema (`ddl-auto=validate`). Em banco novo, o
-   primeiro boot da API aplica `V1`–`V6` (arquivos em `src/main/resources/db/migration/`);
+   primeiro boot da API aplica `V1`–`V8` (arquivos em `src/main/resources/db/migration/`);
    alternativamente, aplicar manualmente via `psql` antes do boot. Conferir a tabela
    `flyway_schema_history` para validar o estado.
 
@@ -64,6 +64,11 @@ Endpoints de produção:
 | `JWT_SECRET` | sim | chave de assinatura (ex.: `openssl rand -base64 48`); sem valor em prod o `JwtService` falha na inicialização (fail-fast) |
 | `CORS_ALLOWED_ORIGINS` | sim (prod) | domains permitidos, separados por vírgula: `https://gestao-compras-publicas-api.vercel.app,https://gestao-compras-publicas.vercel.app` (alias + oficial do front) |
 | `JWT_EXPIRATION_MS` | não | padrão 8h (28.800.000) |
+| `RATE_LIMIT_HABILITADO` | não | `true` (default) liga o rate limiting nas rotas públicas de auth; `false` desliga |
+| `RATE_LIMIT_LOGIN` | não | tentativas de login por IP/60s (default 10) |
+| `RATE_LIMIT_REGISTRO` | não | cadastros por IP/5min (default 5) |
+| `RATE_LIMIT_ESQUECI` | não | pedidos de recuperação por IP/5min (default 3) |
+| `RATE_LIMIT_REDEFINIR` | não | redefinições de senha por IP/15min (default 10) |
 
 **Vercel — front:**
 
@@ -76,6 +81,9 @@ Notas de config:
   em produção pela env `CORS_ALLOWED_ORIGINS`.
 - `application-prod.properties`: `ddl-auto=validate`, SQL em `INFO`, Actuator só `health/info` sem
   detalhes, Swagger/OpenAPI **desabilitado**.
+- `application-prod.properties` define `server.forward-headers-strategy=framework`: o IP do cliente
+  usado pelo rate limiting vem dos headers do proxy do Render; sem isso, todos os acessos seriam
+  vistos como o IP do proxy e o limite derrubaria usuários legítimos.
 
 ## 4. Fluxos de deploy
 
@@ -98,7 +106,7 @@ Notas de config:
 - `git push origin main` → o Render deploya o branch automaticamente (ou "Manual Deploy" no painel).
 - Confirmar: 200 em `/actuator/health`; perfil `prod`; logs de erro no painel se houver falha de
   migration (`validate` falha quando as entidades divergem do schema — nesse caso, gerar uma nova
-  migration Flyway, ex.: `V7__...`).
+  migration Flyway, ex.: `V9__...`).
 
 ## 5. Verificação pós-deploy (checklist)
 
@@ -111,7 +119,7 @@ Notas de config:
 7. Bundle do front: confirmar que o hash novo está servido em
    `https://gestao-compras-publicas.vercel.app/assets/index-*.js` usando `curl --compressed`
    (o caminho **sem** `/assets/` retorna `index.html` pelo SPA fallback e engana a verificação).
-8. Fluxo completo automatizado: `scripts/test-api.sh` (smoke E2E, 45 verificações) com a URL da API
+8. Fluxo completo automatizado: `scripts/test-api.sh` (smoke E2E, 52 verificações) com a URL da API
    de produção apontada.
 
 ## 6. Segurança e segredos
@@ -122,7 +130,11 @@ Notas de config:
 - `DataInitializer` só cria usuários fora do profile `prod` — a senha padrão de dev não nasce em
   produção; usuários são criados pelo cadastro público (`POST /api/auth/register`, perfil global
   fixo `USUARIO`) e o primeiro ADMIN da organização é quem a cria.
-- CORS `allowedHeaders` restrito a `Authorization, Content-Type, X-Org-Id`.
+- CORS `allowedHeaders` restrito a `Authorization, Content-Type, X-Org-Id` e `Retry-After` exposto.
+- **Rate limiting** em memória (sem dependência externa) nas rotas públicas de auth: `login`,
+  `register`, `esqueci-senha` e `redefinir-senha`, com chave IP + rota e resposta `429` +
+  `Retry-After`. O estado é por instância — num cenário com múltiplas réplicas, migrar para um
+  backend compartilhado (ex.: Redis).
 
 ## 7. Backup, restore e rollback
 
@@ -139,12 +151,13 @@ Notas de config:
 | Primeira request demora ~1 min | Cold start do Render (free) | Aguardar; usar health com retry na verificação |
 | Conexão com banco lenta/suspensa | Neon suspendeu após inatividade | Primeira consulta acorda; dados preservados |
 | `401 de autenticação` | Token ausente/expirado (TTL 8h) ou `JWT_SECRET` trocado | Refazer login; manter `JWT_SECRET` estável |
+| `429 "Muitas tentativas"` | Rate limiting das rotas de auth (limite por IP/rota) | Respeitar o header `Retry-After`; se for tráfego legítimo, subir `RATE_LIMIT_*` correspondente |
 | `400 "X-Org-Id deve ser um número válido"` | Header `X-Org-Id` ausente, vazio ou não-numérico | Enviar `X-Org-Id: <id>` numérico em chamadas de negócio |
 | `403 "Você não é membro desta organização."` | `X-Org-Id` de outra org ou org inexistente | Usar um dos ids de `GET /api/auth/me` |
 | `403 "sem permissão"` | Papel insuficiente (ex.: VISITANTE em escrita) | Conferir papel na org ativa |
 | `409` | Duplicado (empenho na competência, CNPJ, edital) ou conflito de lock | Ajustar dados; tratar como estado esperado no fluxo |
 | Bundle do front parece "velho" | Cache/roteamento SPA | Inspecionar por `/assets/index-*.js` com `--compressed` |
-| Falha de boot com `validate` | Entidade divergente do schema | Criar nova migration Flyway (`V7__...`) |
+| Falha de boot com `validate` | Entidade divergente do schema | Criar nova migration Flyway (`V9__...`) |
 | Preflight CORS 403 | Origin não liberada | Adicionar a origin exata em `CORS_ALLOWED_ORIGINS` |
 | Deploy Hook devolve `not_found` | Hook antigo apagado (projeto mudou/integração reautorizada) | Recriar o hook no dashboard ou usar o fluxo CLI (`npx vercel deploy --prod`) |
 | Sites do front em 404 `DEPLOYMENT_NOT_FOUND` | Projeto Vercel sem deployment (alias solto) | Rodar `npx vercel deploy --prod` e re-anexar os domínios em Settings → Domains |
