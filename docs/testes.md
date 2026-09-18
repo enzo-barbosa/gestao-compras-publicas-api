@@ -1,6 +1,6 @@
 # Estratégia e documentação de testes
 
-> Camada de qualidade do projeto: 172 testes backend (JUnit 5 + Mockito + Spring Boot Test), 51 testes de frontend (Vitest), smoke E2E com 52 verificações e relatório de cobertura JaCoCo.
+> Camada de qualidade do projeto: 182 testes backend (JUnit 5 + Mockito + Spring Boot Test), 51 testes de frontend (Vitest), smoke E2E com 52 verificações e relatório de cobertura JaCoCo.
 
 ## Pirâmide de testes
 
@@ -8,8 +8,8 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 
 ```
         /e2e\        scripts/test-api.sh — 52 verificações curl
-       /integração\  Spring Boot Test + PostgreSQL real — 34 testes (+1 de contexto)
-      /__unitários__\  JUnit 5 + Mockito — 137 testes (services + handler global)
+       /integração\  Spring Boot Test + PostgreSQL real — 37 testes (+1 de contexto)
+      /__unitários__\  JUnit 5 + Mockito — 144 testes (services + handler global)
 ```
 
 ### 1. Testes unitários — `src/test/java/com/gestaocompras/service` e `.../exception`
@@ -28,11 +28,11 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 
 **Tecnologia**: `@SpringBootTest(webEnvironment = RANDOM_PORT)` com **PostgreSQL real** (docker compose), chamadas HTTP via `RestTemplate` (error handler no-op para assertar status) e autenticação real (JWT).
 
-**Cobrem** (34 testes em 6 classes + o teste de contexto):
+**Cobrem** (37 testes em 6 classes + o teste de contexto):
 - `AuthIntegrationTest` (18): login, token adulterado, registro, redefinição de senha com senha atual, autorização por papel e o fluxo completo dotação → fornecedor → licitação → vencedor → contrato → empenho.
 - `RateLimitFilterTest` (2): com o limiter ligado por `@TestPropertySource` e limite reduzido, o 3º login do mesmo IP recebe `429` com `Retry-After`; rotas fora da autenticação não são afetadas.
 - `IsolamentoOrganizacaoIntegrationTest` (2): multitenancy — `X-Org-Id` define a organização de contexto e isola dados entre grupos.
-- `OrganizacoesIntegrationTest` (8): ciclo de grupos, membros e convites.
+- `OrganizacoesIntegrationTest` (11): ciclo de grupos, membros e convites; redefinição de senha de membro pelo admin (login com a nova senha, revogação das sessões antigas e bloqueios 403/409).
 - `ActuatorSecurityTest` (3): endpoints do Actuator públicos vs. protegidos, incluindo o profile `prod`.
 - `AnulacaoConcorrenteIntegrationTest` (1): **race condition** — ver detalhe abaixo.
 - `GestaoComprasPublicasApplicationTests` (1): assert de que o contexto da aplicação sobe.
@@ -55,7 +55,7 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 ```bash
 # Backend — requer PostgreSQL de pé
 docker compose up -d
-./mvnw test                              # 172 testes
+./mvnw test                              # 182 testes
 ./mvnw verify                            # testes + relatório JaCoCo em target/site/jacoco/
 ./mvnw -Dtest=AnulacaoConcorrenteIntegrationTest test   # só o teste de concorrência
 
@@ -75,7 +75,7 @@ Medida em `./mvnw verify` (JaCoCo 0.8.13, 2026-09-17):
 
 | Métrica | Cobertura |
 |---|---|
-| Instruções | 84,2% |
-| Ramos (branches) | 69,8% |
+| Instruções | 84,7% |
+| Ramos (branches) | 70,1% |
 
 Relatório interativo gerado em `target/site/jacoco/` (abrir `index.html`). O CI publica o relatório como artefato em cada run.

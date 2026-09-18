@@ -7,7 +7,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791)
 ![Docker](https://img.shields.io/badge/Docker-2496ED)
-![Cobertura](https://img.shields.io/badge/cobertura-84.2%25-brightgreen)
+![Cobertura](https://img.shields.io/badge/cobertura-84.7%25-brightgreen)
 
 **Em uma frase:** plataforma web que ajuda prefeituras e órgãos públicos a controlar dotação orçamentária, fornecedores, licitações, contratos e empenhos em um só lugar — com rateio mensal automático dos contratos e dados isolados por organização.
 
@@ -53,7 +53,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V8) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 172 testes backend (JUnit 5 + Mockito + integração) + 51 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
+| Qualidade | 182 testes backend (JUnit 5 + Mockito + integração) + 51 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
 
 ## Como rodar
 
@@ -79,7 +79,7 @@ Com a API rodando, acesse `http://localhost:8080/swagger-ui.html`. A especifica�
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 172 testes
+./mvnw test                          # 182 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
@@ -150,6 +150,7 @@ erDiagram
 | GET | `/api/organizacoes/{id}` | Detalhes do grupo | membro |
 | GET/POST/PUT/DELETE | `/api/organizacoes/{id}/membros` | Listar/adicionar/alterar papel/remover membros | leitura: membro; gestão: ADMIN |
 | DELETE | `/api/organizacoes/{id}/membros/eu` | Sair do grupo (remove o próprio vínculo) | membro |
+| PUT | `/api/organizacoes/{id}/membros/{usuarioId}/senha` | Admin redefine a senha de um membro (bump em `versao_token`, revoga as sessões dele) | ADMIN |
 | POST/GET/DELETE | `/api/organizacoes/{id}/convites` | Criar convite (por e-mail **ou** código), listar pendentes, revogar | ADMIN |
 | POST | `/api/convites/aceitar` | Aceitar convite por código | autenticado |
 | POST | `/api/convites/aceitar-email` | Aceitar convites pendentes do meu e-mail | autenticado |
