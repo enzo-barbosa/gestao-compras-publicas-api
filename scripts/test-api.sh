@@ -4,9 +4,10 @@
 #
 # Exercita o fluxo de negócio (login JWT -> dotação -> fornecedor -> licitação
 # -> vencedor -> contrato -> empenhos -> anulação -> saldos) dentro de um
-# grupo, e o ciclo multitenancy (cadastro público -> criar grupo -> membros ->
+# grupo, o ciclo multitenancy (cadastro público -> criar grupo -> membros ->
 # convites por e-mail/código -> papéis por grupo -> painel do super admin ->
-# isolamento por X-Org-Id).
+# isolamento por X-Org-Id) e a redefinição de senha (pública, confirmando a
+# senha atual, e pelo ADMIN do grupo).
 #
 # Uso:      ./scripts/test-api.sh            (API em http://localhost:8080)
 #           BASE=http://host:porta ./scripts/test-api.sh
@@ -346,6 +347,59 @@ codigo="$(requisicao GET /api/admin/organizacoes "" "$TOKEN")"
 assert_status "painel: super admin lista organizações com total de membros" 200 "$codigo" || true
 codigo="$(requisicao GET /api/admin/usuarios "" "$TOKEN_U1")"
 assert_status "painel: usuário comum é barrado" 403 "$codigo" || true
+
+# ── 12. Redefinição de senha (pública e pelo ADMIN do grupo) ─────────────────
+verbo "Redefinição de senha"
+
+# Pública: confirma e-mail + senha atual e revoga todas as sessões do usuário.
+codigo="$(requisicao POST /api/auth/redefinir-senha \
+    "{\"email\":\"$EMAIL_U2\",\"senhaAtual\":\"errada\",\"novaSenha\":\"senhaNova123\"}")"
+assert_status "redefinição com senha atual incorreta é rejeitada" 400 "$codigo" || true
+
+codigo="$(requisicao POST /api/auth/redefinir-senha \
+    "{\"email\":\"naoexiste.$SUFIXO@teste.com\",\"senhaAtual\":\"senhaSegura123\",\"novaSenha\":\"senhaNova123\"}")"
+assert_status "redefinição com e-mail inexistente é rejeitada" 400 "$codigo" || true
+
+codigo="$(requisicao POST /api/auth/redefinir-senha \
+    "{\"email\":\"$EMAIL_U2\",\"senhaAtual\":\"senhaSegura123\",\"novaSenha\":\"senhaNova123\"}")"
+assert_status "redefinição pública com senha atual correta" 200 "$codigo" || true
+
+codigo="$(requisicao POST /api/auth/login "{\"email\":\"$EMAIL_U2\",\"senha\":\"senhaNova123\"}")"
+assert_status "login com a nova senha após a redefinição" 200 "$codigo" || true
+
+codigo="$(requisicao POST /api/auth/login "{\"email\":\"$EMAIL_U2\",\"senha\":\"senhaSegura123\"}")"
+assert_status "senha antiga deixa de funcionar" 401 "$codigo" || true
+
+codigo="$(requisicao GET /api/auth/me "" "$TOKEN_U2")"
+assert_status "sessão anterior é revogada pela redefinição" 401 "$codigo" || true
+
+# Pelo ADMIN do grupo: sem confirmação de senha; o alvo precisa ser membro.
+requisicao GET /api/auth/me "" "$TOKEN_U3" > /dev/null
+USUARIO_U3="$(campo_json "['id']")"
+requisicao GET /api/auth/me "" "$TOKEN" > /dev/null
+USUARIO_SUPER="$(campo_json "['id']")"
+
+codigo="$(requisicao_org PUT "/api/organizacoes/$NOVA_ORG/membros/$USUARIO_U3/senha" \
+    '{"novaSenha":"senhaAdmin123"}' "$TOKEN_U4" "$NOVA_ORG")"
+assert_status "OPERADOR não redefine senha de membro" 403 "$codigo" || true
+
+codigo="$(requisicao_org PUT "/api/organizacoes/$NOVA_ORG/membros/$USUARIO_U1/senha" \
+    '{"novaSenha":"senhaAdmin123"}' "$TOKEN_U1" "$NOVA_ORG")"
+assert_status "ADMIN não redefine a própria senha" 409 "$codigo" || true
+
+codigo="$(requisicao_org PUT "/api/organizacoes/$NOVA_ORG/membros/$USUARIO_SUPER/senha" \
+    '{"novaSenha":"senhaAdmin123"}' "$TOKEN_U1" "$NOVA_ORG")"
+assert_status "alvo que não é membro do grupo não é encontrado" 404 "$codigo" || true
+
+codigo="$(requisicao_org PUT "/api/organizacoes/$NOVA_ORG/membros/$USUARIO_U3/senha" \
+    '{"novaSenha":"senhaAdmin123"}' "$TOKEN_U1" "$NOVA_ORG")"
+assert_status "ADMIN redefine a senha de um membro" 204 "$codigo" || true
+
+codigo="$(requisicao POST /api/auth/login "{\"email\":\"$EMAIL_U3\",\"senha\":\"senhaAdmin123\"}")"
+assert_status "membro entra com a senha definida pelo ADMIN" 200 "$codigo" || true
+
+codigo="$(requisicao GET /api/auth/me "" "$TOKEN_U3")"
+assert_status "sessões anteriores do membro são revogadas" 401 "$codigo" || true
 
 # ── Encerramento ────────────────────────────────────────────────────────────
 rm -f "$ARQ_RESPOSTA"
