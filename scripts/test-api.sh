@@ -140,8 +140,14 @@ assert_status "criação da dotação (saldo inicial = saldo atual)" 201 "$codig
 DOTACAO_ID="$(campo_json "['id']")"
 IDS_CRIADOS+=("dotação #$DOTACAO_ID (grupo $ORG_ADMIN)")
 
+codigo="$(requisicao_org GET "/api/dotacoes/$DOTACAO_ID/movimentacoes" "" "$TOKEN" "$ORG_ADMIN")"
+assert_status "histórico de movimentações da dotação" 200 "$codigo" || true
+
 codigo="$(requisicao_org POST /api/dotacoes "$CORPO" "$TOKEN" "$ORG_ADMIN")"
 assert_status "código de dotação duplicado é rejeitado" 409 "$codigo" || true
+
+codigo="$(requisicao_org GET /api/dotacoes "" "$TOKEN" "$ORG_ADMIN")"
+assert_status "listagem das dotações do grupo" 200 "$codigo" || true
 
 # ── 3. Fornecedor ───────────────────────────────────────────────────────────
 verbo "Fornecedor"
@@ -155,6 +161,9 @@ IDS_CRIADOS+=("fornecedor #$FORNECEDOR_ID (grupo $ORG_ADMIN)")
 CORPO_INVALIDO='{"nome":"Inexistente","cnpj":"11111111111111"}'
 codigo="$(requisicao_org POST /api/fornecedores "$CORPO_INVALIDO" "$TOKEN" "$ORG_ADMIN")"
 assert_status "CNPJ inválido é rejeitado" 400 "$codigo" || true
+
+codigo="$(requisicao_org GET "/api/fornecedores?nome=$SUFIXO" "" "$TOKEN" "$ORG_ADMIN")"
+assert_status "busca de fornecedor por nome retorna o fornecedor criado" 200 "$codigo" || true
 
 # ── 4. Licitação e vencedor ─────────────────────────────────────────────────
 verbo "Licitação"
@@ -172,6 +181,9 @@ STATUS_LICITACAO="$(campo_json "['status']")"
     || assert_status "status final da licitação é ENCERRADA" ENCERRADA "$STATUS_LICITACAO"
 IDS_CRIADOS+=("licitação #$LICITACAO_ID (grupo $ORG_ADMIN)")
 
+codigo="$(requisicao_org GET "/api/licitacoes/$LICITACAO_ID" "" "$TOKEN" "$ORG_ADMIN")"
+assert_status "detalhe da licitação encerrada com vencedor" 200 "$codigo" || true
+
 # ── 5. Contrato ─────────────────────────────────────────────────────────────
 verbo "Contrato"
 INICIO="$(date -d "$INICIO_MES -1 month" +%F)"
@@ -182,6 +194,9 @@ CONTRATO_ID="$(campo_json "['id']")"
 VALOR_MENSAL="$(campo_json "['valorMensal']")"
 IDS_CRIADOS+=("contrato #$CONTRATO_ID (grupo $ORG_ADMIN)")
 echo "  · valor mensal calculado pelo sistema: R$ $VALOR_MENSAL"
+
+codigo="$(requisicao_org GET "/api/contratos/$CONTRATO_ID" "" "$TOKEN" "$ORG_ADMIN")"
+assert_status "detalhe do contrato com valor mensal calculado" 200 "$codigo" || true
 
 # ── 6. Empenhos por competência ─────────────────────────────────────────────
 verbo "Empenhos"
@@ -196,6 +211,31 @@ CORPO_SEGUNDO="{\"contratoId\":$CONTRATO_ID,\"mesReferencia\":$MES,\"anoReferenc
 codigo="$(requisicao_org POST /api/empenhos "$CORPO_SEGUNDO" "$TOKEN" "$ORG_ADMIN")"
 assert_status "empenho da competência corrente $(printf '%02d' "$MES")/$ANO" 201 "$codigo" || true
 EMPENHO_2="$(campo_json "['id']")"
+
+codigo="$(requisicao_org GET "/api/empenhos?contratoId=$CONTRATO_ID" "" "$TOKEN" "$ORG_ADMIN")"
+assert_status "listagem de empenhos do contrato" 200 "$codigo" || true
+
+codigo="$(requisicao_org GET "/api/empenhos?contratoId=$CONTRATO_ID&mes=$MES_ANTERIOR&ano=$ANO_ANTERIOR" "" "$TOKEN" "$ORG_ADMIN")"
+assert_status "filtro de empenhos da competência pendente $(printf '%02d' "$MES_ANTERIOR")/$ANO_ANTERIOR" 200 "$codigo" || true
+NUM_EMPENHO_1="$(campo_json "['content'][0]['numero']")"
+
+codigo="$(requisicao_org GET "/api/empenhos?contratoId=$CONTRATO_ID&mes=$MES&ano=$ANO" "" "$TOKEN" "$ORG_ADMIN")"
+assert_status "filtro de empenhos da competência corrente $(printf '%02d' "$MES")/$ANO" 200 "$codigo" || true
+NUM_EMPENHO_2="$(campo_json "['content'][0]['numero']")"
+
+if python3 -c "
+import sys
+n1, n2 = int('$NUM_EMPENHO_1'), int('$NUM_EMPENHO_2')
+if '${ANO_ANTERIOR}' == '$ANO':
+    sys.exit(0 if n2 == n1 + 1 else 1)
+else:
+    sys.exit(0 if n1 > 0 and n2 > 0 else 1)" 2>/dev/null; then
+    PASSOS=$((PASSOS + 1))
+    echo "  ✓ empenhos numerados em sequência: #$NUM_EMPENHO_1 → #$NUM_EMPENHO_2 (V11)"
+else
+    FALHAS=$((FALHAS + 1))
+    echo "  ✗ numeração sequencial inesperada: #$NUM_EMPENHO_1 → #$NUM_EMPENHO_2"
+fi
 
 CORPO_FUTURO="{\"contratoId\":$CONTRATO_ID,\"mesReferencia\":$MES_SEGUINTE,\"anoReferencia\":$ANO_SEGUINTE}"
 codigo="$(requisicao_org POST /api/empenhos "$CORPO_FUTURO" "$TOKEN" "$ORG_ADMIN")"
@@ -357,8 +397,8 @@ QTD_PENDENTES="$(tamanho_array)"
     && assert_status "há 1 convite pendente para o usuário quatro" 1 1 \
     || assert_status "há 1 convite pendente para o usuário quatro" 1 "$QTD_PENDENTES"
 CONVITE_U4="$(python3 -c "
-import sys, json
-d = json.load(sys.stdin)
+import json
+d = json.load(open('$ARQ_RESPOSTA'))
 print(d[0]['id'] if d else '')" 2>/dev/null)"
 if [[ -n "$CONVITE_U4" ]]; then
     PASSOS=$((PASSOS + 1))
@@ -393,8 +433,8 @@ assert_status "convite nominal para usuário cinco criado" 200 "$codigo" || true
 codigo="$(requisicao GET /api/convites/pendentes "" "$TOKEN_U5")"
 assert_status "usuário cinco lista os convites pendentes" 200 "$codigo" || true
 CONVITE_U5="$(python3 -c "
-import sys, json
-d = json.load(sys.stdin)
+import json
+d = json.load(open('$ARQ_RESPOSTA'))
 print(d[0]['id'] if d else '')" 2>/dev/null)"
 if [[ -n "$CONVITE_U5" ]]; then
     PASSOS=$((PASSOS + 1))

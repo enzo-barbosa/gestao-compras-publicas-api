@@ -15,7 +15,7 @@ Plataforma full-stack para gestão de despesas públicas municipais com um difer
 
 ## Demonstração
 
-![Demo — login, dashboard, anulação de empenho com confirmação e módulos como créditos e grupos](docs/img/demo.gif)
+![Demo — login, dashboard, anulação de empenho com confirmação, módulos créditos/grupos, convite universal (aceitar/recusar), vencedor com autocomplete, máscaras CNPJ/moeda/edital](docs/img/demo.gif)
 
 ## O problema que este projeto resolve
 
@@ -41,6 +41,9 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 - **Empenhos mensais** transacionais: competência única por contrato, débito duplo atômico (dotação + contrato), **emitidos apenas na competência corrente ou pendente** e anulação com estorno completo
 - **Autenticação JWT** (JJWT 0.12.x, TTL 8h) com papéis globais (`SUPER_ADMIN`) e papéis **por grupo/organização** (`ADMIN`/`OPERADOR`/`VISITANTE`) selecionada pelo header `X-Org-Id`, versão de token para revogação de sessões e **conta de usuário** (editar nome, trocar senha e sair em todos os dispositivos)
 - **Multitenancy por grupos**: cada organização tem seus próprios dotações/fornecedores/licitações/contratos/empenhos — isolamento total entre grupos, com convites por e-mail ou código
+- **Convites universais** — aceitar/recusar por código de acesso (8 caracteres) ou convite nominal por e-mail
+- **Vencedor com autocomplete** — busca de fornecedor via `<datalist>` ao definir vencedor da licitação
+- **Máscaras + validação obrigatória** — CNPJ, moeda (R$), edital (NNNN/AAAA) com feedback visual em tempo real
 - **Proteção contra força bruta** nas rotas públicas de autenticação: rate limiting em memória por IP + rota, com resposta `429` e header `Retry-After`
 - **Redefinição de senha sem e-mail**: confirma o e-mail + a senha atual no banco e exige uma nova senha diferente; ao trocar, revoga todas as sessões (bump em `versao_token`)
 - **Frontend React** (Vite + TypeScript) com dashboard de saldos, CRUDs e formulário de empenho com feedback visual
