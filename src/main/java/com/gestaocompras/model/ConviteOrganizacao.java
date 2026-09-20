@@ -57,4 +57,7 @@ public class ConviteOrganizacao {
 
     @Column(name = "usado_em")
     private LocalDateTime usadoEm;
+
+    @Column(name = "recusado_em")
+    private LocalDateTime recusadoEm;
 }

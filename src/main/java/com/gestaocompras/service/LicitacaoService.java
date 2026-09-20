@@ -13,6 +13,7 @@ import com.gestaocompras.repository.FornecedorRepository;
 import com.gestaocompras.repository.LicitacaoRepository;
 import com.gestaocompras.repository.OrganizacaoRepository;
 import jakarta.persistence.criteria.Predicate;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,13 +29,16 @@ public class LicitacaoService {
     private final LicitacaoRepository licitacaoRepository;
     private final FornecedorRepository fornecedorRepository;
     private final OrganizacaoRepository organizacaoRepository;
+    private final Clock clock;
 
     public LicitacaoService(LicitacaoRepository licitacaoRepository,
             FornecedorRepository fornecedorRepository,
-            OrganizacaoRepository organizacaoRepository) {
+            OrganizacaoRepository organizacaoRepository,
+            Clock clock) {
         this.licitacaoRepository = licitacaoRepository;
         this.fornecedorRepository = fornecedorRepository;
         this.organizacaoRepository = organizacaoRepository;
+        this.clock = clock != null ? clock : Clock.systemDefaultZone();
     }
 
     @Transactional
@@ -123,6 +127,10 @@ public class LicitacaoService {
     }
 
     private void validarDatas(LocalDate abertura, LocalDate encerramento) {
+        if (abertura.isBefore(LocalDate.now(clock))) {
+            throw new IllegalArgumentException(
+                    "A data de abertura não pode ser anterior à data de hoje.");
+        }
         if (encerramento != null && encerramento.isBefore(abertura)) {
             throw new IllegalArgumentException(
                     "A data de encerramento não pode ser anterior à data de abertura.");

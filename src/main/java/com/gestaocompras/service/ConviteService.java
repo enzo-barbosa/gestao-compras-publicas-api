@@ -19,7 +19,6 @@ import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import com.gestaocompras.security.UsuarioLogado;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
@@ -46,49 +45,39 @@ public class ConviteService {
     @Transactional
     public ConviteResponseDTO criar(Long organizacaoId, UsuarioLogado principal,
             ConviteRequestDTO request) {
-        Organizacao organizacao = org(organizacaoId);
+        org(organizacaoId);
         Usuario solicitante = buscarAutenticado(principal);
         exigirAdmin(organizacaoId, principal, solicitante);
-        boolean temEmail = request.email() != null && !request.email().isBlank();
-        boolean temCodigo = request.codigo() != null && !request.codigo().isBlank();
-        if (temEmail == temCodigo) {
-            throw new IllegalArgumentException("Informe exatamente um dos campos: "
-                    + "e-mail do convidado ou código do convite.");
+        if (request.codigo() != null && !request.codigo().isBlank()) {
+            throw new IllegalArgumentException("Convites são nominais, por e-mail. O acesso "
+                    + "por código é o código de acesso da organização (ver \"Código de acesso\").");
+        }
+        String email = request.email() == null ? null
+                : request.email().trim().toLowerCase(Locale.ROOT);
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Informe o e-mail do convidado.");
+        }
+        Usuario convidado = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("Não existe conta com o e-mail %s. "
+                        + "O convidado precisa se registrar antes de ser convidado."
+                        .formatted(email)));
+        if (membroRepository.existsByIdOrganizacaoIdAndIdUsuarioId(
+                organizacaoId, convidado.getId())) {
+            throw new RegistroDuplicadoException(
+                    "O usuário %s já é membro desta organização.".formatted(email));
+        }
+        if (conviteRepository.findByEmailAndUsadoEmIsNullAndRecusadoEmIsNullAndOrganizacaoId(
+                email, organizacaoId).isPresent()) {
+            throw new RegistroDuplicadoException(
+                    "Já existe um convite pendente para %s nesta organização.".formatted(email));
         }
         ConviteOrganizacao convite = ConviteOrganizacao.builder()
-                .organizacao(organizacao)
+                .organizacao(organizacaoRepository.getReferenceById(organizacaoId))
+                .email(email)
                 .papel(request.papel())
                 .criadoPor(solicitante)
                 .criadoEm(LocalDateTime.now())
                 .build();
-        if (temEmail) {
-            String email = request.email().trim().toLowerCase(Locale.ROOT);
-            usuarioRepository.findByEmail(email).ifPresent(usuario -> {
-                if (membroRepository.existsByIdOrganizacaoIdAndIdUsuarioId(
-                        organizacaoId, usuario.getId())) {
-                    throw new RegistroDuplicadoException(
-                            "O usuário %s já é membro desta organização.".formatted(email));
-                }
-            });
-            if (conviteRepository
-                    .findByEmailAndUsadoEmIsNullAndOrganizacaoId(email, organizacaoId)
-                    .isPresent()) {
-                throw new RegistroDuplicadoException(
-                        "Já existe um convite pendente para %s nesta organização."
-                                .formatted(email));
-            }
-            convite.setEmail(email);
-        } else {
-            String codigo = request.codigo().trim();
-            validarFormatoCodigo(codigo);
-            if (conviteRepository.existsByCodigo(codigo)) {
-                throw new RegistroDuplicadoException(
-                        "Já existe um convite com o código %s (pendente ou já utilizado)."
-                                .formatted(codigo));
-            }
-            convite.setCodigo(codigo);
-            convite.setExpiraEm(LocalDateTime.now().plusDays(7));
-        }
         return ConviteResponseDTO.from(conviteRepository.save(convite));
     }
 
@@ -117,33 +106,63 @@ public class ConviteService {
         conviteRepository.delete(convite);
     }
 
+    @Transactional(readOnly = true)
+    public List<ConviteResponseDTO> meusPendentes(UsuarioLogado principal) {
+        Usuario usuario = buscarAutenticado(principal);
+        return conviteRepository.findByEmailAndUsadoEmIsNullAndRecusadoEmIsNull(
+                        usuario.getEmail()).stream()
+                .map(ConviteResponseDTO::from)
+                .toList();
+    }
+
     @Transactional
-    public OrganizacaoResponseDTO aceitarPorCodigo(UsuarioLogado principal,
-            AceitarCodigoRequestDTO request) {
+    public OrganizacaoResponseDTO aceitarNominal(UsuarioLogado principal, Long conviteId) {
         Usuario usuario = buscarAutenticado(principal);
         ConviteOrganizacao convite = conviteRepository
-                .findByCodigoAndUsadoEmIsNull(request.codigo().trim())
-                .filter(this::naoExpirou)
-                .orElseThrow(() -> new NotFoundException("Convite inválido, expirado ou já utilizado."));
+                .findByIdAndEmailAndUsadoEmIsNullAndRecusadoEmIsNull(conviteId, usuario.getEmail())
+                .orElseThrow(() -> new NotFoundException("Convite inválido, aceito ou recusado."));
         return aceitar(convite, usuario);
     }
 
     @Transactional
-    public List<OrganizacaoResponseDTO> aceitarPorEmail(UsuarioLogado principal) {
+    public void recusarNominal(UsuarioLogado principal, Long conviteId) {
         Usuario usuario = buscarAutenticado(principal);
-        List<OrganizacaoResponseDTO> aceitas = new ArrayList<>();
-        for (ConviteOrganizacao convite : conviteRepository
-                .findAllByEmailAndUsadoEmIsNull(usuario.getEmail())) {
-            Organizacao organizacao = convite.getOrganizacao();
-            if (membroRepository.existsByIdOrganizacaoIdAndIdUsuarioId(
-                    organizacao.getId(), usuario.getId())) {
-                convite.setUsadoEm(LocalDateTime.now());
-                continue;
-            }
-            aceitas.add(membro(convite, usuario));
-            convite.setUsadoEm(LocalDateTime.now());
+        ConviteOrganizacao convite = conviteRepository
+                .findByIdAndEmailAndUsadoEmIsNull(conviteId, usuario.getEmail())
+                .orElseThrow(() -> new NotFoundException("Convite não encontrado para o seu e-mail."));
+        if (membroRepository.existsByIdOrganizacaoIdAndIdUsuarioId(
+                convite.getOrganizacao().getId(), usuario.getId())) {
+            throw new OperacaoNaoPermitidaException(
+                    "Você já é membro desta organização; o convite não pode ser recusado.");
         }
-        return aceitas;
+        if (convite.getRecusadoEm() != null) {
+            throw new OperacaoNaoPermitidaException("Este convite já foi recusado.");
+        }
+        convite.setRecusadoEm(LocalDateTime.now());
+    }
+
+    @Transactional
+    public OrganizacaoResponseDTO aceitarPorCodigo(UsuarioLogado principal,
+            AceitarCodigoRequestDTO request) {
+        Usuario usuario = buscarAutenticado(principal);
+        String codigo = normalizarCodigo(request.codigo());
+        Organizacao organizacao = organizacaoRepository.findByCodigoAcesso(codigo)
+                .orElseThrow(() -> new NotFoundException("Código de acesso inválido."));
+        if (membroRepository.existsByIdOrganizacaoIdAndIdUsuarioId(
+                organizacao.getId(), usuario.getId())) {
+            throw new RegistroDuplicadoException(
+                    "Você já é membro desta organização.");
+        }
+        membroRepository.save(MembroOrganizacao.builder()
+                .id(new MembroOrganizacao.Id(organizacao, usuario))
+                .papel(PapelOrganizacao.VISITANTE)
+                .desde(LocalDateTime.now())
+                .build());
+        return OrganizacaoResponseDTO.from(organizacao, PapelOrganizacao.VISITANTE.name());
+    }
+
+    static String normalizarCodigo(String codigo) {
+        return codigo == null ? null : codigo.trim().toUpperCase(Locale.ROOT);
     }
 
     private OrganizacaoResponseDTO aceitar(ConviteOrganizacao convite, Usuario usuario) {
@@ -151,32 +170,14 @@ public class ConviteService {
                 convite.getOrganizacao().getId(), usuario.getId())) {
             throw new RegistroDuplicadoException("Você já é membro desta organização.");
         }
-        OrganizacaoResponseDTO resposta = membro(convite, usuario);
-        convite.setUsadoEm(LocalDateTime.now());
-        return resposta;
-    }
-
-    private OrganizacaoResponseDTO membro(ConviteOrganizacao convite, Usuario usuario) {
         Organizacao organizacao = convite.getOrganizacao();
         membroRepository.save(MembroOrganizacao.builder()
                 .id(new MembroOrganizacao.Id(organizacao, usuario))
                 .papel(convite.getPapel())
                 .desde(LocalDateTime.now())
                 .build());
+        convite.setUsadoEm(LocalDateTime.now());
         return OrganizacaoResponseDTO.from(organizacao, convite.getPapel().name());
-    }
-
-    private boolean naoExpirou(ConviteOrganizacao convite) {
-        return convite.getExpiraEm() == null || convite.getExpiraEm().isAfter(LocalDateTime.now());
-    }
-
-    private void validarFormatoCodigo(String codigo) {
-        if (codigo.length() < 4 || codigo.length() > 24
-                || !codigo.matches("[A-Za-z0-9][A-Za-z0-9-]*")) {
-            throw new IllegalArgumentException(
-                    "O código deve ter de 4 a 24 caracteres usando letras, números e hífen, "
-                            + "sem espaços ou símbolos (e-mails não servem como código).");
-        }
     }
 
     private Organizacao org(Long id) {

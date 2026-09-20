@@ -1,5 +1,6 @@
 package com.gestaocompras.service;
 
+import com.gestaocompras.dto.CodigoAcessoResponseDTO;
 import com.gestaocompras.dto.MembroPapelRequestDTO;
 import com.gestaocompras.dto.MembroRequestDTO;
 import com.gestaocompras.dto.MembroResponseDTO;
@@ -14,10 +15,20 @@ import com.gestaocompras.model.MembroOrganizacao;
 import com.gestaocompras.model.Organizacao;
 import com.gestaocompras.model.PapelOrganizacao;
 import com.gestaocompras.model.Usuario;
+import com.gestaocompras.repository.ContratoRepository;
+import com.gestaocompras.repository.ConviteOrganizacaoRepository;
+import com.gestaocompras.repository.CreditoSuplementarRepository;
+import com.gestaocompras.repository.DotacaoRepository;
+import com.gestaocompras.repository.EmpenhoRepository;
+import com.gestaocompras.repository.EmpenhoSequenciaRepository;
+import com.gestaocompras.repository.FornecedorRepository;
+import com.gestaocompras.repository.LicitacaoRepository;
 import com.gestaocompras.repository.MembroOrganizacaoRepository;
+import com.gestaocompras.repository.MovimentacaoDotacaoRepository;
 import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import com.gestaocompras.security.UsuarioLogado;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -28,19 +39,51 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class OrganizacaoService {
 
+    private static final char[] ALFABETO_CODIGO =
+            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
+    private static final int TAMANHO_CODIGO = 8;
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final OrganizacaoRepository organizacaoRepository;
     private final MembroOrganizacaoRepository membroRepository;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmpenhoRepository empenhoRepository;
+    private final EmpenhoSequenciaRepository empenhoSequenciaRepository;
+    private final MovimentacaoDotacaoRepository movimentacaoRepository;
+    private final CreditoSuplementarRepository creditoRepository;
+    private final ContratoRepository contratoRepository;
+    private final LicitacaoRepository licitacaoRepository;
+    private final FornecedorRepository fornecedorRepository;
+    private final DotacaoRepository dotacaoRepository;
+    private final ConviteOrganizacaoRepository conviteRepository;
 
     public OrganizacaoService(OrganizacaoRepository organizacaoRepository,
             MembroOrganizacaoRepository membroRepository,
             UsuarioRepository usuarioRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            EmpenhoRepository empenhoRepository,
+            EmpenhoSequenciaRepository empenhoSequenciaRepository,
+            MovimentacaoDotacaoRepository movimentacaoRepository,
+            CreditoSuplementarRepository creditoRepository,
+            ContratoRepository contratoRepository,
+            LicitacaoRepository licitacaoRepository,
+            FornecedorRepository fornecedorRepository,
+            DotacaoRepository dotacaoRepository,
+            ConviteOrganizacaoRepository conviteRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.membroRepository = membroRepository;
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.empenhoRepository = empenhoRepository;
+        this.empenhoSequenciaRepository = empenhoSequenciaRepository;
+        this.movimentacaoRepository = movimentacaoRepository;
+        this.creditoRepository = creditoRepository;
+        this.contratoRepository = contratoRepository;
+        this.licitacaoRepository = licitacaoRepository;
+        this.fornecedorRepository = fornecedorRepository;
+        this.dotacaoRepository = dotacaoRepository;
+        this.conviteRepository = conviteRepository;
     }
 
     @Transactional
@@ -160,6 +203,63 @@ public class OrganizacaoService {
             }
         }
         membroRepository.delete(membro);
+    }
+
+    @Transactional(readOnly = true)
+    public CodigoAcessoResponseDTO buscarCodigoAcesso(Long organizacaoId,
+            UsuarioLogado principal) {
+        Organizacao organizacao = org(organizacaoId);
+        exigirAdmin(organizacaoId, principal, buscarAutenticado(principal));
+        return new CodigoAcessoResponseDTO(organizacao.getCodigoAcesso());
+    }
+
+    @Transactional
+    public CodigoAcessoResponseDTO gerarCodigoAcesso(Long organizacaoId,
+            UsuarioLogado principal) {
+        Organizacao organizacao = org(organizacaoId);
+        exigirAdmin(organizacaoId, principal, buscarAutenticado(principal));
+        organizacao.setCodigoAcesso(gerarCodigoUnico());
+        return new CodigoAcessoResponseDTO(organizacao.getCodigoAcesso());
+    }
+
+    @Transactional
+    public void revogarCodigoAcesso(Long organizacaoId, UsuarioLogado principal) {
+        Organizacao organizacao = org(organizacaoId);
+        exigirAdmin(organizacaoId, principal, buscarAutenticado(principal));
+        organizacao.setCodigoAcesso(null);
+    }
+
+    @Transactional
+    public void excluir(Long organizacaoId, UsuarioLogado principal) {
+        Organizacao organizacao = org(organizacaoId);
+        exigirAdmin(organizacaoId, principal, buscarAutenticado(principal));
+        empenhoRepository.deleteByOrganizacaoId(organizacaoId);
+        empenhoSequenciaRepository.deleteByOrganizacaoId(organizacaoId);
+        movimentacaoRepository.deleteByOrganizacaoId(organizacaoId);
+        creditoRepository.deleteByOrganizacaoId(organizacaoId);
+        contratoRepository.deleteByOrganizacaoId(organizacaoId);
+        licitacaoRepository.deleteByOrganizacaoId(organizacaoId);
+        fornecedorRepository.deleteByOrganizacaoId(organizacaoId);
+        dotacaoRepository.deleteByOrganizacaoId(organizacaoId);
+        conviteRepository.deleteByOrganizacaoId(organizacaoId);
+        membroRepository.deleteByOrganizacaoId(organizacaoId);
+        organizacaoRepository.delete(organizacao);
+    }
+
+    private String gerarCodigoUnico() {
+        String codigo;
+        do {
+            codigo = gerarCodigo();
+        } while (organizacaoRepository.findByCodigoAcesso(codigo).isPresent());
+        return codigo;
+    }
+
+    private String gerarCodigo() {
+        StringBuilder codigo = new StringBuilder(TAMANHO_CODIGO);
+        for (int i = 0; i < TAMANHO_CODIGO; i++) {
+            codigo.append(ALFABETO_CODIGO[RANDOM.nextInt(ALFABETO_CODIGO.length)]);
+        }
+        return codigo.toString();
     }
 
     @Transactional

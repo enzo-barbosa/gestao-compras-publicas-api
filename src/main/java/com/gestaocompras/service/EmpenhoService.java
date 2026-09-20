@@ -9,6 +9,7 @@ import com.gestaocompras.exception.SaldoInsuficienteException;
 import com.gestaocompras.model.Contrato;
 import com.gestaocompras.model.DotacaoOrcamentaria;
 import com.gestaocompras.model.Empenho;
+import com.gestaocompras.model.EmpenhoSequencia;
 import com.gestaocompras.model.StatusContrato;
 import com.gestaocompras.model.StatusEmpenho;
 import com.gestaocompras.model.TipoMovimentacao;
@@ -16,6 +17,7 @@ import com.gestaocompras.model.Usuario;
 import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.DotacaoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
+import com.gestaocompras.repository.EmpenhoSequenciaRepository;
 import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -37,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class EmpenhoService {
 
     private final EmpenhoRepository empenhoRepository;
+    private final EmpenhoSequenciaRepository empenhoSequenciaRepository;
     private final ContratoRepository contratoRepository;
     private final DotacaoRepository dotacaoRepository;
     private final DotacaoService dotacaoService;
@@ -45,6 +48,7 @@ public class EmpenhoService {
     private final Clock clock;
 
     public EmpenhoService(EmpenhoRepository empenhoRepository,
+            EmpenhoSequenciaRepository empenhoSequenciaRepository,
             ContratoRepository contratoRepository,
             DotacaoRepository dotacaoRepository,
             DotacaoService dotacaoService,
@@ -52,6 +56,7 @@ public class EmpenhoService {
             OrganizacaoRepository organizacaoRepository,
             Clock clock) {
         this.empenhoRepository = empenhoRepository;
+        this.empenhoSequenciaRepository = empenhoSequenciaRepository;
         this.contratoRepository = contratoRepository;
         this.dotacaoRepository = dotacaoRepository;
         this.dotacaoService = dotacaoService;
@@ -109,6 +114,7 @@ public class EmpenhoService {
                 .usuario(usuarioAutenticado())
                 .mesReferencia(mes)
                 .anoReferencia(ano)
+                .numero(proximoNumero(organizacaoId, ano))
                 .valor(valorCompetencia)
                 .status(StatusEmpenho.EMPENHADO)
                 .dataEmissao(LocalDate.now(clock))
@@ -185,9 +191,27 @@ public class EmpenhoService {
         YearMonth anterior = corrente.minusMonths(1);
         if (!competencia.equals(corrente) && !competencia.equals(anterior)) {
             throw new OperacaoNaoPermitidaException(
-                    "A competência %02d/%d não é elegível para empenho: só é permitida a competência corrente (%s) ou, se pendente, a imediatamente anterior (%s)."
-                            .formatted(mes, ano, corrente, anterior));
+                    "A competência %02d/%04d não pode ser empenhada: o empenho só é emitido "
+                            + "para o mês corrente (%02d/%04d) ou, enquanto o anterior ainda "
+                            + "estiver pendente, para o mês imediatamente anterior (%02d/%04d)."
+                            .formatted(mes, ano, corrente.getMonthValue(), corrente.getYear(),
+                                    anterior.getMonthValue(), anterior.getYear()));
         }
+    }
+
+    private int proximoNumero(Long organizacaoId, Integer ano) {
+        EmpenhoSequencia sequencia = empenhoSequenciaRepository
+                .findByIdComLock(organizacaoId, ano)
+                .orElse(null);
+        if (sequencia == null) {
+            int numero = empenhoRepository.maxNumeroPorOrganizacaoEAno(organizacaoId, ano) + 1;
+            empenhoSequenciaRepository.save(
+                    new EmpenhoSequencia(organizacaoId, ano, numero));
+            return numero;
+        }
+        int numero = sequencia.getUltimo() + 1;
+        sequencia.setUltimo(numero);
+        return numero;
     }
 
     private void validarSequencialidade(Contrato contrato, Integer mes, Integer ano) {

@@ -1,5 +1,6 @@
 package com.gestaocompras.controller;
 
+import com.gestaocompras.dto.CodigoAcessoResponseDTO;
 import com.gestaocompras.dto.ConviteRequestDTO;
 import com.gestaocompras.dto.ConviteResponseDTO;
 import com.gestaocompras.dto.MembroPapelRequestDTO;
@@ -99,6 +100,32 @@ public class OrganizacaoController {
     public ResponseEntity<Void> sairDaOrganizacao(@AuthenticationPrincipal UsuarioLogado usuarioLogado,
             @PathVariable Long id) {
         organizacaoService.sairDaOrganizacao(id, usuarioLogado);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> excluir(@AuthenticationPrincipal UsuarioLogado usuarioLogado,
+            @PathVariable Long id) {
+        organizacaoService.excluir(id, usuarioLogado);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/codigo-acesso")
+    public ResponseEntity<CodigoAcessoResponseDTO> buscarCodigoAcesso(
+            @AuthenticationPrincipal UsuarioLogado usuarioLogado, @PathVariable Long id) {
+        return ResponseEntity.ok(organizacaoService.buscarCodigoAcesso(id, usuarioLogado));
+    }
+
+    @PostMapping("/{id}/codigo-acesso")
+    public ResponseEntity<CodigoAcessoResponseDTO> gerarCodigoAcesso(
+            @AuthenticationPrincipal UsuarioLogado usuarioLogado, @PathVariable Long id) {
+        return ResponseEntity.ok(organizacaoService.gerarCodigoAcesso(id, usuarioLogado));
+    }
+
+    @DeleteMapping("/{id}/codigo-acesso")
+    public ResponseEntity<Void> revogarCodigoAcesso(
+            @AuthenticationPrincipal UsuarioLogado usuarioLogado, @PathVariable Long id) {
+        organizacaoService.revogarCodigoAcesso(id, usuarioLogado);
         return ResponseEntity.noContent().build();
     }
 

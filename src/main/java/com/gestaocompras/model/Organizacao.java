@@ -35,6 +35,9 @@ public class Organizacao {
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
 
+    @Column(name = "codigo_acesso", length = 24)
+    private String codigoAcesso;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "criado_por", nullable = false)
     private Usuario criadoPor;

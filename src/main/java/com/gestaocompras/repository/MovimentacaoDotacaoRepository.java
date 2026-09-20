@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 
 public interface MovimentacaoDotacaoRepository extends JpaRepository<MovimentacaoDotacao, Long> {
 
@@ -13,4 +15,8 @@ public interface MovimentacaoDotacaoRepository extends JpaRepository<Movimentaca
     List<MovimentacaoDotacao> findAllByDotacaoId(Long dotacaoId);
 
     long countByDotacaoId(Long dotacaoId);
+
+    @Modifying
+    @Query("delete from MovimentacaoDotacao m where m.dotacao.organizacao.id = :organizacaoId")
+    void deleteByOrganizacaoId(Long organizacaoId);
 }

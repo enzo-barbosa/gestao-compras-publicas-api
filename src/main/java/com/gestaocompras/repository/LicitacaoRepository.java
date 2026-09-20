@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface LicitacaoRepository
@@ -31,4 +32,8 @@ public interface LicitacaoRepository
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select l from Licitacao l where l.id = :id and l.organizacao.id = :organizacaoId")
     Optional<Licitacao> findByIdComLock(Long id, Long organizacaoId);
+
+    @Modifying
+    @Query("delete from Licitacao l where l.organizacao.id = :organizacaoId")
+    void deleteByOrganizacaoId(Long organizacaoId);
 }

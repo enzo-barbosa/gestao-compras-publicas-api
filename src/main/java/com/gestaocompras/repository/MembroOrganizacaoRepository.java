@@ -5,6 +5,8 @@ import com.gestaocompras.model.PapelOrganizacao;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 
 public interface MembroOrganizacaoRepository
         extends JpaRepository<MembroOrganizacao, MembroOrganizacao.Id> {
@@ -19,4 +21,8 @@ public interface MembroOrganizacaoRepository
     boolean existsByIdOrganizacaoIdAndIdUsuarioId(Long organizacaoId, Long usuarioId);
 
     boolean existsByIdOrganizacaoIdAndPapel(Long organizacaoId, PapelOrganizacao papel);
+
+    @Modifying
+    @Query("delete from MembroOrganizacao m where m.id.organizacao.id = :organizacaoId")
+    void deleteByOrganizacaoId(Long organizacaoId);
 }

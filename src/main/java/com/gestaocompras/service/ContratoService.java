@@ -20,6 +20,7 @@ import com.gestaocompras.repository.LicitacaoRepository;
 import com.gestaocompras.repository.OrganizacaoRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -72,6 +73,7 @@ public class ContratoService {
                     .findByIdAndOrganizacaoId(request.licitacaoId(), organizacaoId)
                     .orElseThrow(() -> new NotFoundException("Licitação", request.licitacaoId()));
             validarVinculoLicitacao(licitacao, fornecedor);
+            validarDataInicioComLicitacao(licitacao, request.dataInicio());
         }
         return ContratoResponseDTO.from(contratoRepository.save(Contrato.builder()
                 .numero(request.numero())
@@ -123,6 +125,7 @@ public class ContratoService {
             throw new IllegalArgumentException(
                     "A licitação vinculada não pode ser alterada após a criação do contrato.");
         }
+        validarDataInicioComLicitacao(contrato.getLicitacao(), request.dataInicio());
         contratoRepository.findByNumeroAndOrganizacaoId(request.numero(), organizacaoId)
                 .filter(outro -> !outro.getId().equals(id))
                 .ifPresent(outro -> {
@@ -169,6 +172,17 @@ public class ContratoService {
             throw new OperacaoNaoPermitidaException(
                     "A licitação %s não foi vencida pelo fornecedor informado."
                             .formatted(numeroEdital));
+        }
+    }
+
+    private void validarDataInicioComLicitacao(Licitacao licitacao, LocalDate dataInicio) {
+        if (licitacao != null && licitacao.getDataEncerramento() != null
+                && dataInicio.isBefore(licitacao.getDataEncerramento())) {
+            throw new IllegalArgumentException(
+                    "A data de início do contrato não pode ser anterior ao encerramento da "
+                            + "licitação %s (%s)."
+                            .formatted(licitacao.getNumeroEdital(),
+                                    licitacao.getDataEncerramento()));
         }
     }
 

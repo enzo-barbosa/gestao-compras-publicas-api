@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface DotacaoRepository extends JpaRepository<DotacaoOrcamentaria, Long> {
@@ -25,4 +26,8 @@ public interface DotacaoRepository extends JpaRepository<DotacaoOrcamentaria, Lo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select d from DotacaoOrcamentaria d where d.id = :id and d.organizacao.id = :organizacaoId")
     Optional<DotacaoOrcamentaria> findByIdComLock(Long id, Long organizacaoId);
+
+    @Modifying
+    @Query("delete from DotacaoOrcamentaria d where d.organizacao.id = :organizacaoId")
+    void deleteByOrganizacaoId(Long organizacaoId);
 }

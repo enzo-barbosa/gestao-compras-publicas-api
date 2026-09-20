@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface EmpenhoRepository
@@ -32,4 +33,12 @@ public interface EmpenhoRepository
             Integer anoReferencia, Integer mesReferencia, List<StatusEmpenho> status);
 
     boolean existsByContratoIdAndStatusIn(Long contratoId, Collection<StatusEmpenho> status);
+
+    @Query("select coalesce(max(e.numero), 0) from Empenho e "
+            + "where e.organizacao.id = :organizacaoId and e.anoReferencia = :anoReferencia")
+    int maxNumeroPorOrganizacaoEAno(Long organizacaoId, Integer anoReferencia);
+
+    @Modifying
+    @Query("delete from Empenho e where e.organizacao.id = :organizacaoId")
+    void deleteByOrganizacaoId(Long organizacaoId);
 }

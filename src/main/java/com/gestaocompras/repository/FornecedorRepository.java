@@ -5,6 +5,8 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 
 public interface FornecedorRepository extends JpaRepository<Fornecedor, Long> {
 
@@ -18,4 +20,8 @@ public interface FornecedorRepository extends JpaRepository<Fornecedor, Long> {
     Optional<Fornecedor> findByCnpjAndOrganizacaoId(String cnpj, Long organizacaoId);
 
     boolean existsByCnpjAndOrganizacaoId(String cnpj, Long organizacaoId);
+
+    @Modifying
+    @Query("delete from Fornecedor f where f.organizacao.id = :organizacaoId")
+    void deleteByOrganizacaoId(Long organizacaoId);
 }
