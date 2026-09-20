@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   apenasDigitos,
   cnpjValido,
-  codigoConviteValido,
   confirmaSenhaValida,
   dataEncerramentoValida,
-  gerarCodigoConvite,
+  dataFuturaOuHoje,
+  numeroEditalValido,
   senhaValidaMinima,
 } from './validacao'
 
@@ -24,17 +24,63 @@ describe('apenasDigitos', () => {
 })
 
 describe('cnpjValido', () => {
-  it('reconhece CNPJ com máscara', () => {
+  it('reconhece CNPJ válido com máscara', () => {
     expect(cnpjValido('12.345.678/0001-95')).toBe(true)
   })
 
-  it('reconhece CNPJ apenas numérico', () => {
-    expect(cnpjValido('12345678901234')).toBe(true)
+  it('reconhece CNPJ válido apenas numérico', () => {
+    expect(cnpjValido('11444777000161')).toBe(true)
+  })
+
+  it('rejeita CNPJ com dígitos verificadores inválidos', () => {
+    expect(cnpjValido('12345678901234')).toBe(false)
+    expect(cnpjValido('12345678000100')).toBe(false)
   })
 
   it('rejeita CNPJ com quantidade incorreta de dígitos', () => {
     expect(cnpjValido('1234')).toBe(false)
     expect(cnpjValido('')).toBe(false)
+  })
+
+  it('rejeita CNPJ com todos os dígitos repetidos', () => {
+    expect(cnpjValido('11111111111111')).toBe(false)
+    expect(cnpjValido('00000000000000')).toBe(false)
+  })
+})
+
+describe('dataFuturaOuHoje', () => {
+  const hoje = new Date()
+  const hojeISO = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+  const amanha = new Date(hoje.getTime() + 86400000)
+  const amanhaISO = `${amanha.getFullYear()}-${String(amanha.getMonth() + 1).padStart(2, '0')}-${String(amanha.getDate()).padStart(2, '0')}`
+  const ontemISO = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate() - 1).padStart(2, '0')}`
+
+  it('aceita abertura hoje ou futura', () => {
+    expect(dataFuturaOuHoje(hojeISO)).toBe(true)
+    expect(dataFuturaOuHoje(amanhaISO)).toBe(true)
+  })
+
+  it('rejeita abertura anterior a hoje', () => {
+    expect(dataFuturaOuHoje(ontemISO)).toBe(false)
+  })
+
+  it('rejeita data vazia', () => {
+    expect(dataFuturaOuHoje('')).toBe(false)
+  })
+})
+
+describe('numeroEditalValido', () => {
+  it('aceita o padrão NNNN/AAAA', () => {
+    expect(numeroEditalValido('1/2026')).toBe(true)
+    expect(numeroEditalValido('001/2026')).toBe(true)
+    expect(numeroEditalValido('1234/2026')).toBe(true)
+  })
+
+  it('rejeita formatos fora do padrão', () => {
+    expect(numeroEditalValido('12345/2026')).toBe(false)
+    expect(numeroEditalValido('001/26')).toBe(false)
+    expect(numeroEditalValido('001')).toBe(false)
+    expect(numeroEditalValido('')).toBe(false)
   })
 })
 
@@ -80,39 +126,5 @@ describe('confirmaSenhaValida', () => {
 
   it('rejeita confirmação vazia', () => {
     expect(confirmaSenhaValida('segredo123', '')).toBe(false)
-  })
-})
-
-describe('codigoConviteValido', () => {
-  it('aceita códigos gerados e customizados válidos', () => {
-    expect(codigoConviteValido('ABCD1234')).toBe(true)
-    expect(codigoConviteValido('prefeitura-2026')).toBe(true)
-    expect(codigoConviteValido('s4')).toBe(false)
-  })
-
-  it('rejeita e-mails, símbolos, espaços e tamanho inválido', () => {
-    expect(codigoConviteValido('fulano@email.com')).toBe(false)
-    expect(codigoConviteValido('codigo com espaco')).toBe(false)
-    expect(codigoConviteValido('codigo!')).toBe(false)
-    expect(codigoConviteValido('abc')).toBe(false)
-    expect(codigoConviteValido('')).toBe(false)
-    expect(codigoConviteValido('-comeca-com-hifen')).toBe(false)
-  })
-})
-
-describe('gerarCodigoConvite', () => {
-  it('gera código com o tamanho pedido usando apenas caracteres não ambíguos', () => {
-    const codigo = gerarCodigoConvite()
-    expect(codigo).toHaveLength(8)
-    expect(codigoConviteValido(codigo)).toBe(true)
-    expect(codigo).not.toMatch(/[0O1I]/)
-  })
-
-  it('gera códigos diferentes a cada chamada', () => {
-    expect(gerarCodigoConvite()).not.toBe(gerarCodigoConvite())
-  })
-
-  it('respeita tamanho customizado', () => {
-    expect(gerarCodigoConvite(12)).toHaveLength(12)
   })
 })

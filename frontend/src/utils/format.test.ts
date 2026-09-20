@@ -5,7 +5,11 @@ import {
   formatarData,
   formatarMoeda,
   formatarStatusEmpenho,
+  mascaraCnpj,
+  mascaraMoeda,
+  mascaraNumeroEdital,
   saudacaoBemVindo,
+  valorDaMascaraMoeda,
 } from './format'
 
 const moeda = (valor: number): string => formatarMoeda(valor).replace(/\u00A0/g, ' ')
@@ -80,8 +84,8 @@ describe('extrairMensagemErro', () => {
   })
 
   it('usa a mensagem de validações customizadas (Error sem response)', () => {
-    expect(extrairMensagemErro(new Error('CNPJ inválido: informe os 14 dígitos.')))
-      .toBe('CNPJ inválido: informe os 14 dígitos.')
+    expect(extrairMensagemErro(new Error('CNPJ inválido: verifique os números informados.')))
+      .toBe('CNPJ inválido: verifique os números informados.')
     expect(extrairMensagemErro(new Error('Informe o número do contrato.')))
       .toBe('Informe o número do contrato.')
   })
@@ -100,5 +104,69 @@ describe('saudacaoBemVindo', () => {
 
   it('cobre nome ausente', () => {
     expect(saudacaoBemVindo(undefined)).toBe('Bem-vindo(a), você!')
+  })
+})
+
+describe('mascaraMoeda', () => {
+  it('agrupa milhares sem decimais', () => {
+    expect(mascaraMoeda('25000')).toBe('25.000')
+    expect(mascaraMoeda('1')).toBe('1')
+    expect(mascaraMoeda('0')).toBe('0')
+  })
+
+  it('mantém centavos quando há separador decimal', () => {
+    expect(mascaraMoeda('25000,50')).toBe('25.000,50')
+    expect(mascaraMoeda('0,05')).toBe('0,05')
+  })
+
+  it('retorna vazio para valor vazio', () => {
+    expect(mascaraMoeda('')).toBe('')
+  })
+})
+
+describe('valorDaMascaraMoeda', () => {
+  it('converte valor mascarado em número', () => {
+    expect(valorDaMascaraMoeda('25.000,50')).toBe(25000.5)
+    expect(valorDaMascaraMoeda('25.000')).toBe(25000)
+    expect(valorDaMascaraMoeda('0,05')).toBe(0.05)
+  })
+
+  it('retorna zero para valor vazio', () => {
+    expect(valorDaMascaraMoeda('')).toBe(0)
+  })
+})
+
+describe('mascaraCnpj', () => {
+  it('aplica a máscara completa', () => {
+    expect(mascaraCnpj('12345678000195')).toBe('12.345.678/0001-95')
+  })
+
+  it('aplica a máscara gradualmente', () => {
+    expect(mascaraCnpj('12')).toBe('12')
+    expect(mascaraCnpj('123')).toBe('12.3')
+    expect(mascaraCnpj('1234567')).toBe('12.345.67')
+    expect(mascaraCnpj('123456789012')).toBe('12.345.678/9012')
+  })
+
+  it('retorna vazio para valor vazio', () => {
+    expect(mascaraCnpj('')).toBe('')
+  })
+})
+
+describe('mascaraNumeroEdital', () => {
+  it('formata número/ano gradualmente', () => {
+    expect(mascaraNumeroEdital('001')).toBe('001')
+    expect(mascaraNumeroEdital('001/')).toBe('001/')
+    expect(mascaraNumeroEdital('001/2026')).toBe('001/2026')
+  })
+
+  it('limita o tamanho de número e ano', () => {
+    expect(mascaraNumeroEdital('12345/2026')).toBe('1234/2026')
+    expect(mascaraNumeroEdital('001/20265')).toBe('001/2026')
+  })
+
+  it('remove caracteres inválidos e trunca número sem barra', () => {
+    expect(mascaraNumeroEdital('001//2026')).toBe('001/2026')
+    expect(mascaraNumeroEdital('001_2026')).toBe('0012')
   })
 })
