@@ -40,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrganizacaoService {
 
     private static final char[] ALFABETO_CODIGO =
-            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
+            "ABCDEFGHJKMNPQRSTUVWXYZ23456789".toCharArray();
     private static final int TAMANHO_CODIGO = 8;
     private static final SecureRandom RANDOM = new SecureRandom();
 
