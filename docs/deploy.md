@@ -105,7 +105,7 @@ Notas de config:
 - `git push origin main` → o Render deploya o branch automaticamente (ou "Manual Deploy" no painel).
 - Confirmar: 200 em `/actuator/health`; perfil `prod`; logs de erro no painel se houver falha de
   migration (`validate` falha quando as entidades divergem do schema — nesse caso, gerar uma nova
-  migration Flyway, ex.: `V10__...`).
+  migration Flyway, ex.: `V12__...`).
 
 ## 5. Verificação pós-deploy (checklist)
 
@@ -118,7 +118,7 @@ Notas de config:
 7. Bundle do front: confirmar que o hash novo está servido em
    `https://gestao-compras-publicas.vercel.app/assets/index-*.js` usando `curl --compressed`
    (o caminho **sem** `/assets/` retorna `index.html` pelo SPA fallback e engana a verificação).
-8. Fluxo completo automatizado: `scripts/test-api.sh` (smoke E2E, 59 verificações) com a URL da API
+8. Fluxo completo automatizado: `scripts/test-api.sh` (smoke E2E, 86 verificações) com a URL da API
    de produção apontada.
 
 ## 6. Segurança e segredos
@@ -156,7 +156,7 @@ Notas de config:
 | `403 "sem permissão"` | Papel insuficiente (ex.: VISITANTE em escrita) | Conferir papel na org ativa |
 | `409` | Duplicado (empenho na competência, CNPJ, edital) ou conflito de lock | Ajustar dados; tratar como estado esperado no fluxo |
 | Bundle do front parece "velho" | Cache/roteamento SPA | Inspecionar por `/assets/index-*.js` com `--compressed` |
-| Falha de boot com `validate` | Entidade divergente do schema | Criar nova migration Flyway (`V10__...`) |
+| Falha de boot com `validate` | Entidade divergente do schema | Criar nova migration Flyway (`V12__...`) |
 | Preflight CORS 403 | Origin não liberada | Adicionar a origin exata em `CORS_ALLOWED_ORIGINS` |
 | Deploy Hook devolve `not_found` | Hook antigo apagado (projeto mudou/integração reautorizada) | Recriar o hook no dashboard ou usar o fluxo CLI (`npx vercel deploy --prod`) |
 | Sites do front em 404 `DEPLOYMENT_NOT_FOUND` | Projeto Vercel sem deployment (alias solto) | Rodar `npx vercel deploy --prod` e re-anexar os domínios em Settings → Domains |

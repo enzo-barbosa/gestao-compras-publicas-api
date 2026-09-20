@@ -2,6 +2,7 @@ erDiagram
     ORGANIZACAO {
         bigint id PK
         varchar nome UK "cada grupo equivale a uma organizacao"
+        varchar codigo_acesso UK "codigo universal de acesso reutilizavel — volta ao pool apos aceite"
         timestamp criado_em
         bigint criado_por FK "usuario que criou o grupo"
     }
@@ -16,8 +17,7 @@ erDiagram
     CONVITE_ORGANIZACAO {
         bigint id PK
         bigint organizacao_id FK
-        varchar email "convite por e-mail pendente"
-        varchar codigo UK "convite por codigo"
+        varchar email UK "convite nominal por e-mail — aceitar ou recusar"
         enum papel "ADMIN, OPERADOR, VISITANTE"
         timestamp criado_em
         timestamp usado_em "null enquanto pendente"
@@ -91,11 +91,12 @@ erDiagram
     EMPENHO {
         bigint id PK
         bigint organizacao_id FK "escopo do grupo"
+        varchar numero UK "sequencial universal por ano + organizacao (V11)"
         bigint contrato_id FK
         bigint usuario_id FK "auditoria de quem gerou"
         int mes_referencia
         int ano_referencia
-        numeric valor "valor_mensal do contrato"
+        numeric valor "valor_mensal do contrato + residuo da ultima competencia"
         enum status "EMPENHADO, ANULADO, LIQUIDADO"
         date data_emissao
     }

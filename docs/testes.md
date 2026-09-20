@@ -1,15 +1,15 @@
 # Estratégia e documentação de testes
 
-> Camada de qualidade do projeto: 182 testes backend (JUnit 5 + Mockito + Spring Boot Test), 51 testes de frontend (Vitest), smoke E2E com 59 verificações e relatório de cobertura JaCoCo.
+> Camada de qualidade do projeto: 198 testes backend (JUnit 5 + Mockito + Spring Boot Test), 64 testes de frontend (Vitest), smoke E2E com 86 verificações e relatório de cobertura JaCoCo.
 
 ## Pirâmide de testes
 
 O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e isolados), **alguns testes de integração** (fluxos reais com banco de verdade) e **um smoke E2E** (o sistema de ponta a ponta via API).
 
 ```
-        /e2e\        scripts/test-api.sh — 59 verificações curl
-       /integração\  Spring Boot Test + PostgreSQL real — 37 testes (+1 de contexto)
-      /__unitários__\  JUnit 5 + Mockito — 144 testes (services + handler global)
+        /e2e\        scripts/test-api.sh — 86 verificações curl
+       /integração\  Spring Boot Test + PostgreSQL real — 41 testes (+1 de contexto)
+      /__unitários__\  JUnit 5 + Mockito — 156 testes (services + handler global)
 ```
 
 ### 1. Testes unitários — `src/test/java/com/gestaocompras/service` e `.../exception`
@@ -43,11 +43,11 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 
 ### 3. Smoke E2E — `scripts/test-api.sh`
 
-59 verificações end-to-end via `curl` contra a API rodando: fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos → anulação → saldos), ciclo multitenancy (cadastro público, grupos, membros, convites por código/e-mail, papéis por grupo e isolamento por `X-Org-Id`), painel do super admin, redefinição de senha (pública, confirmando a senha atual, e pelo ADMIN do grupo) e caminhos negativos (401/400/403/404/409).
+86 verificações end-to-end via `curl` contra a API rodando: fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos sequenciados universalmente → anulação → saldos), ciclo multitenancy (cadastro público, grupos, membros, convites nominais por e-mail com aceite/recusa, código universal de acesso reutilizável, papéis por grupo e isolamento por `X-Org-Id`), painel do super admin, redefinição de senha (pública, confirmando a senha atual, e pelo ADMIN do grupo) e caminhos negativos (401/400/403/404/409).
 
 ### 4. Frontend — `frontend/src`
 
-- **Vitest** (51 testes) para utilidades e serviços (validação de CNPJ/CPF, formatação e clientes de API).
+- **Vitest** (64 testes) para utilidades e serviços (validação de CNPJ/CPF, formatação e clientes de API).
 - **oxlint** com 0 warnings e **`tsc -b && vite build`** para tipo seguro e build limpo (executados no CI).
 
 ## Como rodar
@@ -55,17 +55,17 @@ O projeto segue a pirâmide clássica: **muitos testes unitários** (rápidos e 
 ```bash
 # Backend — requer PostgreSQL de pé
 docker compose up -d
-./mvnw test                              # 182 testes
+./mvnw test                              # 198 testes
 ./mvnw verify                            # testes + relatório JaCoCo em target/site/jacoco/
 ./mvnw -Dtest=AnulacaoConcorrenteIntegrationTest test   # só o teste de concorrência
 
 # Smoke E2E
-./scripts/test-api.sh                    # 59 verificações
+./scripts/test-api.sh                    # 86 verificações
 
 # Frontend
 cd frontend && npm install
 npm run lint                             # oxlint, 0 warnings
-npm test                                 # 51 testes Vitest
+npm test                                 # 64 testes Vitest
 npm run build                            # tsc + vite
 ```
 

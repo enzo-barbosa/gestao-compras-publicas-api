@@ -56,7 +56,7 @@ docker compose exec db pg_restore -U postgres -d gestao_compras_restore \
 ```
 
 > O Flyway usa `baseline-on-migrate=true, baseline-version=1` no `application.properties`: ao
-> restaurar, as migrations já existentes (V1–V9) serão detectadas via schema history e nada será
+> restaurar, as migrations já existentes (V1–V11) serão detectadas via schema history e nada será
 > reaplicado. Para fins de teste, você pode também rodar
 > `./mvnw flyway:validate` após o restore.
 
