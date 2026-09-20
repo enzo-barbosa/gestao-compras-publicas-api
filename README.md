@@ -36,7 +36,7 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 - **Dotações orçamentárias** com controle de saldo e histórico auditável de movimentações (crédito inicial, suplementar, débito, estorno)
 - **Créditos suplementares** com validação de ano/exercício
 - **Fornecedores** com CNPJ validado por dígito verificador (módulo 11)
-- **Licitações** nas 9 modalidades das Leis 8.666/93 e 14.133/21, com fluxo de definição de vencedor
+- **Licitações** nas 9 modalidades das Leis 8.666/93 e 14.133/21 ([detalhe por modalidade](docs/modalidades.md)), com fluxo de definição de vencedor
 - **Contratos** vinculados a dotação + fornecedor (+ licitação opcional), com valor mensal calculado (HALF_UP) e data de término prevista derivada
 - **Empenhos mensais** transacionais: competência única por contrato, débito duplo atômico (dotação + contrato), **emitidos apenas na competência corrente ou pendente** e anulação com estorno completo
 - **Autenticação JWT** (JJWT 0.12.x, TTL 8h) com papéis globais (`SUPER_ADMIN`) e papéis **por grupo/organização** (`ADMIN`/`OPERADOR`/`VISITANTE`) selecionada pelo header `X-Org-Id`, versão de token para revogação de sessões e **conta de usuário** (editar nome, trocar senha e sair em todos os dispositivos)
@@ -50,10 +50,10 @@ Cada competência é debitada **uma única vez**, com validações de vigência,
 | Camada | Tecnologias |
 |---|---|
 | Backend | Java 21, Spring Boot 4.1.1, Spring Security, JPA/Hibernate 6, Bean Validation |
-| Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V9) + seed controlado |
+| Banco | PostgreSQL 15 (Docker), Flyway migrations (V1–V11) + seed controlado |
 | Auth | JJWT 0.12.6, filtro de token + membership por grupo, BCrypt |
 | Frontend | React 19, TypeScript, Vite, axios, react-router-dom |
-| Qualidade | 182 testes backend (JUnit 5 + Mockito + integração) + 51 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
+| Qualidade | 198 testes backend (JUnit 5 + Mockito + integração) + 64 testes de frontend (Vitest) — estratégia em [docs/testes.md](docs/testes.md) |
 
 ## Como rodar
 
@@ -79,7 +79,7 @@ Com a API rodando, acesse `http://localhost:8080/swagger-ui.html`. A especifica�
 
 ### Testes e cobertura
 ```bash
-./mvnw test                          # 182 testes
+./mvnw test                          # 198 testes
 ./mvnw verify                        # relatório JaCoCo em target/site/jacoco/
 ```
 
@@ -87,7 +87,7 @@ A estratégia de testes (pirâmide unitário → integração → E2E), o caso d
 
 ### Smoke test da API
 ```bash
-./scripts/test-api.sh                # 59 verificações end-to-end via curl
+./scripts/test-api.sh                # 86 verificações end-to-end via curl
 ```
 
 O script cria registros próprios (sufixo único por execução) e exercita, além do fluxo de negócio completo (dotação → fornecedor → licitação → contrato → empenhos → anulação → saldos), o ciclo multitenancy: cadastro público, criação de grupo com vínculo de ADMIN, membros por e-mail, convites por código/e-mail, papéis por grupo (`VISITANTE` lê mas não escreve, `OPERADOR` escreve), isolamento por `X-Org-Id`, painel do super admin e a redefinição de senha (pública, confirmando a senha atual, e pelo ADMIN do grupo). Inclui caminhos negativos (401/400/403/404/409) e imprime o resumo.
