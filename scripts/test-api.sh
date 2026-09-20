@@ -5,15 +5,15 @@
 # Exercita o fluxo de negócio (login JWT -> dotação -> fornecedor -> licitação
 # -> vencedor -> contrato -> empenhos -> anulação -> saldos) dentro de um
 # grupo, o ciclo multitenancy (cadastro público -> criar grupo -> membros ->
-# convites por e-mail/código -> papéis por grupo -> painel do super admin ->
-# isolamento por X-Org-Id) e a redefinição de senha (pública, confirmando a
-# senha atual, e pelo ADMIN do grupo).
+# convites nominais por e-mail e código de acesso da organização -> papéis por
+# grupo -> painel do super admin -> isolamento por X-Org-Id) e a redefinição
+# de senha (pública, confirmando a senha atual, e pelo ADMIN do grupo).
 #
 # Uso:      ./scripts/test-api.sh            (API em http://localhost:8080)
 #           BASE=http://host:porta ./scripts/test-api.sh
 #
 # Re-rodável infinitamente: cada execução usa sufixo único no nome dos grupos,
-# e-mails e códigos de convite. Empenhos anulados e licitações encerradas
+# e-mails e códigos de acesso. Empenhos anulados e licitações encerradas
 # permanecem como histórico (comportamento intencional do sistema).
 # Requisitos: bash (GNU date), curl, python3
 # ============================================================================
@@ -295,40 +295,126 @@ USUARIO_U1="$(campo_json "['id']")"
 codigo="$(requisicao_org PUT "/api/organizacoes/$NOVA_ORG/membros/$USUARIO_U1" '{"papel":"VISITANTE"}' "$TOKEN_U1" "$NOVA_ORG")"
 assert_status "criador não pode ser rebaixado" 409 "$codigo" || true
 
-# ── 10. Multitenancy: convites ───────────────────────────────────────────────
-verbo "Convites por código e e-mail"
+# ── 10. Multitenancy: convites nominais e código de acesso ────────────────────
+verbo "Convites nominais e código de acesso"
+
+# Código de acesso da organização (8 caracteres; quem o usa entra como VISITANTE).
+codigo="$(requisicao_org GET "/api/organizacoes/$NOVA_ORG/codigo-acesso" "" "$TOKEN_U1" "$NOVA_ORG")"
+assert_status "consulta de código de acesso antes da criação" 200 "$codigo" || true
+COD_ANTES="$(campo_json "['codigo']")"
+[[ "$COD_ANTES" == "None" ]] \
+    && assert_status "código de acesso ainda não existe" None None \
+    || assert_status "código de acesso ainda não existe" None "$COD_ANTES"
+
+codigo="$(requisicao_org POST "/api/organizacoes/$NOVA_ORG/codigo-acesso" "" "$TOKEN_U1" "$NOVA_ORG")"
+assert_status "administrador gera o código de acesso" 200 "$codigo" || true
+COD_ACESSO="$(campo_json "['codigo']")"
+if [[ ${#COD_ACESSO} -eq 8 ]]; then
+    PASSOS=$((PASSOS + 1))
+    echo "  ✓ código de acesso gerado com 8 caracteres ($COD_ACESSO)"
+else
+    FALHAS=$((FALHAS + 1))
+    echo "  ✗ código de acesso inesperado: '$COD_ACESSO'"
+fi
+
 EMAIL_U3="smoke.u3.$SUFIXO@teste.com"
-CODIGO="SMK-$SUFIXO"
 requisicao POST /api/auth/register "{\"nome\":\"Usuario Tres\",\"email\":\"$EMAIL_U3\",\"senha\":\"senhaSegura123\"}" > /dev/null
 requisicao POST /api/auth/login "{\"email\":\"$EMAIL_U3\",\"senha\":\"senhaSegura123\"}" > /dev/null
 TOKEN_U3="$(campo_json "['token']")"
 
-codigo="$(requisicao_org POST "/api/organizacoes/$NOVA_ORG/convites" "{\"codigo\":\"$CODIGO\",\"papel\":\"OPERADOR\"}" "$TOKEN_U1" "$NOVA_ORG")"
-assert_status "convite por código criado" 200 "$codigo" || true
+codigo="$(requisicao POST "/api/convites/aceitar" "{\"codigo\":\"$COD_ACESSO\"}" "$TOKEN_U3")"
+assert_status "usuário entra no grupo pelo código de acesso" 200 "$codigo" || true
+PAPEL_CODIGO="$(campo_json "['papel']")"
+[[ "$PAPEL_CODIGO" == "VISITANTE" ]] \
+    && assert_status "código de acesso concede papel VISITANTE" VISITANTE VISITANTE \
+    || assert_status "código de acesso concede papel VISITANTE" VISITANTE "$PAPEL_CODIGO"
 
-codigo="$(requisicao POST "/api/convites/aceitar" "{\"codigo\":\"$CODIGO\"}" "$TOKEN_U3")"
-assert_status "usuário aceita convite por código" 200 "$codigo" || true
+codigo="$(requisicao_org POST /api/fornecedores '{"nome":"Proibido","cnpj":"11444777000161"}' "$TOKEN_U3" "$NOVA_ORG")"
+assert_status "VISITANTE não cria fornecedor no grupo" 403 "$codigo" || true
 
-codigo="$(requisicao_org POST /api/fornecedores "{\"nome\":\"Fornecedor Operador $SUFIXO\",\"cnpj\":\"$(gerar_cnpj_valido)\",\"email\":\"op$SUFIXO@teste.com\"}" "$TOKEN_U3" "$NOVA_ORG")"
-assert_status "OPERADOR cria fornecedor no grupo" 201 "$codigo" || true
+codigo="$(requisicao_org DELETE "/api/organizacoes/$NOVA_ORG/codigo-acesso" "" "$TOKEN_U1" "$NOVA_ORG")"
+assert_status "administrador revoga o código de acesso" 204 "$codigo" || true
 
+codigo="$(requisicao POST "/api/convites/aceitar" "{\"codigo\":\"$COD_ACESSO\"}" "$TOKEN_U3")"
+assert_status "código revogado deixa de aceitar novos membros" 404 "$codigo" || true
+
+# Convite nominal por e-mail: exige conta existente do convidado.
 EMAIL_U4="smoke.u4.$SUFIXO@teste.com"
 requisicao POST /api/auth/register "{\"nome\":\"Usuario Quatro\",\"email\":\"$EMAIL_U4\",\"senha\":\"senhaSegura123\"}" > /dev/null
 requisicao POST /api/auth/login "{\"email\":\"$EMAIL_U4\",\"senha\":\"senhaSegura123\"}" > /dev/null
 TOKEN_U4="$(campo_json "['token']")"
 
 codigo="$(requisicao_org POST "/api/organizacoes/$NOVA_ORG/convites" "{\"email\":\"$EMAIL_U4\",\"papel\":\"OPERADOR\"}" "$TOKEN_U1" "$NOVA_ORG")"
-assert_status "convite por e-mail criado" 200 "$codigo" || true
+assert_status "convite nominal por e-mail criado (OPERADOR)" 200 "$codigo" || true
 
-codigo="$(requisicao POST "/api/convites/aceitar-email" "" "$TOKEN_U4")"
-assert_status "usuário aceita convites do próprio e-mail" 200 "$codigo" || true
-QTD_ACEITES="$(tamanho_array)"
-[[ "$QTD_ACEITES" == "1" ]] \
-    && assert_status "aceite por e-mail concedeu 1 membro" 1 1 \
-    || assert_status "aceite por e-mail concedeu 1 membro" 1 "$QTD_ACEITES"
+codigo="$(requisicao_org POST "/api/organizacoes/$NOVA_ORG/convites" "{\"codigo\":\"ANTIGO-$SUFIXO\",\"papel\":\"OPERADOR\"}" "$TOKEN_U1" "$NOVA_ORG")"
+assert_status "criar convite por código é rejeitado (modelo novo)" 400 "$codigo" || true
+
+codigo="$(requisicao GET /api/convites/pendentes "" "$TOKEN_U4")"
+assert_status "usuário lista convites pendentes do próprio e-mail" 200 "$codigo" || true
+QTD_PENDENTES="$(tamanho_array)"
+[[ "$QTD_PENDENTES" == "1" ]] \
+    && assert_status "há 1 convite pendente para o usuário quatro" 1 1 \
+    || assert_status "há 1 convite pendente para o usuário quatro" 1 "$QTD_PENDENTES"
+CONVITE_U4="$(python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+print(d[0]['id'] if d else '')" 2>/dev/null)"
+if [[ -n "$CONVITE_U4" ]]; then
+    PASSOS=$((PASSOS + 1))
+    echo "  ✓ convite pendente localizado (id $CONVITE_U4)"
+else
+    FALHAS=$((FALHAS + 1))
+    echo "  ✗ convite pendente não localizado"
+fi
+
+codigo="$(requisicao POST "/api/convites/$CONVITE_U4/aceitar" "" "$TOKEN_U4")"
+assert_status "usuário aceita convite nominal" 200 "$codigo" || true
+PAPEL_NOMINAL="$(campo_json "['papel']")"
+[[ "$PAPEL_NOMINAL" == "OPERADOR" ]] \
+    && assert_status "convite nominal concedeu o papel do convite" OPERADOR OPERADOR \
+    || assert_status "convite nominal concedeu o papel do convite" OPERADOR "$PAPEL_NOMINAL"
+
+codigo="$(requisicao_org POST /api/fornecedores "{\"nome\":\"Fornecedor Operador $SUFIXO\",\"cnpj\":\"$(gerar_cnpj_valido)\",\"email\":\"op$SUFIXO@teste.com\"}" "$TOKEN_U4" "$NOVA_ORG")"
+assert_status "OPERADOR (via convite nominal) cria fornecedor no grupo" 201 "$codigo" || true
+
+codigo="$(requisicao POST "/api/convites/$CONVITE_U4/aceitar" "" "$TOKEN_U4")"
+assert_status "convite nominal já aceito é rejeitado" 404 "$codigo" || true
+
+# Recusa de convite nominal.
+EMAIL_U5="smoke.u5.$SUFIXO@teste.com"
+requisicao POST /api/auth/register "{\"nome\":\"Usuario Cinco\",\"email\":\"$EMAIL_U5\",\"senha\":\"senhaSegura123\"}" > /dev/null
+requisicao POST /api/auth/login "{\"email\":\"$EMAIL_U5\",\"senha\":\"senhaSegura123\"}" > /dev/null
+TOKEN_U5="$(campo_json "['token']")"
+
+codigo="$(requisicao_org POST "/api/organizacoes/$NOVA_ORG/convites" "{\"email\":\"$EMAIL_U5\",\"papel\":\"VISITANTE\"}" "$TOKEN_U1" "$NOVA_ORG")"
+assert_status "convite nominal para usuário cinco criado" 200 "$codigo" || true
+
+codigo="$(requisicao GET /api/convites/pendentes "" "$TOKEN_U5")"
+assert_status "usuário cinco lista os convites pendentes" 200 "$codigo" || true
+CONVITE_U5="$(python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+print(d[0]['id'] if d else '')" 2>/dev/null)"
+if [[ -n "$CONVITE_U5" ]]; then
+    PASSOS=$((PASSOS + 1))
+    echo "  ✓ convite pendente localizado para recusa (id $CONVITE_U5)"
+else
+    FALHAS=$((FALHAS + 1))
+    echo "  ✗ convite pendente não localizado para recusa"
+fi
+
+codigo="$(requisicao POST "/api/convites/$CONVITE_U5/recusar" "" "$TOKEN_U5")"
+assert_status "usuário recusa convite nominal" 204 "$codigo" || true
+
+codigo="$(requisicao POST "/api/convites/$CONVITE_U5/recusar" "" "$TOKEN_U5")"
+assert_status "recusa duplicada é rejeitada" 409 "$codigo" || true
+
+codigo="$(requisicao_org GET /api/dotacoes "" "$TOKEN_U5" "$NOVA_ORG")"
+assert_status "quem recusou o convite não entra no grupo" 403 "$codigo" || true
 
 codigo="$(requisicao_org GET "/api/organizacoes/$NOVA_ORG/convites" "" "$TOKEN_U1" "$NOVA_ORG")"
-assert_status "listagem de convites considerando uso (aceites saem da pendência)" 200 "$codigo" || true
+assert_status "listagem de convites da organização (pendentes + recusados)" 200 "$codigo" || true
 
 # ── 11. Isolamento por X-Org-Id e painel do super admin ─────────────────────
 verbo "Isolamento e painel SUPER_ADMIN"
