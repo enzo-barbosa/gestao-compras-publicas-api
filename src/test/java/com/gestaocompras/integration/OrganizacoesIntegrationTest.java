@@ -27,11 +27,11 @@ class OrganizacoesIntegrationTest {
     private static final String EMAIL_B = "org.b." + System.nanoTime() + "@gestao.com";
     private static final String EMAIL_C = "org.c." + System.nanoTime() + "@gestao.com";
     private static final String EMAIL_D = "org.d." + System.nanoTime() + "@gestao.com";
+    private static final String EMAIL_E = "org.e." + System.nanoTime() + "@gestao.com";
     private static final String NOME_ORG = "Grupo " + System.nanoTime();
 
     private static Long organizacaoId;
     private static Long usuarioAdminId;
-    private static String codigoConvite;
 
     @LocalServerPort
     private int porta;
@@ -187,22 +187,57 @@ class OrganizacoesIntegrationTest {
 
     @Test
     @Order(6)
-    void convitePorCodigoConcedeMembrosia() {
+    void codigoDeAcessoUniversalConcedeVisitante() {
         HttpHeaders admin = adminComOrga(tokenDe(EMAIL_A), organizacaoId);
-        codigoConvite = "CODE" + System.nanoTime();
 
-        var convite = troca("/api/organizacoes/" + organizacaoId + "/convites", HttpMethod.POST,
-                admin, Map.of("codigo", codigoConvite, "papel", "OPERADOR"));
+        var gerar = troca("/api/organizacoes/" + organizacaoId + "/codigo-acesso",
+                HttpMethod.POST, admin, null);
 
-        assertThat(convite.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat((String) ((Map<?, ?>) convite.getBody()).get("codigo"))
-                .isEqualTo(codigoConvite);
+        assertThat(gerar.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String codigo = (String) ((Map<?, ?>) gerar.getBody()).get("codigo");
+        assertThat(codigo).isNotBlank();
 
         String email = registrar(EMAIL_C);
         String tokenConvidado = tokenDe(email);
 
         var aceite = troca("/api/convites/aceitar", HttpMethod.POST,
-                comBearer(tokenConvidado), Map.of("codigo", codigoConvite));
+                comBearer(tokenConvidado), Map.of("codigo", codigo));
+
+        assertThat(aceite.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(((Number) ((Map<?, ?>) aceite.getBody()).get("id")).longValue())
+                .isEqualTo(organizacaoId);
+        assertThat((String) ((Map<?, ?>) aceite.getBody()).get("papel"))
+                .isEqualTo("VISITANTE");
+
+        var agoraMembro = troca("/api/organizacoes/" + organizacaoId, HttpMethod.GET,
+                comBearer(tokenConvidado), null);
+        assertThat(agoraMembro.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @Order(7)
+    void conviteNominalConcedeMembrosia() {
+        String tokenConvidado = tokenDe(registrar(EMAIL_D));
+
+        var convite = troca("/api/organizacoes/" + organizacaoId + "/convites", HttpMethod.POST,
+                adminComOrga(tokenDe(EMAIL_A), organizacaoId),
+                Map.of("email", EMAIL_D, "papel", "OPERADOR"));
+
+        assertThat(convite.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((String) ((Map<?, ?>) convite.getBody()).get("email")).isEqualTo(EMAIL_D);
+
+        var pendentes = trocaLista("/api/convites/pendentes", HttpMethod.GET,
+                comBearer(tokenConvidado), null);
+        assertThat(pendentes.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var listaPendentes = (java.util.List<Map<String, Object>>) pendentes.getBody();
+        Map<String, Object> convitePendente = listaPendentes.stream()
+                .filter(c -> ((Number) c.get("organizacaoId")).longValue() == organizacaoId)
+                .findFirst()
+                .orElseThrow();
+
+        var aceite = troca("/api/convites/"
+                + ((Number) convitePendente.get("id")).longValue() + "/aceitar",
+                HttpMethod.POST, comBearer(tokenConvidado), null);
 
         assertThat(aceite.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(((Number) ((Map<?, ?>) aceite.getBody()).get("id")).longValue())
@@ -214,31 +249,8 @@ class OrganizacoesIntegrationTest {
     }
 
     @Test
-    @Order(7)
-    void convitePorEmailConcedeMembrosia() {
-        var convite = troca("/api/organizacoes/" + organizacaoId + "/convites", HttpMethod.POST,
-                adminComOrga(tokenDe(EMAIL_A), organizacaoId),
-                Map.of("email", EMAIL_D, "papel", "OPERADOR"));
-
-        assertThat(convite.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat((String) ((Map<?, ?>) convite.getBody()).get("email")).isEqualTo(EMAIL_D);
-
-        String tokenConvidado = tokenDe(registrar(EMAIL_D));
-
-        var aceite = trocaLista("/api/convites/aceitar-email", HttpMethod.POST,
-                comBearer(tokenConvidado), null);
-
-        assertThat(aceite.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(aceite.getBody()).hasSize(1);
-
-        var agoraMembro = troca("/api/organizacoes/" + organizacaoId, HttpMethod.GET,
-                comBearer(tokenConvidado), null);
-        assertThat(agoraMembro.getStatusCode()).isEqualTo(HttpStatus.OK);
-    }
-
-    @Test
     @Order(8)
-    void operadorNaoGerenciaMembros() {
+    void membroNaoAdminNaoGerenciaMembros() {
         String tokenOperador = tokenDe(EMAIL_C);
 
         var tentativa = troca("/api/organizacoes/" + organizacaoId + "/membros",
@@ -294,6 +306,37 @@ class OrganizacoesIntegrationTest {
                 adminComOrga(tokenDe(EMAIL_A), organizacaoId), Map.of("novaSenha", "outraSenha456"));
 
         assertThat(tentativa.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    @Order(12)
+    void conviteNominalPodeSerRecusado() {
+        String email = registrar(EMAIL_E);
+        var convite = troca("/api/organizacoes/" + organizacaoId + "/convites", HttpMethod.POST,
+                adminComOrga(tokenDe(EMAIL_A), organizacaoId),
+                Map.of("email", email, "papel", "VISITANTE"));
+
+        assertThat(convite.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Long conviteId = ((Number) ((Map<?, ?>) convite.getBody()).get("id")).longValue();
+        String token = tokenDe(email);
+
+        var recusa = troca("/api/convites/" + conviteId + "/recusar", HttpMethod.POST,
+                comBearer(token), null);
+
+        assertThat(recusa.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        var pendentes = trocaLista("/api/convites/pendentes", HttpMethod.GET,
+                comBearer(token), null);
+        assertThat(pendentes.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var listaPendentes = (java.util.List<Map<String, Object>>) pendentes.getBody();
+        assertThat(listaPendentes.stream()
+                .noneMatch(c -> ((Number) c.get("organizacaoId")).longValue()
+                        == organizacaoId))
+                .isTrue();
+
+        var naoMembro = troca("/api/organizacoes/" + organizacaoId, HttpMethod.GET,
+                comBearer(token), null);
+        assertThat(naoMembro.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @SuppressWarnings("unchecked")

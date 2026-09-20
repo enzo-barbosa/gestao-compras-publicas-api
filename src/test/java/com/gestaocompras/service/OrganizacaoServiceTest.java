@@ -22,7 +22,16 @@ import com.gestaocompras.model.Organizacao;
 import com.gestaocompras.model.PapelOrganizacao;
 import com.gestaocompras.model.Perfil;
 import com.gestaocompras.model.Usuario;
+import com.gestaocompras.repository.ContratoRepository;
+import com.gestaocompras.repository.ConviteOrganizacaoRepository;
+import com.gestaocompras.repository.CreditoSuplementarRepository;
+import com.gestaocompras.repository.DotacaoRepository;
+import com.gestaocompras.repository.EmpenhoRepository;
+import com.gestaocompras.repository.EmpenhoSequenciaRepository;
+import com.gestaocompras.repository.FornecedorRepository;
+import com.gestaocompras.repository.LicitacaoRepository;
 import com.gestaocompras.repository.MembroOrganizacaoRepository;
+import com.gestaocompras.repository.MovimentacaoDotacaoRepository;
 import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import com.gestaocompras.security.UsuarioLogado;
@@ -55,6 +64,33 @@ class OrganizacaoServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private EmpenhoRepository empenhoRepository;
+
+    @Mock
+    private EmpenhoSequenciaRepository empenhoSequenciaRepository;
+
+    @Mock
+    private MovimentacaoDotacaoRepository movimentacaoRepository;
+
+    @Mock
+    private CreditoSuplementarRepository creditoRepository;
+
+    @Mock
+    private ContratoRepository contratoRepository;
+
+    @Mock
+    private LicitacaoRepository licitacaoRepository;
+
+    @Mock
+    private FornecedorRepository fornecedorRepository;
+
+    @Mock
+    private DotacaoRepository dotacaoRepository;
+
+    @Mock
+    private ConviteOrganizacaoRepository conviteRepository;
 
     @InjectMocks
     private OrganizacaoService organizacaoService;
@@ -426,6 +462,77 @@ class OrganizacaoServiceTest {
                 principal(EMAIL_ADMIN), 2L, new MembroSenhaRequestDTO("senhaAtual123")))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(usuarioRepository, never()).save(any(Usuario.class));
+    }
+
+    @Test
+    void gerarCodigoAcessoDevePreencherCodigoUnicoDeOitoCaracteres() {
+        stubsAdmin();
+        when(organizacaoRepository.findByCodigoAcesso(anyString())).thenReturn(Optional.empty());
+
+        var resposta = organizacaoService.gerarCodigoAcesso(ORGANIZACAO_ID, principal(EMAIL_ADMIN));
+
+        assertThat(resposta.codigo()).hasSize(8);
+        assertThat(organizacao.getCodigoAcesso()).isEqualTo(resposta.codigo());
+        assertThat(organizacao.getCodigoAcesso()).matches("[A-HJ-KM-NP-Z2-9]{8}");
+    }
+
+    @Test
+    void buscarCodigoAcessoDeveRetornarOCodigoAtual() {
+        stubsAdmin();
+        organizacao.setCodigoAcesso("ABCD2345");
+
+        var resposta = organizacaoService.buscarCodigoAcesso(ORGANIZACAO_ID, principal(EMAIL_ADMIN));
+
+        assertThat(resposta.codigo()).isEqualTo("ABCD2345");
+    }
+
+    @Test
+    void revogarCodigoAcessoPorAdminDeveLimpar() {
+        stubsAdmin();
+        organizacao.setCodigoAcesso("ABCD2345");
+
+        organizacaoService.revogarCodigoAcesso(ORGANIZACAO_ID, principal(EMAIL_ADMIN));
+
+        assertThat(organizacao.getCodigoAcesso()).isNull();
+    }
+
+    @Test
+    void gerenciarCodigoAcessoPorNaoAdminDeveLancar409() {
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
+                .thenReturn(Optional.of(membro(organizacao, admin, PapelOrganizacao.OPERADOR)));
+
+        assertThatThrownBy(() -> organizacaoService.gerarCodigoAcesso(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN))).isInstanceOf(OperacaoNaoPermitidaException.class);
+    }
+
+    @Test
+    void excluirDeveLimparTodasAsDependenciasEAorganizacao() {
+        stubsAdmin();
+
+        organizacaoService.excluir(ORGANIZACAO_ID, principal(EMAIL_ADMIN));
+
+        verify(empenhoRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(empenhoSequenciaRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(movimentacaoRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(creditoRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(contratoRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(licitacaoRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(fornecedorRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(dotacaoRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(conviteRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(membroRepository).deleteByOrganizacaoId(ORGANIZACAO_ID);
+        verify(organizacaoRepository).delete(organizacao);
+    }
+
+    @Test
+    void excluirPorMembroNaoAdminDeveLancar409() {
+        when(membroRepository.findByIdOrganizacaoIdAndIdUsuarioId(ORGANIZACAO_ID, admin.getId()))
+                .thenReturn(Optional.of(membro(organizacao, admin, PapelOrganizacao.VISITANTE)));
+
+        assertThatThrownBy(() -> organizacaoService.excluir(ORGANIZACAO_ID,
+                principal(EMAIL_ADMIN))).isInstanceOf(OperacaoNaoPermitidaException.class);
+
+        verify(organizacaoRepository, never()).delete(any(Organizacao.class));
     }
 
     private void stubsAdmin() {

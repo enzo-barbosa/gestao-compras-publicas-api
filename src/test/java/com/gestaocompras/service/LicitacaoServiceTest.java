@@ -21,7 +21,10 @@ import com.gestaocompras.repository.FornecedorRepository;
 import com.gestaocompras.repository.LicitacaoRepository;
 import com.gestaocompras.repository.OrganizacaoRepository;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +38,9 @@ class LicitacaoServiceTest {
 
     private static final long ORGANIZACAO_ID = 10L;
 
+    private static final Clock RELOGIO = Clock.fixed(
+            Instant.parse("2026-01-15T10:00:00Z"), ZoneOffset.UTC);
+
     @Mock
     private LicitacaoRepository licitacaoRepository;
 
@@ -44,6 +50,9 @@ class LicitacaoServiceTest {
     @Mock
     private OrganizacaoRepository organizacaoRepository;
 
+    @Mock
+    private Clock clock;
+
     @InjectMocks
     private LicitacaoService licitacaoService;
 
@@ -52,6 +61,8 @@ class LicitacaoServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(clock.instant()).thenReturn(RELOGIO.instant());
+        lenient().when(clock.getZone()).thenReturn(RELOGIO.getZone());
         Organizacao organizacao = Organizacao.builder().id(ORGANIZACAO_ID).nome("Prefeitura").build();
         lenient().when(organizacaoRepository.getReferenceById(ORGANIZACAO_ID)).thenReturn(organizacao);
         licitacaoAberta = Licitacao.builder()
@@ -59,8 +70,8 @@ class LicitacaoServiceTest {
                 .numeroEdital("001/2026")
                 .modalidade(ModalidadeLicitacao.PREGAO)
                 .objeto("Aquisição de material de escritório")
-                .dataAbertura(LocalDate.of(2026, 8, 10))
-                .dataEncerramento(LocalDate.of(2026, 8, 30))
+                .dataAbertura(LocalDate.of(2026, 2, 10))
+                .dataEncerramento(LocalDate.of(2026, 2, 28))
                 .status(StatusLicitacao.ABERTA)
                 .valorEstimado(new BigDecimal("80000.00"))
                 .organizacao(organizacao)
@@ -75,8 +86,8 @@ class LicitacaoServiceTest {
 
     private LicitacaoRequestDTO request() {
         return new LicitacaoRequestDTO("001/2026", ModalidadeLicitacao.PREGAO,
-                "Aquisição de material de escritório", LocalDate.of(2026, 8, 10),
-                LocalDate.of(2026, 8, 30), new BigDecimal("80000.00"));
+                "Aquisição de material de escritório", LocalDate.of(2026, 2, 10),
+                LocalDate.of(2026, 2, 28), new BigDecimal("80000.00"));
     }
 
     @Test
@@ -104,11 +115,23 @@ class LicitacaoServiceTest {
     @Test
     void criarNaoDeveAceitarEncerramentoAnteriorAAbertura() {
         var invalida = new LicitacaoRequestDTO("002/2026", ModalidadeLicitacao.CONCORRENCIA,
-                "Objeto qualquer", LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 1),
+                "Objeto qualquer", LocalDate.of(2026, 3, 10), LocalDate.of(2026, 3, 1),
                 new BigDecimal("1000.00"));
 
         assertThatThrownBy(() -> licitacaoService.criar(ORGANIZACAO_ID, invalida))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void criarNaoDeveAceitarAberturaAnteriorADataDeHoje() {
+        var passada = new LicitacaoRequestDTO("003/2026", ModalidadeLicitacao.PREGAO,
+                "Objeto qualquer", LocalDate.of(2026, 1, 10), LocalDate.of(2026, 1, 20),
+                new BigDecimal("1000.00"));
+
+        assertThatThrownBy(() -> licitacaoService.criar(ORGANIZACAO_ID, passada))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(licitacaoRepository, never()).save(any(Licitacao.class));
     }
 
     @Test

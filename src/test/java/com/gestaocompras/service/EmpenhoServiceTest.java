@@ -31,6 +31,7 @@ import com.gestaocompras.model.Usuario;
 import com.gestaocompras.repository.ContratoRepository;
 import com.gestaocompras.repository.DotacaoRepository;
 import com.gestaocompras.repository.EmpenhoRepository;
+import com.gestaocompras.repository.EmpenhoSequenciaRepository;
 import com.gestaocompras.repository.OrganizacaoRepository;
 import com.gestaocompras.repository.UsuarioRepository;
 import java.math.BigDecimal;
@@ -66,6 +67,9 @@ class EmpenhoServiceTest {
     private EmpenhoRepository empenhoRepository;
 
     @Mock
+    private EmpenhoSequenciaRepository empenhoSequenciaRepository;
+
+    @Mock
     private ContratoRepository contratoRepository;
 
     @Mock
@@ -87,9 +91,9 @@ class EmpenhoServiceTest {
 
     @BeforeEach
     void setUp() {
-        empenhoService = new EmpenhoService(empenhoRepository, contratoRepository,
-                dotacaoRepository, dotacaoService, usuarioRepository, organizacaoRepository,
-                RELOGIO);
+        empenhoService = new EmpenhoService(empenhoRepository, empenhoSequenciaRepository,
+                contratoRepository, dotacaoRepository, dotacaoService, usuarioRepository,
+                organizacaoRepository, RELOGIO);
         Organizacao organizacao = Organizacao.builder().id(ORGANIZACAO_ID).nome("Prefeitura").build();
         lenient().when(organizacaoRepository.getReferenceById(ORGANIZACAO_ID)).thenReturn(organizacao);
         dotacao = DotacaoOrcamentaria.builder()
@@ -262,7 +266,7 @@ class EmpenhoServiceTest {
         assertThatThrownBy(() -> empenhoService.gerar(ORGANIZACAO_ID, request(
                 MES_CORRENTE.plusMonths(1).getMonthValue(), ANO)))
                 .isInstanceOf(OperacaoNaoPermitidaException.class)
-                .hasMessageContaining("competência corrente");
+                .hasMessageContaining("mês corrente");
 
         verify(dotacaoService, never()).debitar(anyLong(), anyLong(), any(), anyString());
     }
@@ -275,7 +279,7 @@ class EmpenhoServiceTest {
         assertThatThrownBy(() -> empenhoService.gerar(ORGANIZACAO_ID, request(
                 MES_ANTERIOR.minusMonths(1).getMonthValue(), ANO)))
                 .isInstanceOf(OperacaoNaoPermitidaException.class)
-                .hasMessageContaining("competência corrente");
+                .hasMessageContaining("mês corrente");
 
         verify(dotacaoService, never()).debitar(anyLong(), anyLong(), any(), anyString());
     }
@@ -407,6 +411,27 @@ class EmpenhoServiceTest {
 
         assertThat(resposta.valor()).isEqualByComparingTo("10000.00");
         assertThat(resposta.status()).isEqualTo(StatusEmpenho.EMPENHADO.name());
+    }
+
+    @Test
+    void gerarDeveAtribuirNumeroSequencialDaOrganizacaoEAno() {
+        contratoEncontrado();
+        dotacaoEncontrada();
+        competenciaNaoDuplicada(MES_ANTERIOR.getMonthValue());
+        when(empenhoSequenciaRepository.findByIdComLock(ORGANIZACAO_ID, ANO))
+                .thenReturn(Optional.empty());
+        when(empenhoRepository.maxNumeroPorOrganizacaoEAno(ORGANIZACAO_ID, ANO)).thenReturn(7);
+        when(empenhoRepository.save(any(Empenho.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        var resposta = empenhoService.gerar(ORGANIZACAO_ID, request(
+                MES_ANTERIOR.getMonthValue(), ANO));
+
+        assertThat(resposta.numero()).isEqualTo(8);
+        verify(empenhoSequenciaRepository).save(argThat(sequencia ->
+                sequencia.getOrganizacaoId().equals(ORGANIZACAO_ID)
+                        && sequencia.getAnoReferencia().equals(ANO)
+                        && sequencia.getUltimo() == 8));
     }
 
     @Test

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.gestaocompras.dto.LoginRequestDTO;
 import com.gestaocompras.dto.TokenResponseDTO;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -131,6 +132,7 @@ class AnulacaoConcorrenteIntegrationTest {
         String sufixo = String.valueOf(System.nanoTime());
         YearMonth vigencia = YearMonth.now();
         String dataInicio = vigencia.atDay(1).toString();
+        String dataAbertura = LocalDate.now().toString();
 
         Long dotacaoId = criarId("/api/dotacoes", admin, Map.of(
                 "codigo", "9.9." + sufixo.substring(sufixo.length() - 6),
@@ -143,7 +145,7 @@ class AnulacaoConcorrenteIntegrationTest {
                 "numeroEdital", "AC-" + sufixo + "/" + vigencia.getYear(),
                 "modalidade", "DISPENSA",
                 "objeto", "Objeto anulação concorrente",
-                "dataAbertura", dataInicio,
+                "dataAbertura", dataAbertura,
                 "valorEstimado", 20000));
         troca("/api/licitacoes/%d/vencedor".formatted(licitacaoId), HttpMethod.PUT, admin,
                 Map.of("fornecedorId", fornecedorId));

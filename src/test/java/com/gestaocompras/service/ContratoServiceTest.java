@@ -240,6 +240,28 @@ class ContratoServiceTest {
     }
 
     @Test
+    void criarNaoDeveAceitarDataInicioAnteriorAoEncerramentoDaLicitacao() {
+        var anteriorAoEncerramento = new ContratoRequestDTO("014/2026",
+                "Fornecimento de material de escritório",
+                new BigDecimal("120000.00"), 12, LocalDate.of(2026, 8, 1),
+                1L, 20L, 10L);
+        when(contratoRepository.existsByNumeroAndOrganizacaoId("014/2026", ORGANIZACAO_ID))
+                .thenReturn(false);
+        when(dotacaoRepository.findByIdAndOrganizacaoId(1L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(dotacao));
+        when(fornecedorRepository.findByIdAndOrganizacaoId(10L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(fornecedor));
+        when(licitacaoRepository.findByIdAndOrganizacaoId(20L, ORGANIZACAO_ID))
+                .thenReturn(Optional.of(licitacaoEncerradaComVencedor));
+
+        assertThatThrownBy(() -> contratoService.criar(ORGANIZACAO_ID, anteriorAoEncerramento))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("encerramento da licitação");
+
+        verify(contratoRepository, never()).save(any(Contrato.class));
+    }
+
+    @Test
     void atualizarNaoDeveAlterarValorTotalEDuracao() {
         Contrato contrato = Contrato.builder()
                 .id(30L)
