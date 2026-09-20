@@ -69,12 +69,16 @@ docker compose up -d                 # PostgreSQL na porta 5432
 ./mvnw spring-boot:run               # API em http://localhost:8080
 ```
 
-Usuário administrador semeado automaticamente:
+Usuário administrador semeado automaticamente (apenas no profile `dev`):
 
 ```
 email: admin@admin.com
 senha: admin
 ```
+
+> **Nota:** Após o login, o sistema verifica se você tem uma organização ativa.
+> - Se o admin já pertence a "Minha Organização" (criada pelo seed), ele é **auto-selecionado** e você cai direto no Dashboard.
+> - Se não houver organização (ex.: profile `prod` ou banco novo sem seed), você será redirecionado para **Grupos** (`/app/grupos`) para criar ou aceitar um convite antes de acessar os módulos de negócio.
 
 ### Documentação interativa da API (Swagger/OpenAPI)
 
