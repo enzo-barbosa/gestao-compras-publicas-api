@@ -7,8 +7,8 @@ import type { Coluna } from '../components/TabelaGenerica'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { useToast } from '../context/useToast'
-import { dataEncerramentoValida } from '../utils/validacao'
-import { extrairMensagemErro, formatarData, formatarMoeda } from '../utils/format'
+import { dataEncerramentoValida, dataFuturaOuHoje, numeroEditalValido } from '../utils/validacao'
+import { extrairMensagemErro, formatarData, formatarMoeda, mascaraMoeda, mascaraNumeroEdital, valorDaMascaraMoeda } from '../utils/format'
 import { paramsListagem } from '../utils/listagem'
 
 interface Licitacao {
@@ -93,11 +93,18 @@ export default function LicitacoesPage() {
       objeto: l.objeto,
       dataAbertura: l.dataAbertura,
       dataEncerramento: l.dataEncerramento ?? '',
-      valorEstimado: String(l.valorEstimado),
+      valorEstimado: mascaraMoeda(l.valorEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
     }),
     montarCorpo: (form) => {
-      if (Number(form.valorEstimado) <= 0) {
+      const valorEstimado = valorDaMascaraMoeda(form.valorEstimado)
+      if (valorEstimado <= 0) {
         throw new Error('Informe um valor estimado maior que zero.')
+      }
+      if (!numeroEditalValido(form.numeroEdital)) {
+        throw new Error('Informe o edital no formato NNNN/AAAA, ex.: 001/2026.')
+      }
+      if (!dataFuturaOuHoje(form.dataAbertura)) {
+        throw new Error('A abertura não pode ser anterior à data de hoje.')
       }
       if (!dataEncerramentoValida(form.dataAbertura, form.dataEncerramento)) {
         throw new Error('O encerramento não pode ser anterior à abertura.')
@@ -108,7 +115,7 @@ export default function LicitacoesPage() {
         objeto: form.objeto,
         dataAbertura: form.dataAbertura,
         dataEncerramento: form.dataEncerramento || null,
-        valorEstimado: Number(form.valorEstimado),
+        valorEstimado,
       }
     },
     confirmarExclusao: (l) => `Confirma a exclusão da licitação ${l.numeroEdital}?`,
@@ -125,10 +132,14 @@ export default function LicitacoesPage() {
   }, [podeOperar])
 
   async function definirVencedor(id: number) {
-    if (!vencedorSelecionado) return
+    const fornecedor = fornecedores.find((f) => f.nome === vencedorSelecionado || String(f.id) === vencedorSelecionado)
+    if (!fornecedor) {
+      crud.setErro('Selecione um fornecedor da lista de vencedores.')
+      return
+    }
     crud.setErro(null)
     try {
-      await api.put(`/licitacoes/${id}/vencedor`, { fornecedorId: Number(vencedorSelecionado) })
+      await api.put(`/licitacoes/${id}/vencedor`, { fornecedorId: fornecedor.id })
       exibir('sucesso', 'Licitação encerrada com vencedor definido.')
       setVencedorEm(null)
       setVencedorSelecionado('')
@@ -183,11 +194,11 @@ export default function LicitacoesPage() {
       {podeOperar && (
         <>
           <div className="card form-card">
-            <h3>{crud.editandoId === null ? 'Nova licitação' : `Editando licitação #${crud.editandoId}`}</h3>
+            <h3>{crud.editandoId === null ? 'Nova licitação' : 'Editando licitação'}</h3>
             <form onSubmit={crud.salvar} className="grade-form" noValidate>
               <div>
-                <label htmlFor="numeroEdital">Número do edital</label>
-                <input id="numeroEdital" value={crud.form.numeroEdital} onChange={(e) => crud.setForm({ ...crud.form, numeroEdital: e.target.value })} placeholder="001/2026" required maxLength={30} />
+                <label htmlFor="numeroEdital">Número do edital *</label>
+                <input id="numeroEdital" inputMode="numeric" value={crud.form.numeroEdital} onChange={(e) => crud.setForm({ ...crud.form, numeroEdital: mascaraNumeroEdital(e.target.value) })} placeholder="001/2026" required maxLength={9} />
               </div>
               <div>
                 <label htmlFor="modalidade">Modalidade</label>
@@ -198,11 +209,11 @@ export default function LicitacoesPage() {
                 </select>
               </div>
               <div className="campo-largo">
-                <label htmlFor="objeto">Objeto</label>
+                <label htmlFor="objeto">Objeto *</label>
                 <input id="objeto" value={crud.form.objeto} onChange={(e) => crud.setForm({ ...crud.form, objeto: e.target.value })} required maxLength={300} />
               </div>
               <div>
-                <label htmlFor="dataAbertura">Abertura</label>
+                <label htmlFor="dataAbertura">Abertura *</label>
                 <input id="dataAbertura" type="date" value={crud.form.dataAbertura} onChange={(e) => crud.setForm({ ...crud.form, dataAbertura: e.target.value })} required />
               </div>
               <div>
@@ -210,8 +221,8 @@ export default function LicitacoesPage() {
                 <input id="dataEncerramento" type="date" value={crud.form.dataEncerramento} onChange={(e) => crud.setForm({ ...crud.form, dataEncerramento: e.target.value })} />
               </div>
               <div>
-                <label htmlFor="valorEstimado">Valor estimado (R$)</label>
-                <input id="valorEstimado" type="number" min="0" step="0.01" value={crud.form.valorEstimado} onChange={(e) => crud.setForm({ ...crud.form, valorEstimado: e.target.value })} required />
+                <label htmlFor="valorEstimado">Valor estimado (R$) *</label>
+                <input id="valorEstimado" inputMode="decimal" placeholder="0,00" value={crud.form.valorEstimado} onChange={(e) => crud.setForm({ ...crud.form, valorEstimado: mascaraMoeda(e.target.value) })} required />
               </div>
               <div className="acoes-form">
                 <button className="btn primario" type="submit">{crud.editandoId === null ? 'Criar' : 'Salvar'}</button>
@@ -224,14 +235,19 @@ export default function LicitacoesPage() {
 
           {vencedorEm !== null && (
             <div className="card form-card destaque">
-              <h3>Definir vencedor da licitação #{vencedorEm}</h3>
+              <h3>Definir vencedor da licitação</h3>
               <div className="linha-vencedor">
-                <select value={vencedorSelecionado} onChange={(e) => setVencedorSelecionado(e.target.value)}>
-                  <option value="">Selecione o fornecedor vencedor…</option>
+                <input
+                  list="lista-fornecedores"
+                  value={vencedorSelecionado}
+                  onChange={(e) => setVencedorSelecionado(e.target.value)}
+                  placeholder="Digite o nome do fornecedor vencedor…"
+                />
+                <datalist id="lista-fornecedores">
                   {fornecedores.map((f) => (
-                    <option key={f.id} value={f.id}>{f.nome}</option>
+                    <option key={f.id} value={f.nome} />
                   ))}
-                </select>
+                </datalist>
                 <button className="btn primario" disabled={!vencedorSelecionado} onClick={() => definirVencedor(vencedorEm)}>
                   Confirmar encerramento
                 </button>
@@ -259,7 +275,7 @@ export default function LicitacoesPage() {
                   {(l.status === 'ABERTA' || l.status === 'ENCERRADA') && (
                     <button
                       className="btn primario"
-                      onClick={() => { setVencedorEm(l.id); setVencedorSelecionado(String(l.vencedor?.id ?? '')) }}
+                      onClick={() => { setVencedorEm(l.id); setVencedorSelecionado(l.vencedor?.nome ?? '') }}
                       aria-label={`Definir vencedor da licitação ${l.numeroEdital}`}
                     >
                       Vencedor

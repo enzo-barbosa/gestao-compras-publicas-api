@@ -52,7 +52,7 @@ export default function SelecionarGrupoPage() {
           )}
 
           <button className="btn secundario" type="button" onClick={() => navegar('/app/grupos')}>
-            Criar novo grupo ou aceitar convite
+            Gerenciar grupos, convites e código de acesso
           </button>
         </div>
       </div>

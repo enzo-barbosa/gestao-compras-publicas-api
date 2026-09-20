@@ -2,12 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
-import { destinoPosLogin, orgIdAtiva, podeGerir } from '../services/organizacoes'
+import { destinoPosLogin, definirOrgAtiva, orgIdAtiva, podeGerir } from '../services/organizacoes'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import ModalRedefinirSenha from '../components/ModalRedefinirSenha'
-import { codigoConviteValido, gerarCodigoConvite } from '../utils/validacao'
 import { extrairMensagemErro, formatarData } from '../utils/format'
 
 interface Membro {
@@ -29,7 +28,6 @@ interface Convite {
 
 const PAPEIS = ['ADMIN', 'OPERADOR', 'VISITANTE'] as const
 type Aba = 'membros' | 'convites'
-type TipoConvite = 'email' | 'codigo'
 
 export default function MembrosPage() {
   const { exibir } = useToast()
@@ -38,6 +36,7 @@ export default function MembrosPage() {
   const organizacaoId = orgIdAtiva()
   const papelOrg = usuario?.organizacoes.find((o) => o.id === organizacaoId)?.papel
   const gerencia = podeGerir(usuario?.perfil ?? '', papelOrg)
+  const eAdminGrupo = papelOrg === 'ADMIN'
 
   const [aba, setAba] = useState<Aba>('membros')
   const [erro, setErro] = useState<string | null>(null)
@@ -50,13 +49,19 @@ export default function MembrosPage() {
 
   const [convites, setConvites] = useState<Convite[]>([])
   const [carregandoConvites, setCarregandoConvites] = useState(false)
-  const [tipoConvite, setTipoConvite] = useState<TipoConvite>('email')
-  const [valorConvite, setValorConvite] = useState('')
+  const [emailConvite, setEmailConvite] = useState('')
   const [papelConvite, setPapelConvite] = useState<string>(PAPEIS[1])
   const [criandoConvite, setCriandoConvite] = useState(false)
 
+  const [codigoAcesso, setCodigoAcesso] = useState<string | null>(null)
+  const [gerandoCodigo, setGerandoCodigo] = useState(false)
+  const [revogandoCodigo, setRevogandoCodigo] = useState(false)
+
   const [confirmandoSaida, setConfirmandoSaida] = useState(false)
   const [saindo, setSaindo] = useState(false)
+
+  const [confirmandoExclusaoGrupo, setConfirmandoExclusaoGrupo] = useState(false)
+  const [excluindoGrupo, setExcluindoGrupo] = useState(false)
 
   const [membroExclusao, setMembroExclusao] = useState<Membro | null>(null)
   const [conviteExclusao, setConviteExclusao] = useState<Convite | null>(null)
@@ -98,6 +103,13 @@ export default function MembrosPage() {
       ativo = false
     }
   }, [buscarMembros])
+
+  useEffect(() => {
+    if (organizacaoId === null || !gerencia) return
+    api.get<{ codigo: string | null }>(`/organizacoes/${organizacaoId}/codigo-acesso`)
+      .then((r) => setCodigoAcesso(r.data.codigo))
+      .catch(() => undefined)
+  }, [organizacaoId, gerencia])
 
   function abrirConvites() {
     setAba('convites')
@@ -195,20 +207,14 @@ export default function MembrosPage() {
     evento.preventDefault()
     if (organizacaoId === null) return
     setErro(null)
-    const valor = valorConvite.trim()
-    if (tipoConvite === 'codigo' && !codigoConviteValido(valor)) {
-      setErro('Código inválido: use 4 a 24 letras, números ou hífens, sem @, espaços ou símbolos.')
-      return
-    }
     setCriandoConvite(true)
     try {
-      const corpo =
-        tipoConvite === 'email'
-          ? { email: valor, papel: papelConvite }
-          : { codigo: valor, papel: papelConvite }
-      await api.post(`/organizacoes/${organizacaoId}/convites`, corpo)
-      exibir('sucesso', 'Convite criado. Ele expira em 7 dias.')
-      setValorConvite('')
+      await api.post(`/organizacoes/${organizacaoId}/convites`, {
+        email: emailConvite.trim(),
+        papel: papelConvite,
+      })
+      exibir('sucesso', 'Convite criado. O convite expira em 7 dias.')
+      setEmailConvite('')
       setConvites(await buscarConvites())
       setErro(null)
     } catch (e) {
@@ -242,6 +248,56 @@ export default function MembrosPage() {
 
   function destinoConvite(convite: Convite): string {
     return convite.email ?? `Código ${convite.codigo}`
+  }
+
+  async function gerarCodigoAcesso() {
+    if (organizacaoId === null) return
+    setErro(null)
+    setGerandoCodigo(true)
+    try {
+      const resposta = await api.post<{ codigo: string }>(`/organizacoes/${organizacaoId}/codigo-acesso`)
+      setCodigoAcesso(resposta.data.codigo)
+      exibir('sucesso', 'Código de acesso gerado: compartilhe com os novos integrantes.')
+    } catch (e) {
+      setErro(extrairMensagemErro(e))
+    } finally {
+      setGerandoCodigo(false)
+    }
+  }
+
+  async function revogarCodigoAcesso() {
+    if (organizacaoId === null) return
+    setErro(null)
+    setRevogandoCodigo(true)
+    try {
+      await api.delete(`/organizacoes/${organizacaoId}/codigo-acesso`)
+      setCodigoAcesso(null)
+      exibir('aviso', 'Código de acesso revogado; o código antigo deixou de funcionar.')
+    } catch (e) {
+      setErro(extrairMensagemErro(e))
+    } finally {
+      setRevogandoCodigo(false)
+    }
+  }
+
+  async function confirmarExclusaoGrupo() {
+    if (organizacaoId === null) return
+    setErro(null)
+    setExcluindoGrupo(true)
+    try {
+      await api.delete(`/organizacoes/${organizacaoId}`)
+      exibir('sucesso', 'Grupo excluído, incluindo todos os dados de negócio da organização.')
+      setConfirmandoExclusaoGrupo(false)
+      const atualizado = await recarregarOrganizacoes()
+      const destino = destinoPosLogin(atualizado.organizacoes ?? [], null)
+      definirOrgAtiva(destino.orgAuto ?? null)
+      navegar(destino.rota)
+    } catch (e) {
+      setErro(extrairMensagemErro(e))
+      setConfirmandoExclusaoGrupo(false)
+    } finally {
+      setExcluindoGrupo(false)
+    }
   }
 
   async function sairDoGrupo() {
@@ -386,13 +442,15 @@ export default function MembrosPage() {
                                 Redefinir senha
                               </button>
                             )}
-                            <button
-                              className="btn perigo"
-                              onClick={() => removerMembro(membro)}
-                              aria-label={`Remover ${membro.nome}`}
-                            >
-                              Remover
-                            </button>
+                            {membro.usuarioId !== usuario?.id && (
+                              <button
+                                className="btn perigo"
+                                onClick={() => removerMembro(membro)}
+                                aria-label={`Remover ${membro.nome}`}
+                              >
+                                Remover
+                              </button>
+                            )}
                           </div>
                         </td>
                       )}
@@ -400,6 +458,33 @@ export default function MembrosPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {gerencia && (
+            <div className="card form-card">
+              <h3>Código de acesso</h3>
+              <p className="dica">
+                Compartilhe o código para que novos integrantes entrem no grupo pelo portal usando
+                o código de acesso. Quem usar o código entra como visitante.
+              </p>
+              {codigoAcesso ? (
+                <>
+                  <div className="linha-input-botao">
+                    <input readOnly value={codigoAcesso} aria-label="Código de acesso atual" className="mono" />
+                    <button className="btn perigo" type="button" onClick={revogarCodigoAcesso} disabled={revogandoCodigo || gerandoCodigo}>
+                      {revogandoCodigo ? 'Revogando…' : 'Revogar código'}
+                    </button>
+                  </div>
+                  <button className="btn secundario" type="button" onClick={gerarCodigoAcesso} disabled={gerandoCodigo || revogandoCodigo}>
+                    {gerandoCodigo ? 'Gerando…' : 'Trocar código'}
+                  </button>
+                </>
+              ) : (
+                <button className="btn primario" type="button" onClick={gerarCodigoAcesso} disabled={gerandoCodigo}>
+                  {gerandoCodigo ? 'Gerando…' : 'Criar código de acesso'}
+                </button>
+              )}
             </div>
           )}
 
@@ -422,6 +507,23 @@ export default function MembrosPage() {
                   : 'Sair do grupo'}
             </button>
           </div>
+
+          {eAdminGrupo && (
+            <div className="card form-card zona-perigo">
+              <h3>Excluir grupo</h3>
+              <p className="dica">
+                Apaga o grupo e todos os dados de negócio da organização (dotações, fornecedores,
+                licitações, contratos, empenhos e créditos). Esta ação não pode ser desfeita.
+              </p>
+              <button
+                className="btn perigo"
+                type="button"
+                onClick={() => setConfirmandoExclusaoGrupo(true)}
+              >
+                Excluir grupo
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -430,51 +532,23 @@ export default function MembrosPage() {
           <form className="card form-card" onSubmit={criarConvite}>
             <h3>Criar convite</h3>
             <div className="grade-form">
-              <div className="barra-filtros">
-                <button
-                  type="button"
-                  className={`btn fantasma ${tipoConvite === 'email' ? 'ativo' : ''}`}
-                  onClick={() => setTipoConvite('email')}
-                >
-                  Por e-mail
-                </button>
-                <button
-                  type="button"
-                  className={`btn fantasma ${tipoConvite === 'codigo' ? 'ativo' : ''}`}
-                  onClick={() => setTipoConvite('codigo')}
-                >
-                  Por código
-                </button>
-              </div>
               <div className="campo-largo">
-                <label htmlFor="valor-convite">
-                  {tipoConvite === 'email' ? 'E-mail do convidado' : 'Código do convite'}
-                </label>
+                <label htmlFor="email-convite">E-mail do convidado</label>
                 <div className="linha-input-botao">
                   <input
-                    id="valor-convite"
-                    type={tipoConvite === 'email' ? 'email' : 'text'}
-                    value={valorConvite}
-                    onChange={(e) => setValorConvite(e.target.value)}
-                    placeholder={tipoConvite === 'email' ? 'colega@prefeitura.gov.br' : 'Ex.: ACESSO-2026'}
-                    maxLength={tipoConvite === 'email' ? 150 : 24}
+                    id="email-convite"
+                    type="email"
+                    value={emailConvite}
+                    onChange={(e) => setEmailConvite(e.target.value)}
+                    placeholder="colega@prefeitura.gov.br"
+                    maxLength={150}
                     required
                   />
-                  {tipoConvite === 'codigo' && (
-                    <button
-                      className="btn secundario"
-                      type="button"
-                      onClick={() => setValorConvite(gerarCodigoConvite())}
-                    >
-                      Gerar código
-                    </button>
-                  )}
                 </div>
-                {tipoConvite === 'codigo' && (
-                  <p className="dica">
-                    4 a 24 caracteres (letras, números ou hífens). O convite expira em 7 dias.
-                  </p>
-                )}
+                <p className="dica">
+                  O convite vale por 7 dias. Para entrar por código de acesso, o administrador
+                  compartilha o código gerado na aba de membros.
+                </p>
               </div>
               <div>
                 <label htmlFor="papel-convite">Papel</label>
@@ -563,6 +637,17 @@ export default function MembrosPage() {
         confirmando={revogando}
         aoConfirmar={confirmarRevogacao}
         aoCancelar={() => setConviteExclusao(null)}
+      />
+
+      <ModalConfirmacao
+        aberto={confirmandoExclusaoGrupo}
+        titulo="Excluir grupo"
+        mensagem="Tem certeza que deseja excluir este grupo? Todos os dados de negócio da organização serão apagados permanentemente."
+        rotuloConfirmar="Excluir grupo"
+        rotuloCancelar="Cancelar"
+        confirmando={excluindoGrupo}
+        aoConfirmar={confirmarExclusaoGrupo}
+        aoCancelar={() => setConfirmandoExclusaoGrupo(false)}
       />
 
       {membroSenha && (

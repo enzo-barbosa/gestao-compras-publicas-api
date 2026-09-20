@@ -6,7 +6,7 @@ import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
 import { useAuth } from '../context/useAuth'
 import { useToast } from '../context/useToast'
-import { extrairMensagemErro, formatarData, formatarMoeda } from '../utils/format'
+import { extrairMensagemErro, formatarData, formatarMoeda, mascaraMoeda, valorDaMascaraMoeda } from '../utils/format'
 import { paramsListagem } from '../utils/listagem'
 
 interface Credito {
@@ -115,8 +115,8 @@ export default function CreditosPage() {
       setErro('A dotação de origem deve ser diferente da de destino.')
       return
     }
-    const valorNumerico = Number(valor)
-    if (!Number.isFinite(valorNumerico) || valorNumerico <= 0) {
+    const valorNumerico = valorDaMascaraMoeda(valor)
+    if (valorNumerico <= 0) {
       setErro('Informe um valor maior que zero.')
       return
     }
@@ -186,7 +186,7 @@ export default function CreditosPage() {
           ) : (
             <form onSubmit={registrar} className="grade-form">
               <div>
-                <label htmlFor="origem">Dotação de origem</label>
+                <label htmlFor="origem">Dotação de origem *</label>
                 <select
                   id="origem"
                   value={origemId}
@@ -199,7 +199,7 @@ export default function CreditosPage() {
                 </select>
               </div>
               <div>
-                <label htmlFor="destino">Dotação de destino</label>
+                <label htmlFor="destino">Dotação de destino *</label>
                 <select
                   id="destino"
                   value={destinoId}
@@ -212,20 +212,18 @@ export default function CreditosPage() {
                 </select>
               </div>
               <div>
-                <label htmlFor="valor">Valor (R$)</label>
+                <label htmlFor="valor">Valor (R$) *</label>
                 <input
                   id="valor"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
+                  inputMode="decimal"
                   placeholder="0,00"
                   value={valor}
-                  onChange={(e) => { setValor(e.target.value); setErro(null) }}
+                  onChange={(e) => { setValor(mascaraMoeda(e.target.value)); setErro(null) }}
                   required
                 />
               </div>
               <div>
-                <label htmlFor="data">Data</label>
+                <label htmlFor="data">Data *</label>
                 <input
                   id="data"
                   type="date"

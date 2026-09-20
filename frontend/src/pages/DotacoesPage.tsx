@@ -4,7 +4,7 @@ import TabelaGenerica from '../components/TabelaGenerica'
 import type { Coluna } from '../components/TabelaGenerica'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
-import { formatarMoeda } from '../utils/format'
+import { formatarMoeda, mascaraMoeda, valorDaMascaraMoeda } from '../utils/format'
 import { paramsListagem } from '../utils/listagem'
 
 interface Dotacao {
@@ -48,11 +48,12 @@ export default function DotacoesPage() {
     paraForm: (d) => ({
       codigo: d.codigo,
       descricao: d.descricao,
-      saldoInicial: String(d.saldoInicial),
+      saldoInicial: mascaraMoeda(d.saldoInicial.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
       anoExercicio: String(d.anoExercicio),
     }),
     montarCorpo: (form, editandoId) => {
-      if (editandoId === null && Number(form.saldoInicial) <= 0) {
+      const saldoInicial = valorDaMascaraMoeda(form.saldoInicial)
+      if (editandoId === null && saldoInicial <= 0) {
         throw new Error('Informe um saldo inicial maior que zero.')
       }
       if (!form.anoExercicio || Number(form.anoExercicio) < 2000) {
@@ -61,7 +62,7 @@ export default function DotacoesPage() {
       return {
         codigo: form.codigo,
         descricao: form.descricao,
-        saldoInicial: Number(form.saldoInicial),
+        saldoInicial,
         anoExercicio: Number(form.anoExercicio),
       }
     },
@@ -101,19 +102,19 @@ export default function DotacoesPage() {
           <h3>{crud.editandoId === null ? 'Nova dotação' : `Editando dotação #${crud.editandoId}`}</h3>
           <form onSubmit={crud.salvar} className="grade-form" noValidate>
             <div>
-              <label htmlFor="codigo">Código</label>
+              <label htmlFor="codigo">Código *</label>
               <input id="codigo" placeholder="Ex.: 2026.10.001" value={crud.form.codigo} onChange={(e) => crud.setForm({ ...crud.form, codigo: e.target.value })} required maxLength={30} />
             </div>
             <div>
-              <label htmlFor="descricao">Descrição</label>
+              <label htmlFor="descricao">Descrição *</label>
               <input id="descricao" placeholder="Ex.: Manutenção de vias urbanas" value={crud.form.descricao} onChange={(e) => crud.setForm({ ...crud.form, descricao: e.target.value })} required maxLength={200} />
             </div>
             <div>
-              <label htmlFor="saldoInicial">Saldo inicial (R$)</label>
-              <input id="saldoInicial" type="number" min="0" step="0.01" placeholder="0,00" value={crud.form.saldoInicial} onChange={(e) => crud.setForm({ ...crud.form, saldoInicial: e.target.value })} required />
+              <label htmlFor="saldoInicial">Saldo inicial (R$) *</label>
+              <input id="saldoInicial" inputMode="decimal" placeholder="0,00" value={crud.form.saldoInicial} onChange={(e) => crud.setForm({ ...crud.form, saldoInicial: mascaraMoeda(e.target.value) })} required />
             </div>
             <div>
-              <label htmlFor="anoExercicio">Ano exercício</label>
+              <label htmlFor="anoExercicio">Ano exercício *</label>
               <input id="anoExercicio" type="number" min="2000" max="2100" placeholder="2026" value={crud.form.anoExercicio} onChange={(e) => crud.setForm({ ...crud.form, anoExercicio: e.target.value })} required />
             </div>
             <div className="acoes-form">

@@ -633,7 +633,7 @@ a:focus-visible {
   flex-wrap: wrap;
 }
 
-.linha-vencedor select {
+.linha-vencedor input {
   flex: 1;
   min-width: 240px;
   border: 1px solid var(--cinza-borda);
@@ -1333,7 +1333,7 @@ a:focus-visible {
 
 /* ===== Página Minha conta ===== */
 
-.card.form-card .dica {
+.card.form-card:not(.destaque) .dica {
   margin: -8px 0 16px;
 }
 

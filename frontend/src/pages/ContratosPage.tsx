@@ -7,7 +7,7 @@ import type { Coluna } from '../components/TabelaGenerica'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { useToast } from '../context/useToast'
-import { formatarData, formatarMoeda } from '../utils/format'
+import { formatarData, formatarMoeda, mascaraMoeda, valorDaMascaraMoeda } from '../utils/format'
 import { paramsListagem } from '../utils/listagem'
 
 interface Contrato {
@@ -101,7 +101,7 @@ export default function ContratosPage() {
     paraForm: (c) => ({
       numero: c.numero,
       objeto: c.objeto,
-      valorTotal: String(c.valorTotal),
+      valorTotal: mascaraMoeda(c.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
       duracaoMeses: String(c.duracaoMeses),
       dataInicio: c.dataInicio,
       dotacaoId: String(c.dotacaoId),
@@ -109,10 +109,11 @@ export default function ContratosPage() {
       fornecedorId: String(c.fornecedorId),
     }),
     montarCorpo: (form, editandoId) => {
+      const valorTotal = valorDaMascaraMoeda(form.valorTotal)
       if (!form.numero.trim()) throw new Error('Informe o número do contrato.')
       if (!form.objeto.trim()) throw new Error('Informe o objeto do contrato.')
       if (editandoId === null) {
-        if (Number(form.valorTotal) <= 0) throw new Error('Informe um valor total maior que zero.')
+        if (valorTotal <= 0) throw new Error('Informe um valor total maior que zero.')
         if (Number(form.duracaoMeses) < 1) throw new Error('A duração mínima é de 1 mês.')
         if (!form.dotacaoId) throw new Error('Selecione a dotação orçamentária.')
         if (!form.fornecedorId) throw new Error('Selecione o fornecedor.')
@@ -120,7 +121,7 @@ export default function ContratosPage() {
       return {
         numero: form.numero,
         objeto: form.objeto,
-        valorTotal: Number(form.valorTotal),
+        valorTotal,
         duracaoMeses: Number(form.duracaoMeses),
         dataInicio: form.dataInicio,
         dotacaoId: Number(form.dotacaoId),
@@ -224,48 +225,12 @@ export default function ContratosPage() {
           <h3>{crud.editandoId === null ? 'Novo contrato' : `Editando contrato #${crud.editandoId}`}</h3>
           <form onSubmit={crud.salvar} className="grade-form" noValidate>
             <div>
-              <label htmlFor="numero">Número</label>
+              <label htmlFor="numero">Número *</label>
               <input id="numero" value={crud.form.numero} onChange={(e) => crud.setForm({ ...crud.form, numero: e.target.value })} placeholder="015/2026" required maxLength={30} />
-            </div>
-            <div className="campo-largo">
-              <label htmlFor="objeto">Objeto</label>
-              <input id="objeto" value={crud.form.objeto} onChange={(e) => crud.setForm({ ...crud.form, objeto: e.target.value })} required maxLength={300} />
-            </div>
-            <div>
-              <label htmlFor="valorTotal">Valor total (R$)</label>
-              <input id="valorTotal" type="number" min="0" step="0.01" value={crud.form.valorTotal} onChange={(e) => crud.setForm({ ...crud.form, valorTotal: e.target.value })} required disabled={!precisaVinculos} />
-            </div>
-            <div>
-              <label htmlFor="duracaoMeses">Duração (meses)</label>
-              <input id="duracaoMeses" type="number" min="1" step="1" value={crud.form.duracaoMeses} onChange={(e) => crud.setForm({ ...crud.form, duracaoMeses: e.target.value })} required disabled={!precisaVinculos} />
-            </div>
-            <div>
-              <label htmlFor="dataInicio">Início</label>
-              <input id="dataInicio" type="date" value={crud.form.dataInicio} onChange={(e) => crud.setForm({ ...crud.form, dataInicio: e.target.value })} required />
             </div>
 
             {precisaVinculos && (
               <>
-                <div>
-                  <label htmlFor="dotacaoId">Dotação orçamentária</label>
-                  <select id="dotacaoId" value={crud.form.dotacaoId} onChange={(e) => crud.setForm({ ...crud.form, dotacaoId: e.target.value })} required>
-                    <option value="">Selecione…</option>
-                    {dotacoes.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.codigo} — saldo {formatarMoeda(d.saldoAtual)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="fornecedorId">Fornecedor</label>
-                  <select id="fornecedorId" value={crud.form.fornecedorId} onChange={(e) => crud.setForm({ ...crud.form, fornecedorId: e.target.value })} required>
-                    <option value="">Selecione…</option>
-                    {fornecedores.map((f) => (
-                      <option key={f.id} value={f.id}>{f.nome}</option>
-                    ))}
-                  </select>
-                </div>
                 <div>
                   <label htmlFor="licitacaoId">Licitação (opcional)</label>
                   <select id="licitacaoId" value={crud.form.licitacaoId} onChange={(e) => crud.setForm({ ...crud.form, licitacaoId: e.target.value })}>
@@ -277,8 +242,45 @@ export default function ContratosPage() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label htmlFor="fornecedorId">Fornecedor *</label>
+                  <select id="fornecedorId" value={crud.form.fornecedorId} onChange={(e) => crud.setForm({ ...crud.form, fornecedorId: e.target.value })} required>
+                    <option value="">Selecione…</option>
+                    {fornecedores.map((f) => (
+                      <option key={f.id} value={f.id}>{f.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="dotacaoId">Dotação orçamentária *</label>
+                  <select id="dotacaoId" value={crud.form.dotacaoId} onChange={(e) => crud.setForm({ ...crud.form, dotacaoId: e.target.value })} required>
+                    <option value="">Selecione…</option>
+                    {dotacoes.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.codigo} — saldo {formatarMoeda(d.saldoAtual)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </>
             )}
+
+            <div className="campo-largo">
+              <label htmlFor="objeto">Objeto *</label>
+              <input id="objeto" value={crud.form.objeto} onChange={(e) => crud.setForm({ ...crud.form, objeto: e.target.value })} required maxLength={300} />
+            </div>
+            <div>
+              <label htmlFor="valorTotal">Valor total (R$) *</label>
+              <input id="valorTotal" inputMode="decimal" placeholder="0,00" value={crud.form.valorTotal} onChange={(e) => crud.setForm({ ...crud.form, valorTotal: mascaraMoeda(e.target.value) })} required disabled={!precisaVinculos} />
+            </div>
+            <div>
+              <label htmlFor="dataInicio">Início *</label>
+              <input id="dataInicio" type="date" value={crud.form.dataInicio} onChange={(e) => crud.setForm({ ...crud.form, dataInicio: e.target.value })} required />
+            </div>
+            <div>
+              <label htmlFor="duracaoMeses">Duração (meses) *</label>
+              <input id="duracaoMeses" type="number" min="1" step="1" value={crud.form.duracaoMeses} onChange={(e) => crud.setForm({ ...crud.form, duracaoMeses: e.target.value })} required disabled={!precisaVinculos} />
+            </div>
 
             <div className="acoes-form">
               <button className="btn primario" type="submit">{crud.editandoId === null ? 'Criar' : 'Salvar'}</button>

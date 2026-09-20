@@ -5,6 +5,7 @@ import type { Coluna } from '../components/TabelaGenerica'
 import ModalConfirmacao from '../components/ModalConfirmacao'
 import { useCrudPage } from '../hooks/useCrudPage'
 import { cnpjValido } from '../utils/validacao'
+import { mascaraCnpj } from '../utils/format'
 import { paramsListagem } from '../utils/listagem'
 
 interface Fornecedor {
@@ -58,7 +59,7 @@ export default function FornecedoresPage() {
     montarCorpo: (form) => {
       const apenasDigitos = form.cnpj.replace(/\D/g, '')
       if (!cnpjValido(form.cnpj)) {
-        throw new Error('CNPJ inválido: informe os 14 dígitos.')
+        throw new Error('CNPJ inválido: verifique os números informados.')
       }
       return {
         nome: form.nome,
@@ -110,12 +111,12 @@ export default function FornecedoresPage() {
           <h3>{crud.editandoId === null ? 'Novo fornecedor' : `Editando fornecedor #${crud.editandoId}`}</h3>
           <form onSubmit={crud.salvar} className="grade-form" noValidate>
             <div>
-              <label htmlFor="nome">Nome / Razão social</label>
+              <label htmlFor="nome">Nome / Razão social *</label>
               <input id="nome" value={crud.form.nome} onChange={(e) => crud.setForm({ ...crud.form, nome: e.target.value })} required maxLength={150} />
             </div>
             <div>
-              <label htmlFor="cnpj">CNPJ</label>
-              <input id="cnpj" value={crud.form.cnpj} onChange={(e) => crud.setForm({ ...crud.form, cnpj: e.target.value })} placeholder="00.000.000/0000-00" required />
+              <label htmlFor="cnpj">CNPJ *</label>
+              <input id="cnpj" inputMode="numeric" maxLength={18} value={crud.form.cnpj} onChange={(e) => crud.setForm({ ...crud.form, cnpj: mascaraCnpj(e.target.value) })} placeholder="00.000.000/0000-00" required />
             </div>
             <div>
               <label htmlFor="email">E-mail</label>
